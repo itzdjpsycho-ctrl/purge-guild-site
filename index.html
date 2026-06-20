@@ -27,6 +27,8 @@
     --gold-bright:   #F0C36B;
     --red:           #B2402F;
     --red-bright:    #D65A45;
+    --green:         #4A9F5D;
+    --green-bright:  #5BC976;
     --bronze:        #8C6A3F;
     --orange:        #E0793C;
 
@@ -298,15 +300,24 @@
     height:4px;
     border-top-left-radius:999px;
     border-top-right-radius:999px;
+    display:none;
   }
-  .tab[data-outcome="victory"]::before{ background:var(--gold); }
-  .tab[data-outcome="defeat"]::before{ background:var(--red); }
+  .tab[data-outcome="victory"]{
+    background:var(--green);
+    border-color:var(--green);
+    color:#fff;
+  }
+  .tab[data-outcome="defeat"]{
+    background:var(--red);
+    border-color:var(--red);
+    color:#fff;
+  }
   .tab[data-outcome="overall"]::before{ background:var(--bronze); }
 
   .tab:hover{ transform:translateY(-2px); }
   .tab.active{ background:var(--panel-raised); color:var(--text); }
-  .tab.active[data-outcome="victory"]{ border-color:var(--gold); }
-  .tab.active[data-outcome="defeat"]{ border-color:var(--red); }
+  .tab.active[data-outcome="victory"]{ background:var(--green); border-color:var(--green); color:#fff; }
+  .tab.active[data-outcome="defeat"]{ background:var(--red); border-color:var(--red); color:#fff; }
   .tab.active[data-outcome="overall"]{ border-color:var(--bronze); }
 
   .tab .b-date{
@@ -317,7 +328,7 @@
   }
   .tab .b-loc{
     font-size:11px;
-    color:var(--text-muted);
+    color:inherit;
   }
   .tab .b-result{
     font-family:var(--font-mono);
@@ -326,8 +337,8 @@
     text-transform:uppercase;
     margin-top:2px;
   }
-  .tab[data-outcome="victory"] .b-result{ color:var(--gold-bright); }
-  .tab[data-outcome="defeat"] .b-result{ color:var(--red-bright); }
+  .tab[data-outcome="victory"] .b-result{ color:#fff; }
+  .tab[data-outcome="defeat"] .b-result{ color:#fff; }
   .tab[data-outcome="overall"] .b-result{ color:var(--bronze); font-weight:600; }
 
   /* ============================================================
@@ -362,6 +373,46 @@
     font-size:12px;
     color:var(--text-muted);
     margin-top:4px;
+  }
+
+  .rozuns-note{
+    padding:16px 28px;
+    background:rgba(75, 159, 93, 0.2);
+    border-bottom:3px solid #5BC976;
+    border-top:3px solid #FF00FF;
+    border-left:3px solid #00FFFF;
+    border-right:3px solid #FFFF00;
+    font-family:var(--font-mono);
+    font-size:22px;
+    color:#5BC976;
+    display:flex;
+    align-items:center;
+    font-weight:700;
+    text-shadow:
+      0 0 10px #5BC976,
+      0 0 20px #FF00FF,
+      0 0 30px #00FFFF,
+      0 0 5px rgba(255, 255, 0, 0.5);
+    background:linear-gradient(135deg, rgba(75, 159, 93, 0.3), rgba(255, 0, 255, 0.1), rgba(0, 255, 255, 0.1));
+  }
+
+  .rozuns-note span{
+    font-weight:700;
+    text-shadow:
+      0 0 10px #5BC976,
+      0 0 20px #FF00FF,
+      0 0 30px #00FFFF,
+      0 0 5px rgba(255, 255, 0, 0.5);
+  }
+
+  .rozuns-highlight{
+    color:#FFFF00;
+    font-weight:900;
+    letter-spacing:0.1em;
+    text-shadow:
+      0 0 15px #FFFF00,
+      0 0 30px #FF00FF,
+      0 0 20px #00FFFF;
   }
 
   .result-pill{
@@ -420,84 +471,135 @@
     margin-top:4px;
   }
 
-  /* Score share pie chart */
+  /* Score share bar chart */
   .score-chart{
     display:grid;
-    grid-template-columns:minmax(220px, 300px) 1fr;
-    gap:24px;
-    align-items:center;
-    padding:24px 28px 12px;
+    grid-template-columns:1fr;
+    gap:12px;
+    align-items:start;
+    padding:14px 16px 10px;
+    border-radius:16px;
+    background:rgba(18,19,21,0.96);
+    border:1px solid rgba(255,255,255,0.08);
+    box-shadow:0 12px 24px rgba(0,0,0,0.16);
+    backdrop-filter:blur(14px);
+    transition:background 0.24s ease, transform 0.24s ease, box-shadow 0.24s ease;
   }
-  .pie-wrap{
+  .chart-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+  }
+  .chart-toggle{
     display:grid;
     place-items:center;
-  }
-  .pie{
-    width:min(100%, 280px);
-    aspect-ratio:1;
-    overflow:visible;
-    filter:drop-shadow(0 18px 24px rgba(0,0,0,0.28));
-  }
-  .pie-bg{
-    fill:var(--panel);
-    stroke:var(--hairline);
-    stroke-width:1;
-  }
-  .pie-hole{
-    fill:var(--panel);
-    stroke:var(--hairline-soft);
-    stroke-width:1;
-  }
-  .pie-total,
-  .pie-active-name,
-  .pie-active-score{
-    font-family:var(--font-mono);
-    text-anchor:middle;
-    pointer-events:none;
-  }
-  .pie-total{
-    fill:var(--text-muted);
-    font-size:4px;
-    letter-spacing:0.04em;
-    text-transform:uppercase;
-  }
-  .pie-active-name{
-    fill:var(--text);
-    font-size:5px;
-    font-weight:700;
-  }
-  .pie-active-score{
-    fill:var(--gold-bright);
-    font-size:4px;
-    font-weight:700;
-  }
-  .pie-slice{
+    width:24px;
+    height:24px;
+    padding:4px;
+    border:none;
+    background:rgba(255,255,255,0.04);
+    border-radius:6px;
+    color:var(--text-muted);
     cursor:pointer;
-    opacity:0.78;
-    stroke:var(--bg);
-    stroke-width:0.55;
-    transition:opacity 0.16s ease, transform 0.16s ease, filter 0.16s ease;
-    transform-box:fill-box;
-    transform-origin:center;
+    transition:background 0.16s ease, color 0.16s ease, transform 0.16s ease;
   }
-  .pie-slice:hover,
-  .pie-slice:focus-visible,
-  .pie-slice.active{
+  .chart-toggle:hover{
+    background:rgba(255,255,255,0.08);
+    color:var(--text);
+  }
+  .chart-toggle:focus-visible{
+    outline:none;
+    background:rgba(255,255,255,0.12);
+    color:var(--text);
+  }
+  .chart-toggle svg{
+    transition:transform 0.24s ease;
+  }
+  .chart-toggle[aria-expanded="false"] svg{
+    transform:rotate(-180deg);
+  }
+  .chart-content{
+    display:grid;
+    gap:8px;
+    max-height:1000px;
+    overflow:hidden;
+    transition:max-height 0.32s ease, opacity 0.32s ease, margin 0.32s ease;
     opacity:1;
-    filter:brightness(1.12);
-    transform:scale(1.025);
   }
-  .pie-slice:focus-visible{
+  .score-chart.chart-collapsed .chart-content{
+    max-height:0;
+    opacity:0;
+    margin:0;
+  }
+  .bar-chart-wrap{
+    display:grid;
+    place-items:center;
+    width:100%;
+    padding:8px 0;
+    border-radius:12px;
+    background:rgba(255,255,255,0.02);
+  }
+  .bar-chart{
+    width:100%;
+    height:auto;
+    overflow:visible;
+    filter:drop-shadow(0 6px 12px rgba(0,0,0,0.12));
+    transition:filter 0.24s ease;
+  }
+  .bar-chart:hover{
+    filter:drop-shadow(0 10px 16px rgba(0,0,0,0.16));
+  }
+  .bar{
+    cursor:pointer;
+    opacity:0.88;
+    stroke:rgba(0,0,0,0.2);
+    stroke-width:0.5;
+    transition:opacity 0.24s ease, transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.24s ease, stroke 0.24s ease, width 0.24s ease, x 0.24s ease;
+    transform-box:fill-box;
+    transform-origin:left center;
+  }
+  .bar:hover,
+  .bar:focus-visible,
+  .bar.active{
+    opacity:1;
+    filter:brightness(1.28) saturate(1.2);
+    stroke:rgba(255,255,255,0.32);
+  }
+  .bar-group:hover .bar-label,
+  .bar-group:hover .bar-value,
+  .bar-group.active .bar-label,
+  .bar-group.active .bar-value{
+    opacity:1;
+  }
+  .bar:focus-visible{
     outline:none;
     stroke:var(--text);
-    stroke-width:1.2;
+    stroke-width:1;
+  }
+  .bar-label{
+    font-family:var(--font-mono);
+    font-size:8px;
+    fill:var(--text);
+    text-anchor:start;
+    pointer-events:none;
+    transition:opacity 0.24s ease;
+  }
+  .bar-value{
+    font-family:var(--font-mono);
+    font-size:7px;
+    font-weight:700;
+    fill:var(--text);
+    text-anchor:end;
+    pointer-events:none;
+    transition:opacity 0.24s ease;
   }
   .chart-detail{
-    margin-top:10px;
-    min-height:18px;
+    margin-top:6px;
+    min-height:14px;
     color:var(--gold-bright);
     font-family:var(--font-mono);
-    font-size:12px;
+    font-size:10px;
     font-weight:600;
   }
   .chart-detail .muted{
@@ -509,36 +611,36 @@
   }
   .chart-title{
     font-family:var(--font-display);
-    font-size:20px;
+    font-size:12px;
     font-weight:620;
   }
   .chart-meta{
-    margin-top:4px;
+    margin-top:2px;
     color:var(--text-muted);
     font-family:var(--font-mono);
-    font-size:12px;
+    font-size:10px;
   }
   .legend{
     display:grid;
     grid-template-columns:repeat(2, minmax(0, 1fr));
-    gap:8px 14px;
-    margin-top:16px;
-    max-height:228px;
+    gap:4px 8px;
+    margin-top:8px;
+    max-height:160px;
     overflow:auto;
     padding-right:4px;
     scrollbar-width:thin;
   }
   .legend-item{
     display:grid;
-    grid-template-columns:12px minmax(0, 1fr) auto;
+    grid-template-columns:8px minmax(0, 1fr) auto;
     align-items:center;
-    gap:8px;
+    gap:6px;
     border:none;
     background:transparent;
-    padding:3px 4px;
-    border-radius:6px;
+    padding:2px 3px;
+    border-radius:4px;
     font-family:var(--font-mono);
-    font-size:12px;
+    font-size:10px;
     color:var(--text-muted);
     min-width:0;
     text-align:left;
@@ -556,9 +658,9 @@
     outline-offset:2px;
   }
   .legend-swatch{
-    width:10px;
-    height:10px;
-    border-radius:2px;
+    width:8px;
+    height:8px;
+    border-radius:1px;
     border:1px solid rgba(255,255,255,0.12);
   }
   .legend-name{
@@ -913,36 +1015,62 @@ function sortRows(rows, key, dir){
   });
 }
 
-const chartColors = [
-  "#D9A441", "#B2402F", "#4D8F7B", "#C9CCD1", "#E0793C", "#6E7FBF",
-  "#8C6A3F", "#7EA35C", "#D65A45", "#8F6FB4", "#F0C36B", "#5093A8",
-  "#A15E52", "#A0A6AD", "#6AA06F", "#B9864B", "#9C6C85", "#728A9B"
+const meanComments = [
+  "what the fuck was that shit?",
+  "absolutely fucking terrible, my god",
+  "that's the worst bullshit I've ever seen",
+  "holy shit, find a different game you absolute clown",
+  "I've seen better play from a braindead potato",
+  "what the actual fuck is wrong with you?",
+  "that performance was an insult to gaming",
+  "seriously, go fuck yourself with this garbage",
+  "I've watched bronze players do better, you're pathetic",
+  "this is the kind of shit that makes me want to quit",
+  "congratulations, you played like a complete dumbass",
+  "that was so fucking bad it's offensive",
+  "you're a walking nightmare on the battlefield",
+  "this is why I have trust issues",
+  "your KD is as low as your IQ apparently"
 ];
 
-function polarPoint(cx, cy, radius, angleDeg){
-  const angle = (angleDeg - 90) * Math.PI / 180;
-  return {
-    x: cx + radius * Math.cos(angle),
-    y: cy + radius * Math.sin(angle)
-  };
+const niceComments = [
+  "Okay fine, you actually crushed it!",
+  "Alright, not gonna lie, that was pretty damn good!",
+  "Fine, FINE, you played well!",
+  "I'll admit it, solid performance!",
+  "Respect, you actually showed up!",
+  "For once you didn't disappoint!",
+  "You actually pulled through!"
+];
+
+function buildRozunsNote(rows){
+  const rozuns = rows.find(r => r.name === "Rozuns");
+  if (!rozuns) return "";
+  
+  const kd = rozuns.kd;
+  const meanComment = meanComments[Math.floor(Math.random() * meanComments.length)];
+  
+  if (kd < 1.0){
+    return `
+      <div class="rozuns-note">
+        <span><strong>Special note for <span class="rozuns-highlight">Rozuns</span>: ${meanComment}</strong></span>
+      </div>
+    `;
+  }
+  
+  const niceComment = niceComments[Math.floor(Math.random() * niceComments.length)];
+  return `
+    <div class="rozuns-note">
+      <span><strong><span class="rozuns-highlight">Rozuns</span>: ${niceComment} But ${meanComment}</strong></span>
+    </div>
+  `;
 }
 
-function pieSlicePath(startAngle, endAngle){
-  const cx = 50, cy = 50, outer = 43, inner = 23;
-  const outerStart = polarPoint(cx, cy, outer, startAngle);
-  const outerEnd = polarPoint(cx, cy, outer, endAngle);
-  const innerStart = polarPoint(cx, cy, inner, startAngle);
-  const innerEnd = polarPoint(cx, cy, inner, endAngle);
-  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
-
-  return [
-    `M ${outerStart.x.toFixed(3)} ${outerStart.y.toFixed(3)}`,
-    `A ${outer} ${outer} 0 ${largeArc} 1 ${outerEnd.x.toFixed(3)} ${outerEnd.y.toFixed(3)}`,
-    `L ${innerEnd.x.toFixed(3)} ${innerEnd.y.toFixed(3)}`,
-    `A ${inner} ${inner} 0 ${largeArc} 0 ${innerStart.x.toFixed(3)} ${innerStart.y.toFixed(3)}`,
-    "Z"
-  ].join(" ");
-}
+const chartColors = [
+  "#E8B857", "#D97E3E", "#B8556E", "#7B5BA8", "#5B7EC3", "#4A9FB8",
+  "#5BC0A8", "#6FBD9C", "#8FD89E", "#B8D886", "#D4C85D", "#E8A648",
+  "#F0956B", "#E57C7D", "#D96B96", "#C376B8", "#8A7FB8", "#6B8EC3"
+];
 
 function compactName(name){
   return name.length > 13 ? `${name.slice(0, 12)}...` : name;
@@ -951,11 +1079,11 @@ function compactName(name){
 function renderScoreChart(rows, showHof){
   const scoreRows = sortRows(rows, "kills", "desc").filter(r=>r.kills > 0);
   const total = scoreRows.reduce((sum,r)=>sum + r.kills, 0);
+  const maxKills = scoreRows[0]?.kills || 0;
 
   if (!total){
     return `
-      <section class="score-chart" aria-label="Score share pie chart">
-        <div class="pie-wrap"><div class="pie" data-total="0 Kills"></div></div>
+      <section class="score-chart" aria-label="Score share bar chart">
         <div class="chart-copy">
           <div class="chart-title">Score Share</div>
           <div class="chart-meta">No kills recorded for this view.</div>
@@ -964,30 +1092,39 @@ function renderScoreChart(rows, showHof){
     `;
   }
 
-  let cursorAngle = 0;
-  const sliceHTML = scoreRows.map((r,i)=>{
-    const pct = (r.kills / total) * 100;
-    const start = cursorAngle;
-    const end = cursorAngle + (pct / 100) * 360;
-    cursorAngle = end;
+  const barHeight = 12;
+  const chartHeight = scoreRows.length * (barHeight + 2) + 12;
+  const barWidth = 140;
+
+  const barsHTML = scoreRows.map((r, i) => {
+    const pct = ((r.kills / total) * 100).toFixed(1);
+    const barLength = (r.kills / maxKills) * barWidth;
     const color = chartColors[i % chartColors.length];
+    const yPos = i * (barHeight + 2) + 6;
     return `
-      <path
-        class="pie-slice"
-        d="${pieSlicePath(start, end)}"
-        fill="${color}"
-        tabindex="0"
-        role="button"
-        data-chart-index="${i}"
-        data-name="${r.name}"
-        data-kills="${r.kills}"
-        data-pct="${pct.toFixed(1)}"
-        aria-label="${r.name}: ${r.kills} kills, ${pct.toFixed(1)} percent of score">
-      </path>
+      <g class="bar-group" data-chart-index="${i}" data-name="${r.name}">
+        <rect
+          class="bar"
+          x="0"
+          y="${yPos}"
+          width="${barLength}"
+          height="${barHeight}"
+          fill="${color}"
+          tabindex="0"
+          role="button"
+          data-chart-index="${i}"
+          data-name="${r.name}"
+          data-kills="${r.kills}"
+          data-pct="${pct}"
+          aria-label="${r.name}: ${r.kills} kills, ${pct}% of score">
+        </rect>
+        <text class="bar-label" x="${barLength + 8}" y="${yPos + barHeight - 4}">${r.name}</text>
+        <text class="bar-value" x="${barLength - 6}" y="${yPos + barHeight - 4}">${r.kills}</text>
+      </g>
     `;
   }).join("");
 
-  const legendHTML = scoreRows.map((r,i)=>{
+  const legendHTML = scoreRows.map((r, i) => {
     const pct = ((r.kills / total) * 100).toFixed(1);
     const color = chartColors[i % chartColors.length];
     return `
@@ -1003,22 +1140,28 @@ function renderScoreChart(rows, showHof){
   const firstPct = ((first.kills / total) * 100).toFixed(1);
 
   return `
-    <section class="score-chart" aria-label="Score share pie chart">
-      <div class="pie-wrap">
-        <svg class="pie" viewBox="0 0 100 100" aria-label="Interactive score share pie chart">
-          <circle class="pie-bg" cx="50" cy="50" r="44"></circle>
-          ${sliceHTML}
-          <circle class="pie-hole" cx="50" cy="50" r="21"></circle>
-          <text class="pie-total" x="50" y="43">${total} KILLS</text>
-          <text class="pie-active-name" x="50" y="51">${compactName(first.name)}</text>
-          <text class="pie-active-score" x="50" y="59">${first.kills} K / ${firstPct}%</text>
-        </svg>
-      </div>
+    <section class="score-chart" aria-label="Score share bar chart">
       <div class="chart-copy">
-        <div class="chart-title">Score Share</div>
+        <div class="chart-header">
+          <div class="chart-title">Score Share</div>
+          <button class="chart-toggle" type="button" aria-label="Toggle chart" aria-expanded="true" title="Toggle chart visibility">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+        </div>
         <div class="chart-meta">${showHof ? "Total kills across all logged wars" : "Kills by family for this war"}</div>
-        <div class="chart-detail" aria-live="polite">${first.name}: ${first.kills} kills <span class="muted">(${firstPct}% of score)</span></div>
-        <div class="legend">${legendHTML}</div>
+        <div class="chart-content">
+          <div class="bar-chart-wrap">
+            <svg class="bar-chart" viewBox="0 0 ${barWidth + 100} ${chartHeight}" aria-label="Interactive score share bar chart">
+              <g class="bars">
+                ${barsHTML}
+              </g>
+            </svg>
+          </div>
+          <div class="chart-detail" aria-live="polite">${first.name}: ${first.kills} kills <span class="muted">(${firstPct}% of score)</span></div>
+          <div class="legend">${legendHTML}</div>
+        </div>
       </div>
     </section>
   `;
@@ -1028,42 +1171,49 @@ function attachScoreChartInteractions(panel){
   const chart = panel.querySelector(".score-chart");
   if (!chart) return;
 
-  const slices = [...chart.querySelectorAll(".pie-slice")];
+  const toggle = chart.querySelector(".chart-toggle");
+  const bars = [...chart.querySelectorAll(".bar")];
+  const barGroups = [...chart.querySelectorAll(".bar-group")];
   const legendItems = [...chart.querySelectorAll(".legend-item")];
-  const activeName = chart.querySelector(".pie-active-name");
-  const activeScore = chart.querySelector(".pie-active-score");
   const detail = chart.querySelector(".chart-detail");
   const tableRows = [...panel.querySelectorAll("tbody tr[data-name]")];
-  const sliceByName = new Map(slices.map(slice=>[slice.dataset.name, slice]));
+  const barByName = new Map(bars.map(b=>[b.dataset.name, b]));
+  const groupByName = new Map(barGroups.map(g=>[g.dataset.name, g]));
+
+  if (toggle){
+    toggle.addEventListener("click", ()=>{
+      const isCollapsed = chart.classList.toggle("chart-collapsed");
+      toggle.setAttribute("aria-expanded", !isCollapsed);
+    });
+  }
 
   function activate(index){
-    const slice = slices[index];
-    if (!slice) return;
+    const bar = bars[index];
+    if (!bar) return;
 
-    slices.forEach(s=>s.classList.toggle("active", s === slice));
+    bars.forEach(b=>b.classList.toggle("active", b === bar));
+    barGroups.forEach(g=>g.classList.toggle("active", g === groupByName.get(bar.dataset.name)));
     legendItems.forEach(item=>item.classList.toggle("active", item.dataset.chartIndex === String(index)));
-    tableRows.forEach(row=>row.classList.toggle("active-chart-row", row.dataset.name === slice.dataset.name));
+    tableRows.forEach(row=>row.classList.toggle("active-chart-row", row.dataset.name === bar.dataset.name));
 
-    const name = slice.dataset.name;
-    const kills = slice.dataset.kills;
-    const pct = slice.dataset.pct;
-    activeName.textContent = compactName(name);
-    activeScore.textContent = `${kills} K / ${pct}%`;
+    const name = bar.dataset.name;
+    const kills = bar.dataset.kills;
+    const pct = bar.dataset.pct;
     detail.innerHTML = `${name}: ${kills} kills <span class="muted">(${pct}% of score)</span>`;
   }
 
   function activateName(name){
-    const slice = sliceByName.get(name);
-    if (!slice) return;
-    activate(Number(slice.dataset.chartIndex));
+    const bar = barByName.get(name);
+    if (!bar) return;
+    activate(Number(bar.dataset.chartIndex));
   }
 
-  slices.forEach(slice=>{
-    const index = Number(slice.dataset.chartIndex);
-    slice.addEventListener("mouseenter", ()=>activate(index));
-    slice.addEventListener("focus", ()=>activate(index));
-    slice.addEventListener("click", ()=>activate(index));
-    slice.addEventListener("keydown", event=>{
+  bars.forEach(bar=>{
+    const index = Number(bar.dataset.chartIndex);
+    bar.addEventListener("mouseenter", ()=>activate(index));
+    bar.addEventListener("focus", ()=>activate(index));
+    bar.addEventListener("click", ()=>activate(index));
+    bar.addEventListener("keydown", event=>{
       if (event.key === "Enter" || event.key === " "){
         event.preventDefault();
         activate(index);
@@ -1176,8 +1326,8 @@ function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof
       </div>
       <div class="result-pill ${resultClass}">${resultLabel}</div>
     </div>
+    ${buildRozunsNote(rows)}
     ${hofHTML}
-    ${renderScoreChart(rows, showHof)}
     <div class="table-scroll">
       <table>
         <thead><tr><th class="rank"></th>${headHTML}</tr></thead>
