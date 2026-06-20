@@ -151,27 +151,47 @@
     color:var(--text-faint);
   }
 
-  .week-header{
-    width:100%;
+  #campaignStrip{
     display:flex;
-    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+
+  .week-group{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    width:auto;
+    min-width:0;
+    position:relative;
+    z-index:1;
+  }
+
+  .week-header{
+    display:inline-flex;
     align-items:center;
-    padding:12px 16px;
-    border:1px solid rgba(255,255,255,0.08);
-    border-radius:28px;
-    background:rgba(21,23,27,0.82);
+    justify-content:center;
+    gap:8px;
+    padding:10px 16px;
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:999px;
+    background:rgba(21,23,27,0.9);
     color:var(--text);
     font-family:var(--font-mono);
     font-size:12px;
+    white-space:nowrap;
     cursor:pointer;
-    transition:background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+    transition:background 0.16s ease, border-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+    width:auto;
+    z-index:2;
   }
 
   .week-header:hover,
   .week-header:focus-visible{
-    background:rgba(255,255,255,0.04);
+    background:rgba(255,255,255,0.06);
     border-color:var(--gold);
     outline:none;
+    transform:translateY(-1px);
   }
 
   .week-header::after{
@@ -187,16 +207,11 @@
     transform:rotate(180deg);
   }
 
-  .week-group{
-    width:100%;
-  }
-
   .week-matches{
     display:flex;
     flex-wrap:wrap;
     gap:10px;
     margin-top:10px;
-    padding-left:14px;
   }
 
   .week-picker{
@@ -232,13 +247,32 @@
   }
 
   .tab-list{
-    display:block;
+    display:flex;
+    flex-wrap:wrap;
     gap:10px;
+    align-items:flex-start;
     padding-bottom:8px;
+  }
+
+  .week-group{
+    position:relative;
+    z-index:1;
+  }
+
+  .week-matches{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:10px;
+    width:100%;
+    z-index:1;
+    position:relative;
+    pointer-events:auto;
   }
 
   .tab{
     position:relative;
+    z-index:1;
     flex:0 0 auto;
     min-width:130px;
     max-width:220px;
@@ -800,6 +834,7 @@ function makeBanner(outcome, dateLabel, locLabel, resultLabel, key){
   b.dataset.outcome = outcome;
   b.dataset.key = key;
   b.setAttribute("aria-pressed","false");
+  b.type = "button";
   b.innerHTML = `
     <div class="b-date">${dateLabel}</div>
     <div class="b-loc">${locLabel}</div>
@@ -821,12 +856,13 @@ function renderTabs(){
     header.className = "week-header";
     header.type = "button";
     header.dataset.week = group.week;
-    header.setAttribute("aria-expanded", expandedWeeks.has(group.week).toString());
+    const expanded = expandedWeeks.has(group.week);
+    header.setAttribute("aria-expanded", expanded.toString());
     header.innerHTML = `<span>${weekLabel(group.week)}</span><span>${group.matches.length} matches</span>`;
     header.addEventListener("click", () => toggleWeek(group.week));
     groupNode.appendChild(header);
 
-    if (expandedWeeks.has(group.week)){
+    if (expanded){
       const matchList = document.createElement("div");
       matchList.className = "week-matches";
       group.matches.forEach(({ match, index })=>{
@@ -1057,8 +1093,10 @@ function selectMatch(key){
   if (key !== "overall"){
     const weekGroup = weekGroups.find(g=> g.matches.some(({ index })=> String(index) === key));
     if (weekGroup){
-      weekSelect.value = weekGroup.week;
-      renderTabs(weekGroup.week);
+      const weekSelect = document.querySelector("#weekSelect");
+      if (weekSelect){
+        weekSelect.value = weekGroup.week;
+      }
     }
   }
 
