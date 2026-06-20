@@ -309,27 +309,74 @@
   .pie{
     width:min(100%, 280px);
     aspect-ratio:1;
-    border-radius:50%;
-    background:var(--hairline);
-    border:1px solid var(--hairline);
-    box-shadow:inset 0 0 0 14px rgba(11,12,14,0.34), 0 18px 36px rgba(0,0,0,0.22);
-    position:relative;
+    overflow:visible;
+    filter:drop-shadow(0 18px 24px rgba(0,0,0,0.28));
   }
-  .pie::after{
-    content:attr(data-total);
-    position:absolute;
-    inset:34%;
-    border-radius:50%;
-    background:var(--panel);
-    border:1px solid var(--hairline-soft);
-    display:grid;
-    place-items:center;
-    color:var(--text);
+  .pie-bg{
+    fill:var(--panel);
+    stroke:var(--hairline);
+    stroke-width:1;
+  }
+  .pie-hole{
+    fill:var(--panel);
+    stroke:var(--hairline-soft);
+    stroke-width:1;
+  }
+  .pie-total,
+  .pie-active-name,
+  .pie-active-score{
     font-family:var(--font-mono);
-    font-size:13px;
+    text-anchor:middle;
+    pointer-events:none;
+  }
+  .pie-total{
+    fill:var(--text-muted);
+    font-size:4px;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+  }
+  .pie-active-name{
+    fill:var(--text);
+    font-size:5px;
+    font-weight:700;
+  }
+  .pie-active-score{
+    fill:var(--gold-bright);
+    font-size:4px;
+    font-weight:700;
+  }
+  .pie-slice{
+    cursor:pointer;
+    opacity:0.78;
+    stroke:var(--bg);
+    stroke-width:0.55;
+    transition:opacity 0.16s ease, transform 0.16s ease, filter 0.16s ease;
+    transform-box:fill-box;
+    transform-origin:center;
+  }
+  .pie-slice:hover,
+  .pie-slice:focus-visible,
+  .pie-slice.active{
+    opacity:1;
+    filter:brightness(1.12);
+    transform:scale(1.025);
+  }
+  .pie-slice:focus-visible{
+    outline:none;
+    stroke:var(--text);
+    stroke-width:1.2;
+  }
+  .chart-detail{
+    margin-top:10px;
+    min-height:18px;
+    color:var(--gold-bright);
+    font-family:var(--font-mono);
+    font-size:12px;
     font-weight:600;
-    text-align:center;
-    white-space:pre-line;
+  }
+  .chart-detail .muted{
+    color:var(--text-muted);
+    font-weight:500;
   }
   .chart-copy{
     min-width:0;
@@ -360,10 +407,27 @@
     grid-template-columns:12px minmax(0, 1fr) auto;
     align-items:center;
     gap:8px;
+    border:none;
+    background:transparent;
+    padding:3px 4px;
+    border-radius:6px;
     font-family:var(--font-mono);
     font-size:12px;
     color:var(--text-muted);
     min-width:0;
+    text-align:left;
+    cursor:pointer;
+    transition:background 0.16s ease, color 0.16s ease;
+  }
+  .legend-item:hover,
+  .legend-item:focus-visible,
+  .legend-item.active{
+    background:rgba(255,255,255,0.05);
+    color:var(--text);
+  }
+  .legend-item:focus-visible{
+    outline:1px solid var(--gold-bright);
+    outline-offset:2px;
   }
   .legend-swatch{
     width:10px;
@@ -648,6 +712,35 @@ const chartColors = [
   "#A15E52", "#A0A6AD", "#6AA06F", "#B9864B", "#9C6C85", "#728A9B"
 ];
 
+function polarPoint(cx, cy, radius, angleDeg){
+  const angle = (angleDeg - 90) * Math.PI / 180;
+  return {
+    x: cx + radius * Math.cos(angle),
+    y: cy + radius * Math.sin(angle)
+  };
+}
+
+function pieSlicePath(startAngle, endAngle){
+  const cx = 50, cy = 50, outer = 43, inner = 23;
+  const outerStart = polarPoint(cx, cy, outer, startAngle);
+  const outerEnd = polarPoint(cx, cy, outer, endAngle);
+  const innerStart = polarPoint(cx, cy, inner, startAngle);
+  const innerEnd = polarPoint(cx, cy, inner, endAngle);
+  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+
+  return [
+    `M ${outerStart.x.toFixed(3)} ${outerStart.y.toFixed(3)}`,
+    `A ${outer} ${outer} 0 ${largeArc} 1 ${outerEnd.x.toFixed(3)} ${outerEnd.y.toFixed(3)}`,
+    `L ${innerEnd.x.toFixed(3)} ${innerEnd.y.toFixed(3)}`,
+    `A ${inner} ${inner} 0 ${largeArc} 0 ${innerStart.x.toFixed(3)} ${innerStart.y.toFixed(3)}`,
+    "Z"
+  ].join(" ");
+}
+
+function compactName(name){
+  return name.length > 13 ? `${name.slice(0, 12)}...` : name;
+}
+
 function renderScoreChart(rows, showHof){
   const scoreRows = sortRows(rows, "kills", "desc").filter(r=>r.kills > 0);
   const total = scoreRows.reduce((sum,r)=>sum + r.kills, 0);
@@ -664,39 +757,112 @@ function renderScoreChart(rows, showHof){
     `;
   }
 
-  let cursor = 0;
-  const slices = scoreRows.map((r,i)=>{
-    const start = cursor;
-    const end = cursor + (r.kills / total) * 100;
-    cursor = end;
+  let cursorAngle = 0;
+  const sliceHTML = scoreRows.map((r,i)=>{
+    const pct = (r.kills / total) * 100;
+    const start = cursorAngle;
+    const end = cursorAngle + (pct / 100) * 360;
+    cursorAngle = end;
     const color = chartColors[i % chartColors.length];
-    return `${color} ${start.toFixed(3)}% ${end.toFixed(3)}%`;
-  }).join(", ");
+    return `
+      <path
+        class="pie-slice"
+        d="${pieSlicePath(start, end)}"
+        fill="${color}"
+        tabindex="0"
+        role="button"
+        data-chart-index="${i}"
+        data-name="${r.name}"
+        data-kills="${r.kills}"
+        data-pct="${pct.toFixed(1)}"
+        aria-label="${r.name}: ${r.kills} kills, ${pct.toFixed(1)} percent of score">
+      </path>
+    `;
+  }).join("");
 
   const legendHTML = scoreRows.map((r,i)=>{
     const pct = ((r.kills / total) * 100).toFixed(1);
     const color = chartColors[i % chartColors.length];
     return `
-      <div class="legend-item" title="${r.name}: ${r.kills} kills, ${pct}%">
+      <button class="legend-item" type="button" data-chart-index="${i}" title="${r.name}: ${r.kills} kills, ${pct}%">
         <span class="legend-swatch" style="background:${color}"></span>
         <span class="legend-name">${r.name}</span>
         <span class="legend-score">${r.kills}</span>
-      </div>
+      </button>
     `;
   }).join("");
+
+  const first = scoreRows[0];
+  const firstPct = ((first.kills / total) * 100).toFixed(1);
 
   return `
     <section class="score-chart" aria-label="Score share pie chart">
       <div class="pie-wrap">
-        <div class="pie" style="background:conic-gradient(${slices})" data-total="${total}&#10;Kills"></div>
+        <svg class="pie" viewBox="0 0 100 100" aria-label="Interactive score share pie chart">
+          <circle class="pie-bg" cx="50" cy="50" r="44"></circle>
+          ${sliceHTML}
+          <circle class="pie-hole" cx="50" cy="50" r="21"></circle>
+          <text class="pie-total" x="50" y="43">${total} KILLS</text>
+          <text class="pie-active-name" x="50" y="51">${compactName(first.name)}</text>
+          <text class="pie-active-score" x="50" y="59">${first.kills} K / ${firstPct}%</text>
+        </svg>
       </div>
       <div class="chart-copy">
         <div class="chart-title">Score Share</div>
         <div class="chart-meta">${showHof ? "Total kills across all logged wars" : "Kills by family for this war"}</div>
+        <div class="chart-detail" aria-live="polite">${first.name}: ${first.kills} kills <span class="muted">(${firstPct}% of score)</span></div>
         <div class="legend">${legendHTML}</div>
       </div>
     </section>
   `;
+}
+
+function attachScoreChartInteractions(panel){
+  const chart = panel.querySelector(".score-chart");
+  if (!chart) return;
+
+  const slices = [...chart.querySelectorAll(".pie-slice")];
+  const legendItems = [...chart.querySelectorAll(".legend-item")];
+  const activeName = chart.querySelector(".pie-active-name");
+  const activeScore = chart.querySelector(".pie-active-score");
+  const detail = chart.querySelector(".chart-detail");
+
+  function activate(index){
+    const slice = slices[index];
+    if (!slice) return;
+
+    slices.forEach(s=>s.classList.toggle("active", s === slice));
+    legendItems.forEach(item=>item.classList.toggle("active", item.dataset.chartIndex === String(index)));
+
+    const name = slice.dataset.name;
+    const kills = slice.dataset.kills;
+    const pct = slice.dataset.pct;
+    activeName.textContent = compactName(name);
+    activeScore.textContent = `${kills} K / ${pct}%`;
+    detail.innerHTML = `${name}: ${kills} kills <span class="muted">(${pct}% of score)</span>`;
+  }
+
+  slices.forEach(slice=>{
+    const index = Number(slice.dataset.chartIndex);
+    slice.addEventListener("mouseenter", ()=>activate(index));
+    slice.addEventListener("focus", ()=>activate(index));
+    slice.addEventListener("click", ()=>activate(index));
+    slice.addEventListener("keydown", event=>{
+      if (event.key === "Enter" || event.key === " "){
+        event.preventDefault();
+        activate(index);
+      }
+    });
+  });
+
+  legendItems.forEach(item=>{
+    const index = Number(item.dataset.chartIndex);
+    item.addEventListener("mouseenter", ()=>activate(index));
+    item.addEventListener("focus", ()=>activate(index));
+    item.addEventListener("click", ()=>activate(index));
+  });
+
+  activate(0);
 }
 
 // ---- Render a match or overall panel ----
@@ -786,6 +952,8 @@ function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof
       </table>
     </div>
   `;
+
+  attachScoreChartInteractions(panel);
 
   panel.querySelectorAll("thead th[data-key]").forEach(th=>{
     th.addEventListener("click", ()=>{
