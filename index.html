@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Node War Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     DESIGN TOKENS
+     ============================================================ */
+  :root{
+    --bg:            #0B0C0E;
+    --bg-grain:      #111317;
+    --panel:         #15171B;
+    --panel-raised:  #1C1F24;
+    --hairline:      #2A2D33;
+    --hairline-soft: #202226;
+
+    --text:          #ECE7DD;
+    --text-muted:    #8A8D93;
+    --text-faint:    #5C5F66;
+
+    --gold:          #D9A441;
+    --gold-bright:   #F0C36B;
+    --red:           #B2402F;
+    --red-bright:    #D65A45;
+    --bronze:        #8C6A3F;
+    --orange:        #E0793C;
+
+    --font-display:  'Fraunces', serif;
+    --font-mono:     'IBM Plex Mono', monospace;
+    --font-ui:       'Inter', sans-serif;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+
+  html{ scroll-behavior:smooth; }
+
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-ui);
+    min-height:100vh;
+    position:relative;
+    overflow-x:hidden;
+  }
+
+  /* faint atmospheric texture, no image assets needed */
+  body::before{
+    content:"";
+    position:fixed;
+    inset:0;
+    pointer-events:none;
+    z-index:0;
+    background:
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px),
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(217,164,65,0.06), transparent 60%);
+  }
+
+  main, header, footer{ position:relative; z-index:1; }
+
+  /* ============================================================
+     HEADER
+     ============================================================ */
+  header{
+    padding:56px 24px 32px;
+    text-align:center;
+    border-bottom:1px solid var(--hairline-soft);
+  }
+
+  .eyebrow{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.28em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    margin-bottom:14px;
+  }
+
+  h1{
+    font-family:var(--font-display);
+    font-optical-sizing:auto;
+    font-weight:680;
+    font-size:clamp(34px, 6vw, 58px);
+    letter-spacing:-0.01em;
+    color:var(--text);
+  }
+
+  h1 span{
+    color:var(--gold);
+    font-style:italic;
+    font-weight:480;
+  }
+
+  .subtitle{
+    font-size:14px;
+    color:var(--text-muted);
+    margin-top:10px;
+    font-weight:400;
+  }
+
+  .record-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    margin-top:22px;
+    padding:8px 18px;
+    border:1px solid var(--hairline);
+    border-radius:999px;
+    font-family:var(--font-mono);
+    font-size:13px;
+    background:var(--panel);
+  }
+  .record-badge b.win{ color:var(--gold-bright); }
+  .record-badge b.loss{ color:var(--red-bright); }
+  .record-badge .div{ color:var(--text-faint); }
+
+  /* ============================================================
+     CAMPAIGN STRIP — signature element
+     a row of war banners, color = outcome, order = chronology
+     ============================================================ */
+  .campaign-wrap{
+    max-width:980px;
+    margin:0 auto;
+    padding:40px 24px 8px;
+  }
+
+  .campaign-label{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.2em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    margin-bottom:18px;
+  }
+
+  .campaign-strip{
+    display:flex;
+    gap:14px;
+    overflow-x:auto;
+    padding:6px 6px 18px;
+    scrollbar-width:thin;
+  }
+
+  .banner{
+    flex:0 0 auto;
+    width:128px;
+    height:100px;
+    position:relative;
+    background:var(--panel);
+    border:1px solid var(--hairline);
+    border-top:none;
+    clip-path:polygon(0% 0%, 100% 0%, 100% 68%, 50% 100%, 0% 68%);
+    cursor:pointer;
+    font-family:var(--font-ui);
+    color:var(--text-muted);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-start;
+    padding-top:14px;
+    gap:4px;
+    transition:transform 0.18s ease, background 0.18s ease;
+  }
+  .banner::before{
+    content:"";
+    position:absolute;
+    top:0; left:0; right:0;
+    height:4px;
+  }
+  .banner[data-outcome="victory"]::before{ background:var(--gold); }
+  .banner[data-outcome="defeat"]::before{ background:var(--red); }
+  .banner[data-outcome="overall"]::before{ background:var(--bronze); }
+
+  .banner:hover{ transform:translateY(-4px); }
+  .banner.active{ background:var(--panel-raised); }
+  .banner.active[data-outcome="victory"]{ box-shadow:0 0 0 1px var(--gold); }
+  .banner.active[data-outcome="defeat"]{ box-shadow:0 0 0 1px var(--red); }
+  .banner.active[data-outcome="overall"]{ box-shadow:0 0 0 1px var(--bronze); }
+
+  .banner .b-date{
+    font-family:var(--font-mono);
+    font-size:13px;
+    font-weight:600;
+    color:var(--text);
+  }
+  .banner .b-loc{
+    font-size:11px;
+    color:var(--text-muted);
+  }
+  .banner .b-result{
+    font-family:var(--font-mono);
+    font-size:10px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    margin-top:2px;
+  }
+  .banner[data-outcome="victory"] .b-result{ color:var(--gold-bright); }
+  .banner[data-outcome="defeat"] .b-result{ color:var(--red-bright); }
+  .banner[data-outcome="overall"] .b-result{ color:var(--bronze); font-weight:600; }
+
+  .banner:focus-visible{ outline:2px solid var(--gold-bright); outline-offset:3px; }
+
+  /* ============================================================
+     MATCH PANEL
+     ============================================================ */
+  main{ max-width:980px; margin:0 auto; padding:8px 24px 80px; }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--hairline);
+    border-radius:10px;
+    overflow:hidden;
+  }
+
+  .panel-header{
+    padding:26px 28px 22px;
+    border-bottom:1px solid var(--hairline-soft);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:16px;
+  }
+
+  .panel-title{
+    font-family:var(--font-display);
+    font-size:24px;
+    font-weight:620;
+  }
+  .panel-meta{
+    font-family:var(--font-mono);
+    font-size:12px;
+    color:var(--text-muted);
+    margin-top:4px;
+  }
+
+  .result-pill{
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    padding:7px 16px;
+    border-radius:999px;
+    font-weight:600;
+  }
+  .result-pill.victory{ background:rgba(217,164,65,0.14); color:var(--gold-bright); border:1px solid rgba(217,164,65,0.35); }
+  .result-pill.defeat{ background:rgba(178,64,47,0.14); color:var(--red-bright); border:1px solid rgba(178,64,47,0.35); }
+  .result-pill.overall{ background:rgba(140,106,63,0.16); color:#C7A876; border:1px solid rgba(140,106,63,0.4); }
+
+  /* Hall of Fame — only shown on Overall */
+  .hof{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:14px;
+    padding:24px 28px 4px;
+  }
+  .hof-card{
+    background:var(--panel-raised);
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    padding:18px 16px;
+    position:relative;
+  }
+  .hof-rank{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.1em;
+    color:var(--text-faint);
+  }
+  .hof-card[data-rank="1"] .hof-rank{ color:var(--gold-bright); }
+  .hof-card[data-rank="2"] .hof-rank{ color:#C9CCD1; }
+  .hof-card[data-rank="3"] .hof-rank{ color:var(--bronze); }
+  .hof-name{
+    font-family:var(--font-display);
+    font-size:19px;
+    font-weight:600;
+    margin-top:6px;
+  }
+  .hof-kd{
+    font-family:var(--font-mono);
+    font-size:26px;
+    font-weight:600;
+    margin-top:8px;
+    color:var(--text);
+  }
+  .hof-sub{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-muted);
+    margin-top:4px;
+  }
+
+  /* Score share pie chart */
+  .score-chart{
+    display:grid;
+    grid-template-columns:minmax(220px, 300px) 1fr;
+    gap:24px;
+    align-items:center;
+    padding:24px 28px 12px;
+  }
+  .pie-wrap{
+    display:grid;
+    place-items:center;
+  }
+  .pie{
+    width:min(100%, 280px);
+    aspect-ratio:1;
+    border-radius:50%;
+    background:var(--hairline);
+    border:1px solid var(--hairline);
+    box-shadow:inset 0 0 0 14px rgba(11,12,14,0.34), 0 18px 36px rgba(0,0,0,0.22);
+    position:relative;
+  }
+  .pie::after{
+    content:attr(data-total);
+    position:absolute;
+    inset:34%;
+    border-radius:50%;
+    background:var(--panel);
+    border:1px solid var(--hairline-soft);
+    display:grid;
+    place-items:center;
+    color:var(--text);
+    font-family:var(--font-mono);
+    font-size:13px;
+    font-weight:600;
+    text-align:center;
+    white-space:pre-line;
+  }
+  .chart-copy{
+    min-width:0;
+  }
+  .chart-title{
+    font-family:var(--font-display);
+    font-size:20px;
+    font-weight:620;
+  }
+  .chart-meta{
+    margin-top:4px;
+    color:var(--text-muted);
+    font-family:var(--font-mono);
+    font-size:12px;
+  }
+  .legend{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:8px 14px;
+    margin-top:16px;
+    max-height:228px;
+    overflow:auto;
+    padding-right:4px;
+    scrollbar-width:thin;
+  }
+  .legend-item{
+    display:grid;
+    grid-template-columns:12px minmax(0, 1fr) auto;
+    align-items:center;
+    gap:8px;
+    font-family:var(--font-mono);
+    font-size:12px;
+    color:var(--text-muted);
+    min-width:0;
+  }
+  .legend-swatch{
+    width:10px;
+    height:10px;
+    border-radius:2px;
+    border:1px solid rgba(255,255,255,0.12);
+  }
+  .legend-name{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .legend-score{
+    color:var(--text);
+    font-weight:600;
+  }
+
+  /* Table */
+  .table-scroll{ overflow-x:auto; padding:8px 28px 28px; }
+  table{ width:100%; border-collapse:collapse; min-width:480px; }
+
+  thead th{
+    text-align:left;
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    font-weight:500;
+    padding:10px 12px;
+    border-bottom:1px solid var(--hairline);
+    cursor:pointer;
+    user-select:none;
+    white-space:nowrap;
+  }
+  thead th:hover{ color:var(--text-muted); }
+  thead th.sorted{ color:var(--gold-bright); }
+  thead th .arrow{ display:inline-block; margin-left:4px; opacity:0.7; font-size:9px; }
+
+  thead th:first-child, tbody td:first-child{ padding-left:14px; }
+
+  tbody td{
+    padding:11px 12px;
+    border-bottom:1px solid var(--hairline-soft);
+    font-size:14px;
+  }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover td{ background:rgba(255,255,255,0.02); }
+
+  td.num, th.num{ font-family:var(--font-mono); }
+  td.rank{ font-family:var(--font-mono); color:var(--text-faint); width:28px; }
+  tr[data-rank="1"] td.rank{ color:var(--gold-bright); }
+  tr[data-rank="2"] td.rank{ color:#C9CCD1; }
+  tr[data-rank="3"] td.rank{ color:var(--bronze); }
+
+  td.kd{ font-family:var(--font-mono); font-weight:600; color:var(--gold-bright); }
+  td.played{ color:var(--text-muted); font-family:var(--font-mono); }
+
+  /* ============================================================
+     FOOTER
+     ============================================================ */
+  footer{
+    text-align:center;
+    padding:36px 24px 56px;
+    font-size:12px;
+    color:var(--text-faint);
+    font-family:var(--font-mono);
+  }
+
+  /* ============================================================
+     RESPONSIVE
+     ============================================================ */
+  @media (max-width:640px){
+    .hof{ grid-template-columns:1fr; }
+    .score-chart{ grid-template-columns:1fr; padding:22px 18px 10px; }
+    .pie{ width:min(100%, 240px); }
+    .legend{ grid-template-columns:1fr; max-height:260px; }
+    .panel-header{ flex-direction:column; align-items:flex-start; }
+
+    table, thead, tbody, th, td, tr{ display:block; }
+    table{ min-width:0; width:100%; }
+    thead{ display:none; }
+    tbody tr{
+      border:1px solid var(--hairline-soft);
+      border-radius:8px;
+      margin-bottom:10px;
+      padding:10px 14px;
+    }
+    tbody td{
+      border-bottom:none;
+      display:flex;
+      justify-content:space-between;
+      padding:6px 0;
+      font-size:13px;
+    }
+    tbody td::before{
+      content:attr(data-label);
+      font-family:var(--font-mono);
+      font-size:10px;
+      letter-spacing:0.06em;
+      text-transform:uppercase;
+      color:var(--text-faint);
+    }
+    td.rank{ display:none; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition:none !important; scroll-behavior:auto !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Node War Record</div>
+  <h1>War <span>Log</span></h1>
+  <div class="subtitle">Family-by-family kill / death record, war by war</div>
+  <div class="record-badge" id="recordBadge"></div>
+</header>
+
+<div class="campaign-wrap">
+  <div class="campaign-label">Campaign — select a war</div>
+  <div class="campaign-strip" id="campaignStrip"></div>
+</div>
+
+<main>
+  <div class="panel" id="matchPanel"></div>
+</main>
+
+<footer>
+  Built for hosting — edit the MATCHES array in this file to add new wars.
+</footer>
+
+<script>
+/* ================================================================
+   MATCH DATA
+   ----------------------------------------------------------------
+   To add a new war: copy a block below, set date/day/location/
+   result ("Victory" or "Defeat"), and list each player as
+   [name, kills, deaths]. The Overall tab recalculates itself —
+   nothing else needs to change.
+   ================================================================ */
+
+const GUILD_NAME = "Node War Log"; // shown in the page title only
+
+const MATCHES = [
+  {
+    date: "2026-06-15", day: "Monday", location: "Calpheon", result: "Victory",
+    players: [
+      ["StraightEdge",48,15],["Vem",46,26],["Yulie",44,27],["Aodhan",31,12],
+      ["Ghond",30,25],["BrotherMango",29,32],["Dreamxx",29,27],["Alancar",28,23],
+      ["KillShotz",26,26],["NightBringers",26,31],["HaterApproved",25,23],["Yannik",24,16],
+      ["Kraiok",23,37],["Mcy",17,18],["Serade",15,26],["Onimichi",12,25],
+      ["Valth",12,31],["HiiroNoAme",10,39],["LulzCaptain",9,17],["Rozuns",4,19],
+      ["HeRoisMx",1,0],["XastusMK",1,38],["EXTRA_LARGE",0,1],["SirHeathen",0,2],
+    ]
+  },
+  {
+    date: "2026-06-16", day: "Tuesday", location: "Serendia", result: "Victory",
+    players: [
+      ["BrotherMango",38,16],["KillShotz",32,16],["Aodhan",31,13],["Rozuns",30,17],
+      ["EXTRA_LARGE",28,22],["HaterApproved",27,14],["Alancar",27,16],["Kraiok",17,17],
+      ["Beastylirious",16,19],["StaticHurtYou",15,24],["Mcy",13,10],["LulzCaptain",6,9],
+      ["XastusMK",4,25],["TheWretched",4,10],["Onimichi",3,13],["HeRoisMx",3,0],
+      ["SirHeathen",2,0],
+    ]
+  },
+  {
+    date: "2026-06-17", day: "Wednesday", location: "Calpheon", result: "Defeat",
+    players: [
+      ["HaterApproved",29,19],["LulzCaptain",28,18],["Aodhan",28,11],["Zebraghost",23,16],
+      ["Menteeing",21,13],["EXTRA_LARGE",20,20],["BrotherMango",17,21],["Beastylirious",17,13],
+      ["Dreamxx",13,16],["Serade",11,19],["KillShotz",11,19],["Kraiok",8,21],
+      ["Rostalina",7,16],["HiiroNoAme",7,27],["Onimichi",4,17],["Mcy",4,13],
+      ["Rozuns",2,9],["XastusMK",1,22],["HeRoisMx",0,0],["SirHeathen",0,0],
+    ]
+  },
+  {
+    date: "2026-06-18", day: "Thursday", location: "Ulukita", result: "Defeat",
+    players: [
+      ["KillShotz",65,17],["EXTRA_LARGE",64,27],["HaterApproved",59,29],["BrotherMango",58,24],
+      ["Milkdudh",52,26],["Alancar",51,17],["Aodhan",43,20],["Mcy",40,21],
+      ["Menteeing",35,28],["Zebraghost",35,33],["Ghond",31,28],["Dreamxx",26,32],
+      ["ScummySteve",22,28],["SirHeathen",13,7],["HeRoisMx",7,1],["Lulupeach",6,17],
+      ["Rozuns",6,12],
+    ]
+  },
+  {
+    date: "2026-06-19", day: "Friday", location: "Ulukita", result: "Defeat",
+    players: [
+      ["Popspolar",30,14],["Milkdudh",25,14],["Aodhan",24,10],["Dreamxx",18,21],
+      ["HaterApproved",17,17],["BrotherMango",17,16],["KillShotz",16,18],["Beastylirious",15,21],
+      ["Rostalina",15,19],["Alancar",15,17],["ScummySteve",13,9],["Valth",12,17],
+      ["Mcy",10,15],["Kraiok",10,19],["LulzCaptain",9,18],["TheWretched",9,21],
+      ["Serade",7,17],["HeRoisMx",7,3],["Rozuns",6,14],["Succs",6,17],
+      ["Cohrence",5,17],["Lulupeach",4,11],["SirHeathen",3,13],["XastusMK",2,21],
+    ]
+  },
+];
+
+/* ================================================================
+   LOGIC — no edits needed below this line
+   ================================================================ */
+
+document.title = GUILD_NAME;
+
+function kd(kills, deaths){
+  if (kills === 0 && deaths === 0) return null;
+  return deaths === 0 ? kills : kills / deaths;
+}
+function fmtKD(v){ return v === null ? "—" : v.toFixed(2); }
+
+function dayShort(dateStr){
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-US", { day:"numeric", month:"short" });
+}
+
+// Build Overall dataset by reducing across all matches
+function buildOverall(){
+  const totals = {};
+  MATCHES.forEach(m=>{
+    m.players.forEach(([name,k,d])=>{
+      if(!totals[name]) totals[name] = {name, kills:0, deaths:0, played:0};
+      totals[name].kills += k;
+      totals[name].deaths += d;
+      totals[name].played += 1;
+    });
+  });
+  return Object.values(totals);
+}
+
+const wins = MATCHES.filter(m=>m.result==="Victory").length;
+const losses = MATCHES.filter(m=>m.result==="Defeat").length;
+document.getElementById("recordBadge").innerHTML =
+  `<b class="win">${wins}W</b><span class="div">/</span><b class="loss">${losses}L</b><span class="div">·</span>${MATCHES.length} wars logged`;
+
+// ---- Campaign strip ----
+const strip = document.getElementById("campaignStrip");
+
+function makeBanner(outcome, dateLabel, locLabel, resultLabel, key){
+  const b = document.createElement("button");
+  b.className = "banner";
+  b.dataset.outcome = outcome;
+  b.dataset.key = key;
+  b.setAttribute("aria-pressed","false");
+  b.innerHTML = `
+    <div class="b-date">${dateLabel}</div>
+    <div class="b-loc">${locLabel}</div>
+    <div class="b-result">${resultLabel}</div>
+  `;
+  b.addEventListener("click", ()=>selectMatch(key));
+  return b;
+}
+
+strip.appendChild(makeBanner("overall","ALL","Record","Overall","overall"));
+MATCHES.forEach((m,i)=>{
+  strip.appendChild(makeBanner(
+    m.result === "Victory" ? "victory" : "defeat",
+    dayShort(m.date), m.location,
+    m.result === "Victory" ? "Win" : "Loss",
+    String(i)
+  ));
+});
+
+// ---- Sorting state ----
+let sortState = { key:"kd", dir:"desc" };
+
+function sortRows(rows, key, dir){
+  const mult = dir === "asc" ? 1 : -1;
+  return [...rows].sort((a,b)=>{
+    let av = a[key], bv = b[key];
+    if (av === null) av = -Infinity;
+    if (bv === null) bv = -Infinity;
+    if (typeof av === "string") return av.localeCompare(bv) * mult;
+    return (av - bv) * mult;
+  });
+}
+
+const chartColors = [
+  "#D9A441", "#B2402F", "#4D8F7B", "#C9CCD1", "#E0793C", "#6E7FBF",
+  "#8C6A3F", "#7EA35C", "#D65A45", "#8F6FB4", "#F0C36B", "#5093A8",
+  "#A15E52", "#A0A6AD", "#6AA06F", "#B9864B", "#9C6C85", "#728A9B"
+];
+
+function renderScoreChart(rows, showHof){
+  const scoreRows = sortRows(rows, "kills", "desc").filter(r=>r.kills > 0);
+  const total = scoreRows.reduce((sum,r)=>sum + r.kills, 0);
+
+  if (!total){
+    return `
+      <section class="score-chart" aria-label="Score share pie chart">
+        <div class="pie-wrap"><div class="pie" data-total="0 Kills"></div></div>
+        <div class="chart-copy">
+          <div class="chart-title">Score Share</div>
+          <div class="chart-meta">No kills recorded for this view.</div>
+        </div>
+      </section>
+    `;
+  }
+
+  let cursor = 0;
+  const slices = scoreRows.map((r,i)=>{
+    const start = cursor;
+    const end = cursor + (r.kills / total) * 100;
+    cursor = end;
+    const color = chartColors[i % chartColors.length];
+    return `${color} ${start.toFixed(3)}% ${end.toFixed(3)}%`;
+  }).join(", ");
+
+  const legendHTML = scoreRows.map((r,i)=>{
+    const pct = ((r.kills / total) * 100).toFixed(1);
+    const color = chartColors[i % chartColors.length];
+    return `
+      <div class="legend-item" title="${r.name}: ${r.kills} kills, ${pct}%">
+        <span class="legend-swatch" style="background:${color}"></span>
+        <span class="legend-name">${r.name}</span>
+        <span class="legend-score">${r.kills}</span>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <section class="score-chart" aria-label="Score share pie chart">
+      <div class="pie-wrap">
+        <div class="pie" style="background:conic-gradient(${slices})" data-total="${total}&#10;Kills"></div>
+      </div>
+      <div class="chart-copy">
+        <div class="chart-title">Score Share</div>
+        <div class="chart-meta">${showHof ? "Total kills across all logged wars" : "Kills by family for this war"}</div>
+        <div class="legend">${legendHTML}</div>
+      </div>
+    </section>
+  `;
+}
+
+// ---- Render a match or overall panel ----
+function selectMatch(key){
+  document.querySelectorAll(".banner").forEach(b=>{
+    const active = b.dataset.key === key;
+    b.classList.toggle("active", active);
+    b.setAttribute("aria-pressed", active ? "true":"false");
+  });
+
+  const panel = document.getElementById("matchPanel");
+  let rows, title, meta, resultClass, resultLabel, showHof = false;
+
+  if (key === "overall"){
+    rows = buildOverall().map(r=>({...r, kd: kd(r.kills, r.deaths)}));
+    title = "Overall Record";
+    meta = `${MATCHES.length} wars · ${rows.length} families`;
+    resultClass = "overall"; resultLabel = "All Wars";
+    showHof = true;
+  } else {
+    const m = MATCHES[Number(key)];
+    rows = m.players.map(([name,k,d])=>({name, kills:k, deaths:d, kd: kd(k,d)}));
+    const dt = new Date(m.date + "T00:00:00");
+    title = dt.toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+    meta = `${m.location} · Node War`;
+    resultClass = m.result === "Victory" ? "victory":"defeat";
+    resultLabel = m.result === "Victory" ? "Occupation Success" : "Occupation Failed";
+  }
+
+  sortState = { key:"kd", dir:"desc" };
+  renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof);
+}
+
+function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof){
+  const sorted = sortRows(rows, sortState.key, sortState.dir);
+
+  let hofHTML = "";
+  if (showHof){
+    const top3 = sortRows(rows, "kd", "desc").slice(0,3);
+    hofHTML = `<div class="hof">` + top3.map((r,i)=>`
+      <div class="hof-card" data-rank="${i+1}">
+        <div class="hof-rank">RANK ${i+1}</div>
+        <div class="hof-name">${r.name}</div>
+        <div class="hof-kd">${fmtKD(r.kd)}</div>
+        <div class="hof-sub">${r.kills}K / ${r.deaths}D · ${r.played} wars</div>
+      </div>
+    `).join("") + `</div>`;
+  }
+
+  const cols = showHof
+    ? [["name","Family"],["kills","Kills"],["deaths","Deaths"],["kd","K/D"],["played","Wars"]]
+    : [["name","Family"],["kills","Kills"],["deaths","Deaths"],["kd","K/D"]];
+
+  const headHTML = cols.map(([key,label])=>{
+    const isSorted = sortState.key === key;
+    const arrow = isSorted ? (sortState.dir === "asc" ? "▲" : "▼") : "";
+    const cls = key === "name" ? "" : "num";
+    return `<th class="${cls} ${isSorted?'sorted':''}" data-key="${key}">${label}<span class="arrow">${arrow}</span></th>`;
+  }).join("");
+
+  const bodyHTML = sorted.map((r,i)=>{
+    const cells = [
+      `<td class="rank">${i+1}</td>`,
+      `<td data-label="Family">${r.name}</td>`,
+      `<td class="num" data-label="Kills">${r.kills}</td>`,
+      `<td class="num" data-label="Deaths">${r.deaths}</td>`,
+      `<td class="num kd" data-label="K/D">${fmtKD(r.kd)}</td>`,
+    ];
+    if (showHof) cells.push(`<td class="num played" data-label="Wars">${r.played}</td>`);
+    return `<tr data-rank="${i+1}">${cells.join("")}</tr>`;
+  }).join("");
+
+  panel.innerHTML = `
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">${title}</div>
+        <div class="panel-meta">${meta}</div>
+      </div>
+      <div class="result-pill ${resultClass}">${resultLabel}</div>
+    </div>
+    ${hofHTML}
+    ${renderScoreChart(rows, showHof)}
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th class="rank"></th>${headHTML}</tr></thead>
+        <tbody>${bodyHTML}</tbody>
+      </table>
+    </div>
+  `;
+
+  panel.querySelectorAll("thead th[data-key]").forEach(th=>{
+    th.addEventListener("click", ()=>{
+      const key = th.dataset.key;
+      if (sortState.key === key){
+        sortState.dir = sortState.dir === "asc" ? "desc" : "asc";
+      } else {
+        sortState = { key, dir: key === "name" ? "asc" : "desc" };
+      }
+      renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof);
+    });
+  });
+}
+
+// Initial view
+selectMatch("overall");
+</script>
+
+</body>
+</html>
