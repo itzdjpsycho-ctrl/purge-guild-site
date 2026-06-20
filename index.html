@@ -66,25 +66,31 @@
      HEADER
      ============================================================ */
   header{
-    padding:56px 24px 32px;
+    max-width:880px;
+    margin:0 auto 24px;
+    padding:22px 20px 18px;
     text-align:center;
-    border-bottom:1px solid var(--hairline-soft);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:36px;
+    background:rgba(11,12,14,0.78);
+    backdrop-filter:blur(16px);
+    box-shadow:0 28px 72px rgba(0,0,0,0.28);
   }
 
   .eyebrow{
     font-family:var(--font-mono);
-    font-size:11px;
+    font-size:10px;
     letter-spacing:0.28em;
     text-transform:uppercase;
     color:var(--text-faint);
-    margin-bottom:14px;
+    margin-bottom:10px;
   }
 
   h1{
     font-family:var(--font-display);
     font-optical-sizing:auto;
     font-weight:680;
-    font-size:clamp(34px, 6vw, 58px);
+    font-size:clamp(28px, 5vw, 42px);
     letter-spacing:-0.01em;
     color:var(--text);
   }
@@ -106,13 +112,13 @@
     display:inline-flex;
     align-items:center;
     gap:10px;
-    margin-top:22px;
-    padding:8px 18px;
-    border:1px solid var(--hairline);
+    margin-top:16px;
+    padding:8px 16px;
+    border:1px solid rgba(255,255,255,0.08);
     border-radius:999px;
     font-family:var(--font-mono);
-    font-size:13px;
-    background:var(--panel);
+    font-size:12px;
+    background:rgba(21,23,27,0.95);
   }
   .record-badge b.win{ color:var(--gold-bright); }
   .record-badge b.loss{ color:var(--red-bright); }
@@ -122,10 +128,19 @@
      CAMPAIGN STRIP — signature element
      a row of war banners, color = outcome, order = chronology
      ============================================================ */
-  .campaign-wrap{
+  .tab-folder{
     max-width:980px;
     margin:0 auto;
-    padding:40px 24px 8px;
+    padding:30px 24px 10px;
+  }
+
+  .tab-toolbar{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
+    margin-bottom:10px;
   }
 
   .campaign-label{
@@ -134,75 +149,152 @@
     letter-spacing:0.2em;
     text-transform:uppercase;
     color:var(--text-faint);
-    margin-bottom:18px;
   }
 
-  .campaign-strip{
+  .week-header{
+    width:100%;
     display:flex;
-    gap:14px;
-    overflow-x:auto;
-    padding:6px 6px 18px;
-    scrollbar-width:thin;
+    justify-content:space-between;
+    align-items:center;
+    padding:12px 16px;
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:28px;
+    background:rgba(21,23,27,0.82);
+    color:var(--text);
+    font-family:var(--font-mono);
+    font-size:12px;
+    cursor:pointer;
+    transition:background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
   }
 
-  .banner{
-    flex:0 0 auto;
-    width:128px;
-    height:100px;
-    position:relative;
-    background:var(--panel);
+  .week-header:hover,
+  .week-header:focus-visible{
+    background:rgba(255,255,255,0.04);
+    border-color:var(--gold);
+    outline:none;
+  }
+
+  .week-header::after{
+    content:"▼";
+    display:inline-block;
+    transform:rotate(0deg);
+    transition:transform 0.18s ease;
+    font-size:10px;
+    color:var(--text-muted);
+  }
+
+  .week-header[aria-expanded="true"]::after{
+    transform:rotate(180deg);
+  }
+
+  .week-group{
+    width:100%;
+  }
+
+  .week-matches{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:10px;
+    padding-left:14px;
+  }
+
+  .week-picker{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+
+  .week-picker-label{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.2em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+  }
+
+  select#weekSelect{
+    min-width:180px;
+    border-radius:999px;
     border:1px solid var(--hairline);
-    border-top:none;
-    clip-path:polygon(0% 0%, 100% 0%, 100% 68%, 50% 100%, 0% 68%);
+    background:var(--panel);
+    color:var(--text);
+    padding:10px 14px;
+    font-family:var(--font-mono);
+    font-size:13px;
     cursor:pointer;
-    font-family:var(--font-ui);
+    appearance:none;
+  }
+
+  select#weekSelect:focus{
+    outline:none;
+    box-shadow:0 0 0 2px rgba(217,164,65,0.16);
+  }
+
+  .tab-list{
+    display:block;
+    gap:10px;
+    padding-bottom:8px;
+  }
+
+  .tab{
+    position:relative;
+    flex:0 0 auto;
+    min-width:130px;
+    max-width:220px;
+    background:var(--panel);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:999px;
+    cursor:pointer;
+    font-family:var(--font-mono);
     color:var(--text-muted);
     display:flex;
     flex-direction:column;
     align-items:center;
-    justify-content:flex-start;
-    padding-top:14px;
+    justify-content:center;
+    padding:16px 20px;
     gap:4px;
-    transition:transform 0.18s ease, background 0.18s ease;
+    transition:transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+    white-space:nowrap;
   }
-  .banner::before{
+  .tab::before{
     content:"";
     position:absolute;
     top:0; left:0; right:0;
     height:4px;
+    border-top-left-radius:999px;
+    border-top-right-radius:999px;
   }
-  .banner[data-outcome="victory"]::before{ background:var(--gold); }
-  .banner[data-outcome="defeat"]::before{ background:var(--red); }
-  .banner[data-outcome="overall"]::before{ background:var(--bronze); }
+  .tab[data-outcome="victory"]::before{ background:var(--gold); }
+  .tab[data-outcome="defeat"]::before{ background:var(--red); }
+  .tab[data-outcome="overall"]::before{ background:var(--bronze); }
 
-  .banner:hover{ transform:translateY(-4px); }
-  .banner.active{ background:var(--panel-raised); }
-  .banner.active[data-outcome="victory"]{ box-shadow:0 0 0 1px var(--gold); }
-  .banner.active[data-outcome="defeat"]{ box-shadow:0 0 0 1px var(--red); }
-  .banner.active[data-outcome="overall"]{ box-shadow:0 0 0 1px var(--bronze); }
+  .tab:hover{ transform:translateY(-2px); }
+  .tab.active{ background:var(--panel-raised); color:var(--text); }
+  .tab.active[data-outcome="victory"]{ border-color:var(--gold); }
+  .tab.active[data-outcome="defeat"]{ border-color:var(--red); }
+  .tab.active[data-outcome="overall"]{ border-color:var(--bronze); }
 
-  .banner .b-date{
+  .tab .b-date{
     font-family:var(--font-mono);
     font-size:13px;
     font-weight:600;
-    color:var(--text);
+    color:inherit;
   }
-  .banner .b-loc{
+  .tab .b-loc{
     font-size:11px;
     color:var(--text-muted);
   }
-  .banner .b-result{
+  .tab .b-result{
     font-family:var(--font-mono);
     font-size:10px;
     letter-spacing:0.08em;
     text-transform:uppercase;
     margin-top:2px;
   }
-  .banner[data-outcome="victory"] .b-result{ color:var(--gold-bright); }
-  .banner[data-outcome="defeat"] .b-result{ color:var(--red-bright); }
-  .banner[data-outcome="overall"] .b-result{ color:var(--bronze); font-weight:600; }
-
-  .banner:focus-visible{ outline:2px solid var(--gold-bright); outline-offset:3px; }
+  .tab[data-outcome="victory"] .b-result{ color:var(--gold-bright); }
+  .tab[data-outcome="defeat"] .b-result{ color:var(--red-bright); }
+  .tab[data-outcome="overall"] .b-result{ color:var(--bronze); font-weight:600; }
 
   /* ============================================================
      MATCH PANEL
@@ -551,9 +643,11 @@
   <div class="record-badge" id="recordBadge"></div>
 </header>
 
-<div class="campaign-wrap">
-  <div class="campaign-label">Campaign — select a war</div>
-  <div class="campaign-strip" id="campaignStrip"></div>
+<div class="tab-folder">
+  <div class="tab-toolbar">
+    <div class="campaign-label">Match tabs — select a war</div>
+  </div>
+  <div class="tab-list" id="campaignStrip"></div>
 </div>
 
 <main>
@@ -669,10 +763,40 @@ document.getElementById("recordBadge").innerHTML =
 
 // ---- Campaign strip ----
 const strip = document.getElementById("campaignStrip");
+const weekGroups = [];
+const weekIndex = new Map();
+const expandedWeeks = new Set();
+
+function weekKey(dateStr){
+  const d = new Date(dateStr + "T00:00:00");
+  const day = d.getDay();
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - ((day + 6) % 7));
+  return monday.toISOString().slice(0,10);
+}
+
+function weekLabel(startDate){
+  const start = new Date(startDate + "T00:00:00");
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  const short = { month:"short", day:"numeric" };
+  return `${start.toLocaleDateString("en-US", short)} - ${end.toLocaleDateString("en-US", short)}`;
+}
+
+function buildWeekGroups(){
+  MATCHES.forEach((m,i)=>{
+    const key = weekKey(m.date);
+    if (!weekIndex.has(key)){
+      weekIndex.set(key, { week:key, matches:[] });
+      weekGroups.push(weekIndex.get(key));
+    }
+    weekIndex.get(key).matches.push({ match:m, index:i });
+  });
+}
 
 function makeBanner(outcome, dateLabel, locLabel, resultLabel, key){
   const b = document.createElement("button");
-  b.className = "banner";
+  b.className = "tab";
   b.dataset.outcome = outcome;
   b.dataset.key = key;
   b.setAttribute("aria-pressed","false");
@@ -685,18 +809,62 @@ function makeBanner(outcome, dateLabel, locLabel, resultLabel, key){
   return b;
 }
 
-strip.appendChild(makeBanner("overall","ALL","Record","Overall","overall"));
-MATCHES.forEach((m,i)=>{
-  strip.appendChild(makeBanner(
-    m.result === "Victory" ? "victory" : "defeat",
-    dayShort(m.date), m.location,
-    m.result === "Victory" ? "Win" : "Loss",
-    String(i)
-  ));
-});
+function renderTabs(){
+  strip.innerHTML = "";
+  strip.appendChild(makeBanner("overall","ALL","Record","Overall","overall"));
+
+  weekGroups.forEach(group => {
+    const groupNode = document.createElement("div");
+    groupNode.className = "week-group";
+
+    const header = document.createElement("button");
+    header.className = "week-header";
+    header.type = "button";
+    header.dataset.week = group.week;
+    header.setAttribute("aria-expanded", expandedWeeks.has(group.week).toString());
+    header.innerHTML = `<span>${weekLabel(group.week)}</span><span>${group.matches.length} matches</span>`;
+    header.addEventListener("click", () => toggleWeek(group.week));
+    groupNode.appendChild(header);
+
+    if (expandedWeeks.has(group.week)){
+      const matchList = document.createElement("div");
+      matchList.className = "week-matches";
+      group.matches.forEach(({ match, index })=>{
+        matchList.appendChild(makeBanner(
+          match.result === "Victory" ? "victory" : "defeat",
+          match.day, match.location,
+          match.result === "Victory" ? "Win" : "Loss",
+          String(index)
+        ));
+      });
+      groupNode.appendChild(matchList);
+    }
+
+    strip.appendChild(groupNode);
+  });
+
+  document.querySelectorAll(".tab").forEach(b=>{
+    const active = b.dataset.key === currentMatchKey;
+    b.classList.toggle("active", active);
+    b.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
+function toggleWeek(week){
+  if (expandedWeeks.has(week)){
+    expandedWeeks.delete(week);
+  } else {
+    expandedWeeks.add(week);
+  }
+  renderTabs();
+}
 
 // ---- Sorting state ----
 let sortState = { key:"kd", dir:"desc" };
+let currentMatchKey = "overall";
+
+buildWeekGroups();
+renderTabs();
 
 function sortRows(rows, key, dir){
   const mult = dir === "asc" ? 1 : -1;
@@ -884,7 +1052,17 @@ function attachScoreChartInteractions(panel){
 
 // ---- Render a match or overall panel ----
 function selectMatch(key){
-  document.querySelectorAll(".banner").forEach(b=>{
+  currentMatchKey = key;
+
+  if (key !== "overall"){
+    const weekGroup = weekGroups.find(g=> g.matches.some(({ index })=> String(index) === key));
+    if (weekGroup){
+      weekSelect.value = weekGroup.week;
+      renderTabs(weekGroup.week);
+    }
+  }
+
+  document.querySelectorAll(".tab").forEach(b=>{
     const active = b.dataset.key === key;
     b.classList.toggle("active", active);
     b.setAttribute("aria-pressed", active ? "true":"false");
