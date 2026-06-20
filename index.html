@@ -476,6 +476,9 @@
   }
   tbody tr:last-child td{ border-bottom:none; }
   tbody tr:hover td{ background:rgba(255,255,255,0.02); }
+  tbody tr.active-chart-row td{
+    background:rgba(217,164,65,0.08);
+  }
 
   td.num, th.num{ font-family:var(--font-mono); }
   td.rank{ font-family:var(--font-mono); color:var(--text-faint); width:28px; }
@@ -826,6 +829,8 @@ function attachScoreChartInteractions(panel){
   const activeName = chart.querySelector(".pie-active-name");
   const activeScore = chart.querySelector(".pie-active-score");
   const detail = chart.querySelector(".chart-detail");
+  const tableRows = [...panel.querySelectorAll("tbody tr[data-name]")];
+  const sliceByName = new Map(slices.map(slice=>[slice.dataset.name, slice]));
 
   function activate(index){
     const slice = slices[index];
@@ -833,6 +838,7 @@ function attachScoreChartInteractions(panel){
 
     slices.forEach(s=>s.classList.toggle("active", s === slice));
     legendItems.forEach(item=>item.classList.toggle("active", item.dataset.chartIndex === String(index)));
+    tableRows.forEach(row=>row.classList.toggle("active-chart-row", row.dataset.name === slice.dataset.name));
 
     const name = slice.dataset.name;
     const kills = slice.dataset.kills;
@@ -840,6 +846,12 @@ function attachScoreChartInteractions(panel){
     activeName.textContent = compactName(name);
     activeScore.textContent = `${kills} K / ${pct}%`;
     detail.innerHTML = `${name}: ${kills} kills <span class="muted">(${pct}% of score)</span>`;
+  }
+
+  function activateName(name){
+    const slice = sliceByName.get(name);
+    if (!slice) return;
+    activate(Number(slice.dataset.chartIndex));
   }
 
   slices.forEach(slice=>{
@@ -860,6 +872,11 @@ function attachScoreChartInteractions(panel){
     item.addEventListener("mouseenter", ()=>activate(index));
     item.addEventListener("focus", ()=>activate(index));
     item.addEventListener("click", ()=>activate(index));
+  });
+
+  tableRows.forEach(row=>{
+    row.addEventListener("mouseenter", ()=>activateName(row.dataset.name));
+    row.addEventListener("focusin", ()=>activateName(row.dataset.name));
   });
 
   activate(0);
@@ -932,7 +949,7 @@ function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof
       `<td class="num kd" data-label="K/D">${fmtKD(r.kd)}</td>`,
     ];
     if (showHof) cells.push(`<td class="num played" data-label="Wars">${r.played}</td>`);
-    return `<tr data-rank="${i+1}">${cells.join("")}</tr>`;
+    return `<tr data-rank="${i+1}" data-name="${r.name}">${cells.join("")}</tr>`;
   }).join("");
 
   panel.innerHTML = `
