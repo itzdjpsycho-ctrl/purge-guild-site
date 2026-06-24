@@ -599,7 +599,8 @@
     pointer-events:none;
   }
   .roles-panel.open{
-    max-height:900px;
+    max-height:min(900px, 70vh);
+    overflow-y:auto;
     opacity:1;
     margin-bottom:24px;
     pointer-events:auto;

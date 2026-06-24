@@ -199,6 +199,24 @@
   .card-role.role-mainball{ color:#A78BFA; border:1px solid rgba(167,139,250,0.4); }
   .card-role.role-none{ display:none; }
 
+  .card-role-row{
+    margin-top:10px;
+    position:relative;
+  }
+  .card-role-select{
+    width:100%;
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    color:var(--text-muted); font-family:var(--font-mono); font-size:11px;
+    letter-spacing:0.04em; padding:6px 10px; border-radius:6px;
+    cursor:pointer; appearance:none; -webkit-appearance:none; outline:none;
+    transition:border-color 0.16s, color 0.16s;
+  }
+  .card-role-select:hover{ border-color:rgba(255,255,255,0.2); }
+  .card-role-select.role-shotcaller{ color:var(--orange); border-color:rgba(224,121,60,0.5); }
+  .card-role-select.role-defensive{ color:var(--green-bright); border-color:rgba(91,201,118,0.5); }
+  .card-role-select.role-flex{ color:var(--gold-bright); border-color:rgba(240,195,107,0.5); }
+  .card-role-select.role-mainball{ color:#A78BFA; border-color:rgba(167,139,250,0.5); }
+
   .empty-state{
     text-align:center; padding:80px 20px;
     color:var(--text-faint); font-family:var(--font-mono); font-size:13px;
@@ -356,6 +374,10 @@ function loadRoles(){
   try{ const r=localStorage.getItem(ROLES_STORAGE_KEY); return r?JSON.parse(r):{}; }
   catch(e){ return {}; }
 }
+function saveRoles(roles){
+  try{ localStorage.setItem(ROLES_STORAGE_KEY, JSON.stringify(roles)); }
+  catch(e){ showToast("Could not save — localStorage unavailable","error"); }
+}
 
 /* ---- merge static + dynamic matches ---- */
 function getAllMatches(){
@@ -427,9 +449,10 @@ function render(){
       : `<span class="card-gear-placeholder">🛡</span><span class="no-img-label">No gear screenshot</span>`;
     const classStr = p.class || "";
 
+    const roleClass = role ? `role-${role}` : "";
     return `
       <a class="player-card" href="player.html?name=${encodeURIComponent(r.name)}">
-        ${role ? `<div class="card-role role-${role}">${ROLE_LABELS[role]||role}</div>` : ""}
+        ${role ? `<div class="card-role role-${role}" id="badge-${r.name}">${ROLE_LABELS[role]||role}</div>` : `<div class="card-role role-none" id="badge-${r.name}"></div>`}
         <div class="card-gear-thumb">${gearThumb}</div>
         <div class="card-body">
           <div class="card-name" title="${r.name}">${r.name}</div>
@@ -448,11 +471,44 @@ function render(){
               <div class="card-stat-label">Deaths</div>
             </div>
           </div>
+          <div class="card-role-row" onclick="event.preventDefault();event.stopPropagation();">
+            <select class="card-role-select ${roleClass}" data-player="${r.name}">
+              <option value="" ${!role?"selected":""}>— No Role —</option>
+              <option value="mainball" ${role==="mainball"?"selected":""}>Mainball</option>
+              <option value="shotcaller" ${role==="shotcaller"?"selected":""}>Shotcaller</option>
+              <option value="defensive" ${role==="defensive"?"selected":""}>Defensive</option>
+              <option value="flex" ${role==="flex"?"selected":""}>Flex Squad</option>
+            </select>
+          </div>
         </div>
       </a>
     `;
   }).join("");
 }
+
+/* ---- Role select handler ---- */
+document.getElementById("rosterGrid").addEventListener("change", e=>{
+  const sel = e.target.closest(".card-role-select");
+  if (!sel) return;
+  const name = sel.dataset.player;
+  const newRole = sel.value;
+  const roles = loadRoles();
+  if (newRole) roles[name] = newRole;
+  else delete roles[name];
+  saveRoles(roles);
+
+  // update select colour class
+  sel.className = "card-role-select" + (newRole ? ` role-${newRole}` : "");
+
+  // update badge
+  const ROLE_LABELS = { shotcaller:"Shotcaller", defensive:"Defensive", flex:"Flex Squad", mainball:"Mainball" };
+  const badge = document.getElementById(`badge-${name}`);
+  if (badge){
+    badge.className = newRole ? `card-role role-${newRole}` : "card-role role-none";
+    badge.textContent = newRole ? (ROLE_LABELS[newRole] || newRole) : "";
+  }
+  showToast(newRole ? `${name} → ${ROLE_LABELS[newRole]}` : `${name} role cleared`);
+});
 
 /* ---- Export ---- */
 document.getElementById("exportBtn").addEventListener("click", ()=>{
