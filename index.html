@@ -2741,7 +2741,7 @@ Respond with ONLY valid JSON — no markdown fences, no explanation — in exact
 Always set "type" to "extended". Every player must include all stat fields — use 0 if a value is genuinely zero in the screenshot.`;
 
   try{
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("/.netlify/functions/extract-war", {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
       body: JSON.stringify({
