@@ -510,6 +510,34 @@
   .modal-status.error{ color:var(--red-bright); }
   .modal-status.success{ color:var(--green-bright); }
 
+  .modal-mode-tabs{
+    display:flex; gap:6px; margin-bottom:16px;
+  }
+  .modal-mode-tab{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.06em;
+    text-transform:uppercase; padding:6px 14px; border-radius:999px;
+    cursor:pointer; border:1px solid var(--hairline);
+    background:var(--panel-raised); color:var(--text-faint);
+    transition:color 0.14s, background 0.14s, border-color 0.14s;
+  }
+  .modal-mode-tab:hover{ color:var(--text-muted); }
+  .modal-mode-tab.active{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(139,26,26,0.12); }
+
+  .json-input-area{ display:none; }
+  .json-input-area.visible{ display:block; }
+  .json-textarea{
+    width:100%; height:200px; resize:vertical;
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    color:var(--text); font-family:var(--font-mono); font-size:11px;
+    padding:12px; border-radius:8px; outline:none;
+    transition:border-color 0.16s;
+  }
+  .json-textarea:focus{ border-color:var(--crimson); }
+  .json-hint{
+    font-family:var(--font-mono); font-size:10px; color:var(--text-faint);
+    margin-top:6px; line-height:1.6;
+  }
+
   .spinner{
     width:14px; height:14px;
     border:2px solid rgba(255,255,255,0.1);
@@ -1562,19 +1590,36 @@
 
       <!-- Step 1: Upload -->
       <div class="modal-step active" id="stepUpload">
-        <div class="upload-zone" id="uploadZone">
-          <input type="file" id="screenshotInput" accept="image/*" multiple>
-          <div class="upload-icon">🖼</div>
-          <div class="upload-label">Drop your war result screenshot here<br>or <b>click to browse</b></div>
-          <div class="upload-sub">Upload the extended stats screen. If the player list is cut off, upload additional screenshots too — up to 4 total.</div>
+        <div class="modal-mode-tabs">
+          <button class="modal-mode-tab active" id="modeScreenshot" type="button">📸 Screenshot</button>
+          <button class="modal-mode-tab" id="modeJson" type="button">{ } Manual JSON</button>
         </div>
-        <div class="upload-preview" id="uploadPreview">
-          <img id="previewImg" src="" alt="Preview">
+
+        <div id="screenshotArea">
+          <div class="upload-zone" id="uploadZone">
+            <input type="file" id="screenshotInput" accept="image/*" multiple>
+            <div class="upload-icon">🖼</div>
+            <div class="upload-label">Drop your war result screenshot here<br>or <b>click to browse</b></div>
+            <div class="upload-sub">Upload the extended stats screen. If the player list is cut off, upload additional screenshots too — up to 4 total.</div>
+          </div>
+          <div class="upload-preview" id="uploadPreview">
+            <img id="previewImg" src="" alt="Preview">
+          </div>
         </div>
+
+        <div class="json-input-area" id="jsonInputArea">
+          <textarea class="json-textarea" id="jsonTextarea" placeholder='{"date":"2026-06-21","day":"Saturday","location":"Ulukita","result":"Victory","players":[{"name":"Popspolar","kills":20,"deaths":10}]}'></textarea>
+          <div class="json-hint">
+            Required fields: date (YYYY-MM-DD), day, location, result (Victory/Defeat), players[]<br>
+            Players: name, kills, deaths — all other stats optional (default 0)
+          </div>
+        </div>
+
         <div class="modal-status" id="uploadStatus"></div>
         <div class="modal-actions">
           <button class="modal-btn" id="cancelBtn" type="button">Cancel</button>
           <button class="modal-btn primary" id="extractBtn" type="button" disabled>Extract Data →</button>
+          <button class="modal-btn primary" id="parseJsonBtn" type="button" style="display:none">Parse JSON →</button>
         </div>
       </div>
 
@@ -2602,6 +2647,7 @@ const modalClose  = document.getElementById("modalClose");
 const cancelBtn   = document.getElementById("cancelBtn");
 const backBtn     = document.getElementById("backBtn");
 const extractBtn  = document.getElementById("extractBtn");
+const parseJsonBtn = document.getElementById("parseJsonBtn");
 const confirmBtn  = document.getElementById("confirmBtn");
 const uploadZone  = document.getElementById("uploadZone");
 const screenshotInput = document.getElementById("screenshotInput");
@@ -2612,9 +2658,72 @@ const reviewStatus  = document.getElementById("reviewStatus");
 const extractedPreview = document.getElementById("extractedPreview");
 const stepUpload  = document.getElementById("stepUpload");
 const stepReview  = document.getElementById("stepReview");
+const modeScreenshot = document.getElementById("modeScreenshot");
+const modeJson    = document.getElementById("modeJson");
+const screenshotArea = document.getElementById("screenshotArea");
+const jsonInputArea  = document.getElementById("jsonInputArea");
+const jsonTextarea   = document.getElementById("jsonTextarea");
 
 let uploadedImages = [];  // [{base64, mediaType}]
 let extractedData  = null;
+let inputMode = "screenshot"; // "screenshot" | "json"
+
+function setInputMode(mode){
+  inputMode = mode;
+  if (mode === "json"){
+    modeScreenshot.classList.remove("active");
+    modeJson.classList.add("active");
+    screenshotArea.style.display = "none";
+    jsonInputArea.classList.add("visible");
+    extractBtn.style.display = "none";
+    parseJsonBtn.style.display = "";
+    uploadStatus.textContent = "";
+    uploadStatus.className = "modal-status";
+  } else {
+    modeJson.classList.remove("active");
+    modeScreenshot.classList.add("active");
+    jsonInputArea.classList.remove("visible");
+    screenshotArea.style.display = "";
+    parseJsonBtn.style.display = "none";
+    extractBtn.style.display = "";
+  }
+}
+
+modeScreenshot.addEventListener("click", ()=> setInputMode("screenshot"));
+modeJson.addEventListener("click", ()=> setInputMode("json"));
+
+parseJsonBtn.addEventListener("click", ()=>{
+  uploadStatus.className = "modal-status";
+  uploadStatus.textContent = "";
+  let parsed;
+  try {
+    parsed = JSON.parse(jsonTextarea.value.trim());
+  } catch(e){
+    uploadStatus.className = "modal-status error";
+    uploadStatus.textContent = "Invalid JSON — " + e.message;
+    return;
+  }
+  if (!parsed.date || !parsed.location || !parsed.result || !Array.isArray(parsed.players)){
+    uploadStatus.className = "modal-status error";
+    uploadStatus.textContent = "Missing required fields: date, location, result, players[]";
+    return;
+  }
+  // Normalise players — ensure kills/deaths exist, fill missing extended fields with 0
+  parsed.players = parsed.players.map(p=>{
+    if (Array.isArray(p)) return { name:p[0], kills:p[1]||0, deaths:p[2]||0 };
+    return {
+      name: p.name||"Unknown", kills: p.kills||0, deaths: p.deaths||0,
+      streak: p.streak||0, dmgDone: p.dmgDone||0, dmgTaken: p.dmgTaken||0,
+      cc: p.cc||0, hpHealed: p.hpHealed||0, allyHpHealed: p.allyHpHealed||0,
+      fortDmg: p.fortDmg||0, cannonsLanded: p.cannonsLanded||0,
+      objDestroyed: p.objDestroyed||0, cannonDist: p.cannonDist||0,
+      traps: p.traps||0, timeDead: p.timeDead||0, timeAlive: p.timeAlive||0
+    };
+  });
+  if (!parsed.type) parsed.type = "extended";
+  extractedData = parsed;
+  showReviewStep(parsed);
+});
 
 function openModal(){
   modal.classList.remove("hidden");
@@ -2635,6 +2744,8 @@ function resetModal(){
   extractBtn.disabled = true;
   stepUpload.classList.add("active");
   stepReview.classList.remove("active");
+  jsonTextarea.value = "";
+  setInputMode("screenshot");
 }
 
 addWarBtn.addEventListener("click", openModal);
