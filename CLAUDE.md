@@ -22,6 +22,8 @@ Dark-themed static HTML guild management site for a Black Desert Online (BDO) No
 | `netlify/functions/extract-war.js` | Serverless proxy — forwards screenshot extraction to Anthropic API server-side (avoids CORS). Requires `ANTHROPIC_API_KEY` env var in Netlify → Project configuration → Environment variables. **Not yet configured.** |
 | `netlify.toml` | Netlify config pointing functions to `netlify/functions/`. |
 | `push.bat` | Double-click to commit and push to GitHub. |
+| `data.js` | **Canonical guild data — single source of truth for the site AND the Discord bot.** Sets `window.GUILD_DATA = { guildName, rosterMembers, matches, extendedStats }`. Every HTML page loads it via `<script src="data.js"></script>` and reads `MATCHES` / `EXTENDED_STATS` / `ROSTER_MEMBERS` from it. Edit this file to add wars or members. |
+| `bot/` | **Discord bot** (Node.js / discord.js v14). `/mvp` (weighted single-MVP per war), `/stats` (player extended stats), `/signup` (admin-editable Node War sign-up sheet with self-serve buttons). Reads the same `data.js`. Setup in `bot/README.md`. Runs on the user's PC (`npm start`). |
 
 ---
 
@@ -45,8 +47,7 @@ Nav active:    neon purple (not gold)
 
 ## Data Architecture
 
-- `MATCHES` array — hardcoded in every file, must stay in sync across all pages
-- `ROSTER_MEMBERS` array — members not yet in a war, also in every file
+- `MATCHES`, `EXTENDED_STATS`, `ROSTER_MEMBERS` — now live ONCE in `data.js` (`window.GUILD_DATA`). Every page reads them from there via `const MATCHES = window.GUILD_DATA.matches;` etc. No more per-file duplication. The Discord bot reads the same `data.js`.
 - `localStorage["nodeWarDynamicMatches"]` — uploaded wars
 - `localStorage["nodeWarDynamicExtended"]` — extended stats from uploads
 - `localStorage["nodeWarPlayerProfiles"]` — class + gear screenshots per player
@@ -83,13 +84,13 @@ Nav active:    neon purple (not gold)
 }
 ```
 
-Full extended stats exist for both wars in `EXTENDED_STATS` (keyed by date) in `index.html`.
+Full extended stats exist for both wars in `EXTENDED_STATS` (keyed by date) in `data.js`.
 
 ---
 
 ## Adding New Wars
 
-**Preferred workflow:** User pastes war screenshots in chat → Claude reads them, extracts all stats → edits `index.html` MATCHES + EXTENDED_STATS directly → commits and pushes. No API key needed.
+**Preferred workflow:** User pastes war screenshots in chat → Claude reads them, extracts all stats → edits **`data.js`** (`matches` + `extendedStats`) directly → commits and pushes. No API key needed. (Both the site and the Discord bot pick up the new war automatically — the bot reads `data.js` fresh on every command, no restart needed.)
 
 The + Add War modal also supports:
 - **📸 Screenshot** — Netlify function proxy to Claude API (needs `ANTHROPIC_API_KEY` configured — not yet done)

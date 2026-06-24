@@ -451,33 +451,14 @@
   <span>PURGE</span> · Node War Guild · Black Desert Online
 </footer>
 
+<script src="data.js"></script>
 <script>
 /* ================================================================
    MATCH DATA — keep in sync with index.html
 ================================================================ */
-const MATCHES = [
-  {
-    date: "2026-06-19", day: "Friday", location: "Ulukita", result: "Defeat",
-    players: [
-      ["Popspolar",30,14],["Milkdudh",25,14],["Aodhan",24,10],["Dreamxx",18,21],
-      ["HaterApproved",17,17],["BrotherMango",17,16],["KillShotz",16,18],["Beastylirious",15,21],
-      ["Rostalina",15,19],["Alancar",15,17],["ScummySteve",13,9],["Valth",12,17],
-      ["Mcy",10,15],["Kraiok",10,19],["LulzCaptain",9,18],["TheWretched",9,21],
-      ["Serade",7,17],["HeRoisMx",7,3],["Rozuns",6,14],["Succs",6,17],
-      ["Cohrence",5,17],["Lulupeach",4,11],["SirHeathen",3,13],["XastusMK",2,21],
-    ]
-  },
-];
+const MATCHES = window.GUILD_DATA.matches;
 
-const ROSTER_MEMBERS = [
-  "Boondoggle","Bossdogg","Clip","Creetin","DesertPunkk","Em_Bargo","Embberr","EXTRA_LARGE",
-  "Flusha","Ghond","GreenBerry","Greedyboy","Heals","HiiroNoAme","Intruder","Krill","LePewPew",
-  "LunAqua","MadeInHell","Menteeing","Myoubi","NeatJoe","NightBringers","NoCap","Obituary",
-  "Odare","Onimichi","Pebbles","Pewcifer","Pronvos","PsycheaEU","Rabid","RocketG","Ruarein",
-  "Seljah","Siegrein","SpartanKing","Sploogesque","StaticHurtYou","StraightEdge","TTard",
-  "Taells","Talshani","Vem","Voltaic","Vouge","Weapon","Wergin","XTatsuyAX","Yannik","Yulie",
-  "Zebraghost"
-];
+const ROSTER_MEMBERS = window.GUILD_DATA.rosterMembers;
 
 const DYNAMIC_MATCHES_KEY = "nodeWarDynamicMatches";
 
