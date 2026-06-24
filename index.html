@@ -840,62 +840,6 @@
     gap:10px;
   }
 
-  .week-group{
-    display:flex;
-    flex-direction:column;
-    align-items:flex-start;
-    width:auto;
-    min-width:0;
-    position:relative;
-    z-index:1;
-  }
-
-  .week-header{
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    gap:8px;
-    padding:10px 16px;
-    border:1px solid rgba(255,255,255,0.12);
-    border-radius:999px;
-    background:rgba(21,23,27,0.9);
-    color:var(--text);
-    font-family:var(--font-mono);
-    font-size:12px;
-    white-space:nowrap;
-    cursor:pointer;
-    transition:background 0.16s ease, border-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
-    width:auto;
-    z-index:2;
-  }
-
-  .week-header:hover,
-  .week-header:focus-visible{
-    background:rgba(255,255,255,0.06);
-    border-color:var(--crimson);
-    outline:none;
-    transform:translateY(-1px);
-  }
-
-  .week-header::after{
-    content:"▼";
-    display:inline-block;
-    transform:rotate(0deg);
-    transition:transform 0.18s ease;
-    font-size:10px;
-    color:var(--text-muted);
-  }
-
-  .week-header[aria-expanded="true"]::after{
-    transform:rotate(180deg);
-  }
-
-  .week-matches{
-    display:flex;
-    flex-wrap:wrap;
-    gap:10px;
-    margin-top:10px;
-  }
 
   .week-picker{
     display:flex;
@@ -965,28 +909,12 @@
     padding-bottom:8px;
   }
 
-  .week-group{
-    position:relative;
-    z-index:1;
-  }
-
-  .week-matches{
-    display:flex;
-    flex-wrap:wrap;
-    gap:10px;
-    margin-top:10px;
-    width:100%;
-    z-index:1;
-    position:relative;
-    pointer-events:auto;
-  }
-
   .tab{
     position:relative;
     z-index:1;
     flex:0 0 auto;
-    min-width:130px;
-    max-width:220px;
+    min-width:100px;
+    max-width:180px;
     background:var(--panel);
     border:1px solid rgba(255,255,255,0.08);
     border-radius:999px;
@@ -997,8 +925,8 @@
     flex-direction:column;
     align-items:center;
     justify-content:center;
-    padding:16px 20px;
-    gap:4px;
+    padding:10px 14px;
+    gap:2px;
     transition:transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
     white-space:nowrap;
   }
@@ -1031,20 +959,20 @@
 
   .tab .b-date{
     font-family:var(--font-mono);
-    font-size:13px;
+    font-size:12px;
     font-weight:600;
     color:inherit;
   }
   .tab .b-loc{
-    font-size:11px;
+    font-size:10px;
     color:inherit;
   }
   .tab .b-result{
     font-family:var(--font-mono);
-    font-size:10px;
+    font-size:9px;
     letter-spacing:0.08em;
     text-transform:uppercase;
-    margin-top:2px;
+    margin-top:1px;
   }
   .tab[data-outcome="victory"] .b-result{ color:#fff; }
   .tab[data-outcome="defeat"] .b-result{ color:#fff; }
@@ -1987,7 +1915,6 @@ renderRolesPanel();
 const strip = document.getElementById("campaignStrip");
 const weekGroups = [];
 const weekIndex = new Map();
-const expandedWeeks = new Set();
 
 function weekKey(dateStr){
   const d = new Date(dateStr + "T00:00:00");
@@ -2002,7 +1929,7 @@ function weekLabel(startDate){
   const end = new Date(start);
   end.setDate(end.getDate() + 6);
   const short = { month:"short", day:"numeric" };
-  return `${start.toLocaleDateString("en-US", short)} - ${end.toLocaleDateString("en-US", short)}`;
+  return `${start.toLocaleDateString("en-US", short)} – ${end.toLocaleDateString("en-US", short)}`;
 }
 
 function buildWeekGroups(){
@@ -2046,39 +1973,21 @@ function renderTabs(){
     opt.textContent = `${weekLabel(group.week)}  (${group.matches.length} match${group.matches.length>1?"es":""})`;
     sel.appendChild(opt);
   });
-  // Restore selection if still valid
   if (prevVal && weekGroups.some(g=>g.week===prevVal)) sel.value = prevVal;
 
-  weekGroups.forEach(group => {
-    const groupNode = document.createElement("div");
-    groupNode.className = "week-group";
-    groupNode.dataset.week = group.week;
-
-    const header = document.createElement("button");
-    header.className = "week-header";
-    header.type = "button";
-    header.dataset.week = group.week;
-    const expanded = expandedWeeks.has(group.week);
-    header.setAttribute("aria-expanded", expanded.toString());
-    header.innerHTML = `<span>${weekLabel(group.week)}</span><span>${group.matches.length} matches</span>`;
-    header.addEventListener("click", () => toggleWeek(group.week));
-    groupNode.appendChild(header);
-
-    if (expanded){
-      const matchList = document.createElement("div");
-      matchList.className = "week-matches";
-      group.matches.forEach(({ match, index })=>{
-        matchList.appendChild(makeBanner(
-          match.result === "Victory" ? "victory" : "defeat",
-          match.day, match.location,
-          match.result === "Victory" ? "Win" : "Loss",
-          String(index)
-        ));
-      });
-      groupNode.appendChild(matchList);
-    }
-
-    strip.appendChild(groupNode);
+  // Only show wars for the selected week (or all if none selected)
+  const selectedWeek = document.getElementById("weekSelect").value;
+  MATCHES.forEach((m, i) => {
+    if (selectedWeek && weekKey(m.date) !== selectedWeek) return;
+    const topLabel = selectedWeek
+      ? m.day
+      : new Date(m.date + "T00:00:00").toLocaleDateString("en-US", { month:"short", day:"numeric" });
+    strip.appendChild(makeBanner(
+      m.result === "Victory" ? "victory" : "defeat",
+      topLabel, m.location,
+      m.result === "Victory" ? "Win" : "Loss",
+      String(i)
+    ));
   });
 
   document.querySelectorAll(".tab").forEach(b=>{
@@ -2088,29 +1997,16 @@ function renderTabs(){
   });
 }
 
-function toggleWeek(week){
-  if (expandedWeeks.has(week)){
-    expandedWeeks.delete(week);
-  } else {
-    expandedWeeks.add(week);
-  }
-  renderTabs();
-}
-
-// Week dropdown — selecting a week expands it and smoothly scrolls to it
+// Week dropdown — filters which wars appear in the strip
 document.getElementById("weekSelect").addEventListener("change", function(){
-  const week = this.value;
-  if (!week) return;
-
-  // Expand the selected week if not already
-  if (!expandedWeeks.has(week)) expandedWeeks.add(week);
-  renderTabs();
-
-  // Smooth-scroll the week group into view
-  requestAnimationFrame(()=>{
-    const groupEl = document.querySelector(`.week-group[data-week="${week}"]`);
-    if (groupEl) groupEl.scrollIntoView({ behavior:"smooth", block:"nearest" });
-  });
+  // If the currently selected match is not visible in the new week, reset to overall
+  if (this.value && currentMatchKey !== "overall") {
+    const idx = parseInt(currentMatchKey);
+    if (!isNaN(idx) && MATCHES[idx] && weekKey(MATCHES[idx].date) !== this.value) {
+      selectMatch("overall"); // render the overall panel
+    }
+  }
+  renderTabs(); // always update the strip filter
 });
 
 // ---- Sorting state ----
@@ -2335,17 +2231,6 @@ function buildPanelData(key){
 
 function selectMatch(key){
   currentMatchKey = key;
-
-  if (key !== "overall"){
-    const weekGroup = weekGroups.find(g=> g.matches.some(({ index })=> String(index) === key));
-    if (weekGroup){
-      const weekSelect = document.querySelector("#weekSelect");
-      if (weekSelect) weekSelect.value = weekGroup.week;
-    }
-  } else {
-    const weekSelect = document.querySelector("#weekSelect");
-    if (weekSelect) weekSelect.value = "";
-  }
 
   document.querySelectorAll(".tab").forEach(b=>{
     const active = b.dataset.key === key;
