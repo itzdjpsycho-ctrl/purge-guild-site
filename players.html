@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roster — Node War Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:            #080608;
+    --bg2:           #0E0A0C;
+    --panel:         #120D0F;
+    --panel-raised:  #1A1215;
+    --hairline:      #2E1F22;
+    --hairline-soft: #1E1517;
+    --text:          #EDE8E0;
+    --text-muted:    #8A8088;
+    --text-faint:    #4E454A;
+    --crimson:       #8B1A1A;
+    --crimson-mid:   #B32020;
+    --crimson-bright:#D63030;
+    --crimson-glow:  #FF3A3A;
+    --gold:          #C49A30;
+    --gold-bright:   #E8BC55;
+    --red:           #B2402F;
+    --red-bright:    #D65A45;
+    --green:         #4A9F5D;
+    --green-bright:  #5BC976;
+    --bronze:        #8C6A3F;
+    --orange:        #E0793C;
+    --font-display:  'Fraunces', serif;
+    --font-mono:     'IBM Plex Mono', monospace;
+    --font-ui:       'Inter', sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; }
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-ui);
+    min-height:100vh;
+    position:relative;
+    overflow-x:hidden;
+  }
+    body::before{
+    content:"";
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(139,26,26,0.18), transparent 65%),
+      radial-gradient(ellipse 40% 60% at 0% 100%, rgba(100,10,10,0.12), transparent 60%),
+      radial-gradient(ellipse 40% 60% at 100% 80%, rgba(100,10,10,0.08), transparent 60%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
+  }
+  main, header, footer, nav{ position:relative; z-index:1; }
+
+  .site-nav{
+    display:flex; flex-wrap:wrap; gap:8px;
+    padding:20px 24px 0;
+    max-width:980px; margin:0 auto;
+  }
+  .site-nav a{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:0.04em;
+    color:var(--text-muted); text-decoration:none;
+    padding:8px 16px; border:1px solid var(--hairline); border-radius:999px;
+    background:var(--panel);
+    transition:background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+  }
+  .site-nav a:hover{ color:var(--text); border-color:rgba(255,255,255,0.18); transform:translateY(-1px); }
+    .site-nav a.current{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(139,26,26,0.15); }
+
+  header{
+    max-width:880px; margin:20px auto 28px;
+    padding:22px 20px 18px; text-align:center;
+    border:1px solid rgba(255,255,255,0.08); border-radius:36px;
+    background:rgba(11,12,14,0.78); backdrop-filter:blur(16px);
+    box-shadow:0 28px 72px rgba(0,0,0,0.28);
+  }
+  .eyebrow{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.28em;
+    text-transform:uppercase; color:var(--text-faint); margin-bottom:10px;
+  }
+  h1{
+    font-family:var(--font-display); font-optical-sizing:auto;
+    font-weight:680; font-size:clamp(26px,4vw,38px); letter-spacing:-0.01em;
+  }
+  h1 span{ color:var(--gold); font-style:italic; font-weight:480; }
+  .subtitle{ font-size:14px; color:var(--text-muted); margin-top:8px; }
+
+  .toolbar{
+    max-width:980px; margin:0 auto 20px;
+    padding:0 24px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+  }
+  .toolbar-left{ display:flex; align-items:center; gap:10px; }
+  .roster-count{
+    font-family:var(--font-mono); font-size:11px;
+    letter-spacing:0.1em; text-transform:uppercase; color:var(--text-faint);
+  }
+
+  .btn{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:0.04em;
+    padding:8px 16px; border-radius:999px; cursor:pointer;
+    border:1px solid var(--hairline); background:var(--panel);
+    color:var(--text-muted); transition:all 0.16s ease;
+  }
+  .btn:hover{ color:var(--text); border-color:rgba(255,255,255,0.18); }
+  .btn.gold{ color:var(--gold-bright); border-color:var(--gold); background:rgba(217,164,65,0.1); }
+  .btn.gold:hover{ background:rgba(217,164,65,0.18); box-shadow:0 0 16px rgba(217,164,65,0.12); }
+
+  main{
+    max-width:980px; margin:0 auto; padding:0 24px 80px;
+  }
+
+  .roster-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
+    gap:16px;
+  }
+
+  .player-card{
+    background:var(--panel);
+    border:1px solid var(--hairline);
+    border-radius:12px;
+    overflow:hidden;
+    cursor:pointer;
+    text-decoration:none;
+    display:block;
+    transition:transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    position:relative;
+  }
+  .player-card:hover{
+    transform:translateY(-3px);
+    border-color:rgba(217,164,65,0.3);
+    box-shadow:0 12px 32px rgba(0,0,0,0.3);
+  }
+
+  .card-gear-thumb{
+    width:100%; height:120px;
+    background:var(--panel-raised);
+    display:flex; align-items:center; justify-content:center;
+    border-bottom:1px solid var(--hairline-soft);
+    overflow:hidden;
+    position:relative;
+  }
+  .card-gear-thumb img{
+    width:100%; height:100%; object-fit:cover;
+    transition:opacity 0.2s ease;
+  }
+  .card-gear-placeholder{
+    font-size:28px; opacity:0.18;
+  }
+  .card-gear-thumb .no-img-label{
+    position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
+    font-family:var(--font-mono); font-size:9px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--text-faint);
+    white-space:nowrap;
+  }
+
+  .card-body{ padding:14px 16px 16px; }
+
+  .card-name{
+    font-family:var(--font-display); font-size:17px; font-weight:620;
+    color:var(--text); margin-bottom:2px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .card-class{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--text-faint); margin-bottom:12px;
+  }
+  .card-class.set{ color:var(--gold); }
+
+  .card-stats{
+    display:grid; grid-template-columns:repeat(3,1fr);
+    gap:1px; background:var(--hairline-soft); border-radius:6px; overflow:hidden;
+  }
+  .card-stat{
+    background:var(--panel-raised); padding:8px 6px; text-align:center;
+  }
+  .card-stat-val{
+    font-family:var(--font-mono); font-size:16px; font-weight:600; color:var(--text);
+  }
+  .card-stat-val.kd{ color:var(--gold-bright); }
+  .card-stat-label{
+    font-family:var(--font-mono); font-size:9px; letter-spacing:0.06em;
+    text-transform:uppercase; color:var(--text-faint); margin-top:2px;
+  }
+
+  .card-role{
+    position:absolute; top:10px; right:10px;
+    font-family:var(--font-mono); font-size:9px; letter-spacing:0.08em;
+    text-transform:uppercase; padding:3px 8px; border-radius:999px;
+    font-weight:600; background:rgba(0,0,0,0.55);
+  }
+  .card-role.role-shotcaller{ color:var(--orange); border:1px solid rgba(224,121,60,0.4); }
+  .card-role.role-defensive{ color:var(--green-bright); border:1px solid rgba(91,201,118,0.4); }
+  .card-role.role-flex{ color:var(--gold-bright); border:1px solid rgba(240,195,107,0.4); }
+  .card-role.role-mainball{ color:#A78BFA; border:1px solid rgba(167,139,250,0.4); }
+  .card-role.role-none{ display:none; }
+
+  .empty-state{
+    text-align:center; padding:80px 20px;
+    color:var(--text-faint); font-family:var(--font-mono); font-size:13px;
+    line-height:1.8;
+  }
+  .empty-state .icon{ font-size:40px; margin-bottom:16px; opacity:0.3; }
+
+  /* Toast */
+  .toast{
+    position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    border-radius:10px; padding:11px 20px;
+    font-family:var(--font-mono); font-size:12px; color:var(--text-muted);
+    box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    opacity:0; transition:opacity 0.22s ease, transform 0.22s ease;
+    pointer-events:none; z-index:200; white-space:nowrap;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .toast.success{ color:var(--green-bright); border-color:rgba(91,201,118,0.3); }
+  .toast.error{ color:var(--red-bright); }
+
+  /* Hidden file input */
+  #importInput{ display:none; }
+
+  footer{
+    text-align:center; padding:36px 24px 56px;
+    font-size:12px; color:var(--text-faint); font-family:var(--font-mono);
+  }
+</style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <a href="home.html">Home</a>
+  <a href="index.html">War Scores</a>
+  <a href="players.html" class="current">Roster</a>
+  <a href="dashboard.html">Dashboard</a>
+</nav>
+
+<header>
+  <div class="eyebrow">Guild Roster</div>
+  <h1>Player <span>Profiles</span></h1>
+  <div class="subtitle">Class, gear, and war record for every member</div>
+</header>
+
+<div class="toolbar">
+  <div class="toolbar-left">
+    <span class="roster-count" id="rosterCount">— members</span>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <button class="btn" id="importBtn" type="button">Import JSON</button>
+    <button class="btn gold" id="exportBtn" type="button">Export JSON</button>
+  </div>
+</div>
+<input type="file" id="importInput" accept=".json">
+
+<main>
+  <div class="roster-grid" id="rosterGrid"></div>
+</main>
+
+<footer>Node War Log · Roster</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================================================================
+   MATCH DATA — must match index.html exactly
+   (shared via localStorage for dynamic matches)
+================================================================ */
+const MATCHES = [
+  {
+    date: "2026-06-19", day: "Friday", location: "Ulukita", result: "Defeat",
+    players: [
+      ["Popspolar",30,14],["Milkdudh",25,14],["Aodhan",24,10],["Dreamxx",18,21],
+      ["HaterApproved",17,17],["BrotherMango",17,16],["KillShotz",16,18],["Beastylirious",15,21],
+      ["Rostalina",15,19],["Alancar",15,17],["ScummySteve",13,9],["Valth",12,17],
+      ["Mcy",10,15],["Kraiok",10,19],["LulzCaptain",9,18],["TheWretched",9,21],
+      ["Serade",7,17],["HeRoisMx",7,3],["Rozuns",6,14],["Succs",6,17],
+      ["Cohrence",5,17],["Lulupeach",4,11],["SirHeathen",3,13],["XastusMK",2,21],
+    ]
+  },
+];
+
+const ROSTER_MEMBERS = [
+  "Boondoggle",
+  "Bossdogg",
+  "Clip",
+  "Creetin",
+  "DesertPunkk",
+  "EXTRA_LARGE",
+  "Em_Bargo",
+  "Embberr",
+  "Flusha",
+  "Ghond",
+  "Greedyboy",
+  "GreenBerry",
+  "Heals",
+  "HiiroNoAme",
+  "Intruder",
+  "Krill",
+  "LePewPew",
+  "LunAqua",
+  "MadeInHell",
+  "Menteeing",
+  "Myoubi",
+  "NeatJoe",
+  "NightBringers",
+  "NoCap",
+  "Obituary",
+  "Odare",
+  "Onimichi",
+  "Pebbles",
+  "Pewcifer",
+  "Pronvos",
+  "PsycheaEU",
+  "Rabid",
+  "RocketG",
+  "Ruarein",
+  "Seljah",
+  "Siegrein",
+  "SpartanKing",
+  "Sploogesque",
+  "StaticHurtYou",
+  "StraightEdge",
+  "TTard",
+  "Taells",
+  "Talshani",
+  "Vem",
+  "Voltaic",
+  "Vouge",
+  "Weapon",
+  "Wergin",
+  "XTatsuyAX",
+  "Yannik",
+  "Yulie",
+  "Zebraghost"
+];
+
+const ROLES_STORAGE_KEY   = "nodeWarSquadRoles";
+const PROFILES_STORAGE_KEY = "nodeWarPlayerProfiles";
+const DYNAMIC_MATCHES_KEY = "nodeWarDynamicMatches";
+
+/* ---- helpers ---- */
+function kd(k,d){ return (k===0&&d===0) ? null : d===0 ? k : k/d; }
+function fmtKD(v){ return v===null ? "—" : v.toFixed(2); }
+
+function loadProfiles(){
+  try{ const r=localStorage.getItem(PROFILES_STORAGE_KEY); return r?JSON.parse(r):{}; }
+  catch(e){ return {}; }
+}
+function saveProfiles(p){
+  try{ localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(p)); }
+  catch(e){ showToast("Could not save — localStorage unavailable","error"); }
+}
+function loadRoles(){
+  try{ const r=localStorage.getItem(ROLES_STORAGE_KEY); return r?JSON.parse(r):{}; }
+  catch(e){ return {}; }
+}
+
+/* ---- merge static + dynamic matches ---- */
+function getAllMatches(){
+  const all = [...MATCHES];
+  try{
+    const raw = localStorage.getItem(DYNAMIC_MATCHES_KEY);
+    if(raw){
+      const dyn = JSON.parse(raw);
+      dyn.forEach(m=>{ if(!all.find(e=>e.date===m.date)) all.push(m); });
+    }
+  }catch(e){}
+  return all;
+}
+
+/* ---- build roster totals ---- */
+function buildRoster(){
+  const totals = {};
+  // Seed roster-only members first
+  ROSTER_MEMBERS.forEach(name=>{
+    if(!totals[name]) totals[name] = { name, kills:0, deaths:0, played:0 };
+  });
+  getAllMatches().forEach(m=>{
+    m.players.forEach(([name,k,d])=>{
+      if(!totals[name]) totals[name] = { name, kills:0, deaths:0, played:0 };
+      totals[name].kills  += k;
+      totals[name].deaths += d;
+      totals[name].played += 1;
+    });
+  });
+  return Object.values(totals).sort((a,b)=>a.name.localeCompare(b.name));
+}
+
+/* ---- toast ---- */
+let toastTimer;
+function showToast(msg, type=""){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "toast show " + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"), 3000);
+}
+
+/* ---- render ---- */
+function render(){
+  const roster   = buildRoster();
+  const profiles = loadProfiles();
+  const roles    = loadRoles();
+
+  document.getElementById("rosterCount").textContent = `${roster.length} member${roster.length!==1?"s":""}`;
+
+  const grid = document.getElementById("rosterGrid");
+
+  if(!roster.length){
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <div class="icon">⚔️</div>
+      No war data found. Add matches to the War Scores page first.
+    </div>`;
+    return;
+  }
+
+  const ROLE_LABELS = { shotcaller:"Shotcaller", defensive:"Defensive", flex:"Flex Squad", mainball:"Mainball" };
+
+  grid.innerHTML = roster.map(r=>{
+    const p     = profiles[r.name] || {};
+    const role  = roles[r.name]   || "";
+    const kdVal = kd(r.kills, r.deaths);
+    const gearThumb = p.gearImg
+      ? `<img src="${p.gearImg}" alt="Gear" loading="lazy">`
+      : `<span class="card-gear-placeholder">🛡</span><span class="no-img-label">No gear screenshot</span>`;
+    const classStr = p.class || "";
+
+    return `
+      <a class="player-card" href="player.html?name=${encodeURIComponent(r.name)}">
+        ${role ? `<div class="card-role role-${role}">${ROLE_LABELS[role]||role}</div>` : ""}
+        <div class="card-gear-thumb">${gearThumb}</div>
+        <div class="card-body">
+          <div class="card-name" title="${r.name}">${r.name}</div>
+          <div class="card-class ${classStr?'set':''}">${classStr || "Unknown Class"}</div>
+          <div class="card-stats">
+            <div class="card-stat">
+              <div class="card-stat-val kd">${fmtKD(kdVal)}</div>
+              <div class="card-stat-label">K/D</div>
+            </div>
+            <div class="card-stat">
+              <div class="card-stat-val">${r.kills}</div>
+              <div class="card-stat-label">Kills</div>
+            </div>
+            <div class="card-stat">
+              <div class="card-stat-val">${r.deaths}</div>
+              <div class="card-stat-label">Deaths</div>
+            </div>
+          </div>
+        </div>
+      </a>
+    `;
+  }).join("");
+}
+
+/* ---- Export ---- */
+document.getElementById("exportBtn").addEventListener("click", ()=>{
+  const profiles = loadProfiles();
+  const roles    = loadRoles();
+  const matches  = getAllMatches();
+  const payload  = { exportedAt: new Date().toISOString(), profiles, roles, matches };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type:"application/json" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url; a.download = "guild-data.json"; a.click();
+  URL.revokeObjectURL(url);
+  showToast("Exported guild-data.json", "success");
+});
+
+/* ---- Import ---- */
+document.getElementById("importBtn").addEventListener("click", ()=>{
+  document.getElementById("importInput").click();
+});
+document.getElementById("importInput").addEventListener("change", e=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = evt=>{
+    try{
+      const data = JSON.parse(evt.target.result);
+      if(data.profiles) saveProfiles(data.profiles);
+      if(data.roles) localStorage.setItem(ROLES_STORAGE_KEY, JSON.stringify(data.roles));
+      if(data.matches){
+        // Only import dynamic matches (not hardcoded ones)
+        const dynOnly = data.matches.filter(m=>!MATCHES.find(s=>s.date===m.date));
+        localStorage.setItem(DYNAMIC_MATCHES_KEY, JSON.stringify(dynOnly));
+      }
+      showToast("Imported successfully", "success");
+      render();
+    }catch(err){
+      showToast("Invalid JSON file", "error");
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+});
+
+render();
+</script>
+</body>
+</html>

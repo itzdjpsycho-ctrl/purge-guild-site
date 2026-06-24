@@ -12,26 +12,27 @@
      DESIGN TOKENS
      ============================================================ */
   :root{
-    --bg:            #0B0C0E;
-    --bg-grain:      #111317;
-    --panel:         #15171B;
-    --panel-raised:  #1C1F24;
-    --hairline:      #2A2D33;
-    --hairline-soft: #202226;
-
-    --text:          #ECE7DD;
-    --text-muted:    #8A8D93;
-    --text-faint:    #5C5F66;
-
-    --gold:          #D9A441;
-    --gold-bright:   #F0C36B;
+    --bg:            #080608;
+    --bg2:           #0E0A0C;
+    --panel:         #120D0F;
+    --panel-raised:  #1A1215;
+    --hairline:      #2E1F22;
+    --hairline-soft: #1E1517;
+    --text:          #EDE8E0;
+    --text-muted:    #8A8088;
+    --text-faint:    #4E454A;
+    --crimson:       #8B1A1A;
+    --crimson-mid:   #B32020;
+    --crimson-bright:#D63030;
+    --crimson-glow:  #FF3A3A;
+    --gold:          #C49A30;
+    --gold-bright:   #E8BC55;
     --red:           #B2402F;
     --red-bright:    #D65A45;
     --green:         #4A9F5D;
     --green-bright:  #5BC976;
     --bronze:        #8C6A3F;
     --orange:        #E0793C;
-
     --font-display:  'Fraunces', serif;
     --font-mono:     'IBM Plex Mono', monospace;
     --font-ui:       'Inter', sans-serif;
@@ -51,18 +52,669 @@
   }
 
   /* faint atmospheric texture, no image assets needed */
-  body::before{
+    body::before{
     content:"";
-    position:fixed;
-    inset:0;
-    pointer-events:none;
-    z-index:0;
+    position:fixed; inset:0; pointer-events:none; z-index:0;
     background:
-      repeating-linear-gradient(135deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px),
-      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(217,164,65,0.06), transparent 60%);
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(139,26,26,0.18), transparent 65%),
+      radial-gradient(ellipse 40% 60% at 0% 100%, rgba(100,10,10,0.12), transparent 60%),
+      radial-gradient(ellipse 40% 60% at 100% 80%, rgba(100,10,10,0.08), transparent 60%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
   }
 
   main, header, footer{ position:relative; z-index:1; }
+
+  /* ============================================================
+     SITE NAV — top-left links to other pages
+     ============================================================ */
+  .site-nav{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    padding:20px 24px 0;
+    max-width:980px;
+    margin:0 auto;
+  }
+
+  .site-nav a{
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:0.04em;
+    color:var(--text-muted);
+    text-decoration:none;
+    padding:8px 16px;
+    border:1px solid var(--hairline);
+    border-radius:999px;
+    background:var(--panel);
+    transition:background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+  }
+
+  .site-nav a:hover{
+    color:var(--text);
+    border-color:rgba(255,255,255,0.18);
+    transform:translateY(-1px);
+  }
+
+  .site-nav a:focus-visible{
+    outline:2px solid var(--crimson-bright);
+    outline-offset:2px;
+  }
+
+    .site-nav a.current{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(139,26,26,0.15); }
+
+  /* ============================================================
+     PLAYER INSPECT DRAWER
+     ============================================================ */
+  .inspect-btn{
+    background:none;
+    border:none;
+    cursor:pointer;
+    padding:2px 6px;
+    margin-left:8px;
+    color:var(--text-faint);
+    font-size:11px;
+    font-family:var(--font-mono);
+    letter-spacing:0.04em;
+    border-radius:4px;
+    opacity:0;
+    transition:opacity 0.14s ease, color 0.14s ease, background 0.14s ease;
+    vertical-align:middle;
+  }
+  tr:hover .inspect-btn{ opacity:1; }
+  .inspect-btn:hover{ color:var(--gold-bright); background:rgba(217,164,65,0.1); }
+
+  .drawer-backdrop{
+    display:none;
+    position:fixed;
+    inset:0;
+    z-index:89;
+    background:rgba(0,0,0,0.4);
+  }
+  .drawer-backdrop.open{ display:block; }
+
+  .player-drawer{
+    position:fixed;
+    top:0; right:0;
+    width:460px;
+    max-width:100vw;
+    height:100vh;
+    background:var(--panel);
+    border-left:1px solid var(--hairline);
+    z-index:90;
+    display:flex;
+    flex-direction:column;
+    box-shadow:-24px 0 60px rgba(0,0,0,0.45);
+    transform:translateX(100%);
+    transition:transform 0.28s cubic-bezier(.22,1,.36,1);
+    overflow:hidden;
+  }
+  .player-drawer.open{ transform:translateX(0); }
+
+  .drawer-header{
+    padding:22px 22px 16px;
+    border-bottom:1px solid var(--hairline-soft);
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    flex-shrink:0;
+  }
+  .drawer-player-name{
+    font-family:var(--font-display);
+    font-size:22px;
+    font-weight:640;
+  }
+  .drawer-player-role{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    margin-top:4px;
+  }
+  .drawer-player-role.role-shotcaller{ color:var(--orange); }
+  .drawer-player-role.role-defensive{ color:var(--green-bright); }
+  .drawer-player-role.role-flex{ color:var(--gold-bright); }
+  .drawer-player-role.role-mainball{ color:#A78BFA; }
+  .drawer-player-role.role-none{ color:var(--text-faint); }
+
+  .drawer-close{
+    background:none;
+    border:none;
+    color:var(--text-faint);
+    cursor:pointer;
+    font-size:18px;
+    line-height:1;
+    padding:4px 8px;
+    border-radius:6px;
+    flex-shrink:0;
+    transition:color 0.14s ease;
+  }
+  .drawer-close:hover{ color:var(--text); }
+
+  .drawer-summary{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:1px;
+    background:var(--hairline-soft);
+    border-bottom:1px solid var(--hairline-soft);
+    flex-shrink:0;
+  }
+  .drawer-stat{
+    background:var(--panel);
+    padding:14px 12px;
+    text-align:center;
+  }
+  .drawer-stat-val{
+    font-family:var(--font-mono);
+    font-size:20px;
+    font-weight:600;
+    color:var(--text);
+  }
+  .drawer-stat-val.kd{ color:var(--gold-bright); }
+  .drawer-stat-label{
+    font-family:var(--font-mono);
+    font-size:10px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    margin-top:3px;
+  }
+
+  .drawer-body{
+    flex:1;
+    overflow-y:auto;
+    padding:16px 20px 32px;
+  }
+
+  .drawer-section-label{
+    font-family:var(--font-mono);
+    font-size:10px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    margin-bottom:10px;
+  }
+
+  .drawer-match{
+    background:var(--panel-raised);
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    padding:14px 16px;
+    margin-bottom:10px;
+    transition:border-color 0.16s ease;
+  }
+  .drawer-match:hover{ border-color:rgba(255,255,255,0.14); }
+
+  .drawer-match-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .drawer-match-date{
+    font-family:var(--font-ui);
+    font-size:13px;
+    font-weight:600;
+  }
+  .drawer-match-loc{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-muted);
+    margin-top:2px;
+  }
+  .drawer-match-result{
+    font-family:var(--font-mono);
+    font-size:10px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    padding:4px 10px;
+    border-radius:999px;
+    font-weight:600;
+  }
+  .drawer-match-result.victory{ color:var(--gold-bright); background:rgba(217,164,65,0.12); border:1px solid rgba(217,164,65,0.3); }
+  .drawer-match-result.defeat{ color:var(--red-bright); background:rgba(178,64,47,0.12); border:1px solid rgba(178,64,47,0.3); }
+
+  .drawer-match-stats{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:8px;
+  }
+  .drawer-match-stat{
+    text-align:center;
+  }
+  .drawer-match-stat-val{
+    font-family:var(--font-mono);
+    font-size:15px;
+    font-weight:600;
+    color:var(--text);
+  }
+  .drawer-match-stat-val.kd{ color:var(--gold-bright); }
+  .drawer-match-stat-label{
+    font-family:var(--font-mono);
+    font-size:9.5px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    margin-top:2px;
+  }
+
+  .drawer-extended-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:4px 12px;
+    margin-top:10px;
+    padding-top:10px;
+    border-top:1px solid var(--hairline-soft);
+  }
+  .drawer-ext-row{
+    display:flex;
+    justify-content:space-between;
+    font-family:var(--font-mono);
+    font-size:11px;
+  }
+  .drawer-ext-label{ color:var(--text-faint); }
+  .drawer-ext-val{ color:var(--text-muted); }
+
+  .drawer-not-in-match{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-faint);
+    font-style:italic;
+    text-align:center;
+    padding:10px 0;
+  }
+
+  .drawer-profile-link a{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.06em;
+    color:var(--gold-bright);
+    text-decoration:none;
+    padding:7px 14px;
+    border:1px solid rgba(139,26,26,0.35);
+    border-radius:999px;
+    background:rgba(139,26,26,0.1);
+    transition:background 0.14s ease, border-color 0.14s ease;
+  }
+  .drawer-profile-link a:hover{ background:rgba(139,26,26,0.2); border-color:var(--crimson); }
+
+  .drawer-class-badge{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.06em;
+    color:var(--text-muted);
+    margin-top:3px;
+  }
+
+
+  .add-war-btn{
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:0.04em;
+    color:var(--crimson-bright);
+    background:rgba(139,26,26,0.12);
+    border:1px solid var(--crimson);
+    border-radius:999px;
+    padding:7px 16px;
+    cursor:pointer;
+    transition:background 0.16s ease, box-shadow 0.16s ease;
+    white-space:nowrap;
+  }
+  .add-war-btn:hover{ background:rgba(139,26,26,0.22); box-shadow:0 0 16px rgba(139,26,26,0.2); }
+
+  .clear-wars-btn{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:0.04em;
+    color:var(--red-bright); background:rgba(178,64,47,0.08);
+    border:1px solid rgba(178,64,47,0.3); border-radius:999px;
+    padding:7px 16px; cursor:pointer;
+    transition:background 0.16s ease, box-shadow 0.16s ease;
+    white-space:nowrap;
+  }
+  .clear-wars-btn:hover{ background:rgba(178,64,47,0.16); box-shadow:0 0 16px rgba(178,64,47,0.12); }
+
+  .modal-backdrop{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.72);
+    z-index:100;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    backdrop-filter:blur(4px);
+  }
+  .modal-backdrop.hidden{ display:none; }
+
+  .modal{
+    background:var(--panel);
+    border:1px solid var(--hairline);
+    border-radius:14px;
+    width:100%;
+    max-width:560px;
+    box-shadow:0 40px 90px rgba(0,0,0,0.6);
+    overflow:hidden;
+  }
+  .modal-header{
+    padding:20px 24px 16px;
+    border-bottom:1px solid var(--hairline-soft);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .modal-title{
+    font-family:var(--font-display);
+    font-size:19px;
+    font-weight:620;
+  }
+  .modal-close{
+    background:none;
+    border:none;
+    color:var(--text-faint);
+    cursor:pointer;
+    font-size:20px;
+    line-height:1;
+    padding:4px 8px;
+    border-radius:6px;
+    transition:color 0.14s ease;
+  }
+  .modal-close:hover{ color:var(--text); }
+  .modal-body{ padding:22px 24px 24px; }
+
+  .modal-step{ display:none; }
+  .modal-step.active{ display:block; }
+
+  .upload-zone{
+    border:2px dashed var(--hairline);
+    border-radius:10px;
+    padding:40px 24px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color 0.16s ease, background 0.16s ease;
+    position:relative;
+  }
+  .upload-zone:hover, .upload-zone.drag-over{
+    border-color:var(--crimson);
+    background:rgba(139,26,26,0.05);
+  }
+  .upload-zone input[type=file]{
+    position:absolute;
+    inset:0;
+    opacity:0;
+    cursor:pointer;
+    width:100%;
+    height:100%;
+  }
+  .upload-icon{ font-size:32px; margin-bottom:10px; }
+  .upload-label{
+    font-family:var(--font-ui);
+    font-size:14px;
+    color:var(--text-muted);
+  }
+  .upload-label b{ color:var(--crimson-bright); }
+  .upload-sub{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-faint);
+    margin-top:6px;
+  }
+
+  .upload-preview{
+    margin-top:14px;
+    border-radius:8px;
+    overflow:hidden;
+    border:1px solid var(--hairline);
+    display:none;
+  }
+  .upload-preview img{ width:100%; display:block; max-height:220px; object-fit:contain; background:var(--bg); }
+
+  .modal-actions{
+    display:flex;
+    gap:10px;
+    justify-content:flex-end;
+    margin-top:20px;
+  }
+  .modal-btn{
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:0.04em;
+    padding:9px 18px;
+    border-radius:999px;
+    cursor:pointer;
+    border:1px solid var(--hairline);
+    background:var(--panel-raised);
+    color:var(--text-muted);
+    transition:color 0.14s ease, background 0.14s ease, border-color 0.14s ease;
+  }
+  .modal-btn:hover{ color:var(--text); border-color:rgba(255,255,255,0.18); }
+  .modal-btn.primary{
+    background:rgba(139,26,26,0.14);
+    color:var(--crimson-bright);
+    border-color:var(--crimson);
+  }
+  .modal-btn.primary:hover{ background:rgba(139,26,26,0.26); }
+  .modal-btn:disabled{ opacity:0.4; pointer-events:none; }
+
+  .modal-status{
+    font-family:var(--font-mono);
+    font-size:12px;
+    margin-top:14px;
+    min-height:20px;
+    color:var(--text-muted);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .modal-status.error{ color:var(--red-bright); }
+  .modal-status.success{ color:var(--green-bright); }
+
+  .spinner{
+    width:14px; height:14px;
+    border:2px solid rgba(255,255,255,0.1);
+    border-top-color:var(--crimson-bright);
+    border-radius:50%;
+    animation:spin 0.7s linear infinite;
+    display:inline-block;
+    flex-shrink:0;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .extracted-preview{
+    background:var(--panel-raised);
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    padding:14px 16px;
+    font-family:var(--font-mono);
+    font-size:12px;
+    color:var(--text-muted);
+    line-height:1.7;
+    max-height:260px;
+    overflow-y:auto;
+  }
+  .extracted-preview b{ color:var(--text); }
+  .extracted-preview .ext-gold{ color:var(--gold-bright); }
+  .extracted-preview .ext-green{ color:var(--green-bright); }
+  .extracted-preview .ext-red{ color:var(--red-bright); }
+  /* roles-bar removed — button is now in the tab toolbar */
+  .roles-edit-btn{
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:0.04em;
+    color:var(--text-muted);
+    background:var(--panel);
+    border:1px solid var(--hairline);
+    border-radius:999px;
+    padding:8px 16px;
+    cursor:pointer;
+    transition:background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+  }
+  .roles-edit-btn:hover{ color:var(--text); border-color:rgba(255,255,255,0.18); }
+  .roles-edit-btn.active{
+    color:var(--crimson-bright);
+    border-color:var(--crimson);
+    background:rgba(139,26,26,0.12);
+  }
+
+  .roles-panel{
+    max-width:980px;
+    margin:0 auto 0;
+    background:var(--panel);
+    border:1px solid var(--hairline);
+    border-radius:10px;
+    overflow:hidden;
+    max-height:0;
+    opacity:0;
+    margin-bottom:0;
+    transition:max-height 0.32s cubic-bezier(.22,1,.36,1), opacity 0.22s ease, margin-bottom 0.28s ease;
+    pointer-events:none;
+  }
+  .roles-panel.open{
+    max-height:900px;
+    opacity:1;
+    margin-bottom:24px;
+    pointer-events:auto;
+  }
+
+  .roles-summary{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:1px;
+    background:var(--hairline-soft);
+  }
+  .roles-summary-col{
+    background:var(--panel);
+    padding:16px 18px;
+  }
+  .roles-summary-title{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    font-weight:600;
+    margin-bottom:10px;
+    padding-bottom:8px;
+    border-bottom:2px solid;
+  }
+  .roles-summary-col.shotcaller .roles-summary-title{ color:var(--orange); border-color:var(--orange); }
+  .roles-summary-col.defensive .roles-summary-title{ color:var(--green-bright); border-color:var(--green-bright); }
+  .roles-summary-col.flex .roles-summary-title{ color:var(--gold-bright); border-color:var(--gold-bright); }
+
+  .roles-chip-list{ display:flex; flex-wrap:wrap; gap:6px; min-height:28px; }
+  .roles-chip{
+    font-family:var(--font-ui);
+    font-size:12.5px;
+    padding:5px 11px;
+    border-radius:999px;
+    background:var(--panel-raised);
+    border:1px solid var(--hairline);
+  }
+  .roles-empty{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    color:var(--text-faint);
+    font-style:italic;
+  }
+
+  .roles-dnd{
+    border-top:1px solid var(--hairline-soft);
+    padding:18px 24px 22px;
+  }
+  .roles-dnd-label{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    margin-bottom:14px;
+  }
+  .roles-dnd-board{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr 1fr 1fr;
+    gap:14px;
+  }
+  .roles-dnd-col{
+    background:var(--panel-raised);
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    padding:12px;
+    min-height:220px;
+    display:flex;
+    flex-direction:column;
+  }
+  .roles-dnd-title{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    font-weight:600;
+    margin-bottom:10px;
+    padding-bottom:8px;
+    border-bottom:2px solid;
+    color:var(--text-muted);
+    border-color:var(--hairline);
+  }
+  .roles-dnd-col.shotcaller .roles-dnd-title{ color:var(--orange); border-color:var(--orange); }
+  .roles-dnd-col.defensive .roles-dnd-title{ color:var(--green-bright); border-color:var(--green-bright); }
+  .roles-dnd-col.flex .roles-dnd-title{ color:var(--gold-bright); border-color:var(--gold-bright); }
+  .roles-dnd-col.mainball .roles-dnd-title{ color:#A78BFA; border-color:#A78BFA; }
+
+  .roles-dnd-zone{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    align-content:flex-start;
+    border-radius:6px;
+    transition:background 0.15s ease, box-shadow 0.15s ease;
+    padding:4px;
+    min-height:140px;
+  }
+  .roles-dnd-zone.drag-over{
+    background:rgba(139,26,26,0.08);
+    box-shadow:inset 0 0 0 2px var(--crimson);
+  }
+  .roles-dnd-placeholder{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-faint);
+    font-style:italic;
+    margin:auto;
+    text-align:center;
+    pointer-events:none;
+  }
+
+  .roles-chip-drag{
+    font-family:var(--font-ui);
+    font-size:13px;
+    padding:7px 12px;
+    border-radius:8px;
+    background:var(--panel);
+    border:1px solid var(--hairline);
+    cursor:grab;
+    user-select:none;
+    transition:opacity 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+  }
+  .roles-chip-drag:hover{ border-color:rgba(255,255,255,0.22); }
+  .roles-chip-drag:active{ cursor:grabbing; }
+  .roles-chip-drag.dragging{ opacity:0.35; }
+
+  .roles-note{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-faint);
+    margin-top:14px;
+    line-height:1.6;
+  }
+
+  @media (max-width:760px){
+    .roles-dnd-board{ grid-template-columns:1fr 1fr; }
+  }
+
+  @media (max-width:640px){
+    .roles-summary{ grid-template-columns:1fr; }
+  }
 
   /* ============================================================
      HEADER
@@ -72,9 +724,9 @@
     margin:0 auto 24px;
     padding:22px 20px 18px;
     text-align:center;
-    border:1px solid rgba(255,255,255,0.08);
+    border:1px solid rgba(139,26,26,0.2);
     border-radius:36px;
-    background:rgba(11,12,14,0.78);
+    background:rgba(8,6,8,0.85);
     backdrop-filter:blur(16px);
     box-shadow:0 28px 72px rgba(0,0,0,0.28);
   }
@@ -98,7 +750,7 @@
   }
 
   h1 span{
-    color:var(--gold);
+    color:var(--crimson-bright);
     font-style:italic;
     font-weight:480;
   }
@@ -191,7 +843,7 @@
   .week-header:hover,
   .week-header:focus-visible{
     background:rgba(255,255,255,0.06);
-    border-color:var(--gold);
+    border-color:var(--crimson);
     outline:none;
     transform:translateY(-1px);
   }
@@ -230,22 +882,50 @@
     color:var(--text-faint);
   }
 
+  .week-select-wrap{
+    position:relative;
+    display:inline-flex;
+    align-items:center;
+  }
+
   select#weekSelect{
-    min-width:180px;
+    min-width:200px;
     border-radius:999px;
     border:1px solid var(--hairline);
     background:var(--panel);
     color:var(--text);
-    padding:10px 14px;
+    padding:8px 38px 8px 16px;
     font-family:var(--font-mono);
-    font-size:13px;
+    font-size:12px;
     cursor:pointer;
     appearance:none;
+    -webkit-appearance:none;
+    transition:border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    outline:none;
+  }
+
+  select#weekSelect:hover{
+    border-color:rgba(255,255,255,0.2);
+    background:var(--panel-raised);
   }
 
   select#weekSelect:focus{
-    outline:none;
-    box-shadow:0 0 0 2px rgba(217,164,65,0.16);
+    border-color:var(--crimson);
+    box-shadow:0 0 0 3px rgba(139,26,26,0.15);
+  }
+
+  .week-select-arrow{
+    position:absolute;
+    right:13px;
+    pointer-events:none;
+    color:var(--text-faint);
+    font-size:12px;
+    line-height:1;
+    transition:color 0.18s ease;
+  }
+  select#weekSelect:focus ~ .week-select-arrow,
+  select#weekSelect:hover ~ .week-select-arrow{
+    color:var(--crimson-bright);
   }
 
   .tab-list{
@@ -344,7 +1024,30 @@
   /* ============================================================
      MATCH PANEL
      ============================================================ */
-  main{ max-width:980px; margin:0 auto; padding:8px 24px 80px; }
+  main{ max-width:980px; margin:0 auto; padding:8px 24px 80px; transition:max-width 0.2s ease; }
+  main.wide{ max-width:1360px; }
+
+  /* ---- Extended stats table (compact fixed columns, fits without scroll) ---- */
+  .table-scroll.extended{ padding:6px 14px 22px; }
+  table.extended{ table-layout:fixed; }
+  table.extended col.col-class{ width:3.5%; }
+  table.extended col.col-name{ width:13%; }
+  table.extended col.col-role{ width:7%; }
+  table.extended col.col-num{ width:4.8%; }
+  table.extended thead th{
+    white-space:normal;
+    line-height:1.25;
+    vertical-align:bottom;
+    font-size:9.5px;
+    padding:8px 5px;
+  }
+  table.extended tbody td{
+    font-size:11.5px;
+    padding:7px 5px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
 
   .panel{
     background:var(--panel);
@@ -373,46 +1076,6 @@
     font-size:12px;
     color:var(--text-muted);
     margin-top:4px;
-  }
-
-  .rozuns-note{
-    padding:16px 28px;
-    background:rgba(75, 159, 93, 0.2);
-    border-bottom:3px solid #5BC976;
-    border-top:3px solid #FF00FF;
-    border-left:3px solid #00FFFF;
-    border-right:3px solid #FFFF00;
-    font-family:var(--font-mono);
-    font-size:22px;
-    color:#5BC976;
-    display:flex;
-    align-items:center;
-    font-weight:700;
-    text-shadow:
-      0 0 10px #5BC976,
-      0 0 20px #FF00FF,
-      0 0 30px #00FFFF,
-      0 0 5px rgba(255, 255, 0, 0.5);
-    background:linear-gradient(135deg, rgba(75, 159, 93, 0.3), rgba(255, 0, 255, 0.1), rgba(0, 255, 255, 0.1));
-  }
-
-  .rozuns-note span{
-    font-weight:700;
-    text-shadow:
-      0 0 10px #5BC976,
-      0 0 20px #FF00FF,
-      0 0 30px #00FFFF,
-      0 0 5px rgba(255, 255, 0, 0.5);
-  }
-
-  .rozuns-highlight{
-    color:#FFFF00;
-    font-weight:900;
-    letter-spacing:0.1em;
-    text-shadow:
-      0 0 15px #FFFF00,
-      0 0 30px #FF00FF,
-      0 0 20px #00FFFF;
   }
 
   .result-pill{
@@ -715,7 +1378,75 @@
   tr[data-rank="3"] td.rank{ color:var(--bronze); }
 
   td.kd{ font-family:var(--font-mono); font-weight:600; color:var(--gold-bright); }
+
+  td.td-class{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-muted);
+    letter-spacing:0.02em;
+    white-space:nowrap;
+  }
+
+  /* ---- Panel search ---- */
+  .panel-search-wrap{
+    position:relative;
+    display:flex;
+    align-items:center;
+  }
+  .panel-search{
+    background:var(--panel-raised);
+    border:1px solid var(--hairline);
+    border-radius:999px;
+    color:var(--text);
+    font-family:var(--font-mono);
+    font-size:12px;
+    padding:7px 14px 7px 34px;
+    width:180px;
+    outline:none;
+    transition:border-color 0.16s ease, box-shadow 0.16s ease, width 0.2s ease;
+  }
+  .panel-search:focus{
+    border-color:var(--crimson);
+    box-shadow:0 0 0 3px rgba(139,26,26,0.12);
+    width:220px;
+  }
+  .panel-search::placeholder{ color:var(--text-faint); }
+  .panel-search-icon{
+    position:absolute;
+    left:12px;
+    color:var(--text-faint);
+    font-size:13px;
+    pointer-events:none;
+    line-height:1;
+  }
+  .panel-search-clear{
+    position:absolute;
+    right:10px;
+    background:none;
+    border:none;
+    color:var(--text-faint);
+    cursor:pointer;
+    font-size:14px;
+    line-height:1;
+    padding:2px 4px;
+    border-radius:4px;
+    display:none;
+    transition:color 0.14s ease;
+  }
+  .panel-search-clear:hover{ color:var(--text); }
+  .panel-search-clear.visible{ display:block; }
   td.played{ color:var(--text-muted); font-family:var(--font-mono); }
+
+  td.role-cell{
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:0.02em;
+  }
+  td.role-shotcaller{ color:var(--orange); }
+  td.role-defensive{ color:var(--green-bright); }
+  td.role-flex{ color:var(--gold-bright); }
+  td.role-mainball{ color:#A78BFA; }
+  td.role-none{ color:var(--text-faint); }
 
   /* ============================================================
      FOOTER
@@ -772,6 +1503,13 @@
 </head>
 <body>
 
+<nav class="site-nav">
+  <a href="home.html">Home</a>
+  <a href="index.html" class="current">War Scores</a>
+  <a href="players.html">Roster</a>
+  <a href="dashboard.html">Dashboard</a>
+</nav>
+
 <header>
   <div class="eyebrow">Node War Record</div>
   <h1>War <span>Log</span></h1>
@@ -779,11 +1517,79 @@
   <div class="record-badge" id="recordBadge"></div>
 </header>
 
+<div class="roles-panel" id="rolesPanel"></div>
+
 <div class="tab-folder">
   <div class="tab-toolbar">
-    <div class="campaign-label">Match tabs — select a war</div>
-  </div>
+      <div class="week-picker">
+        <span class="week-picker-label">Week</span>
+        <div class="week-select-wrap">
+          <select id="weekSelect" aria-label="Select week">
+            <option value="">All weeks</option>
+          </select>
+          <span class="week-select-arrow">▾</span>
+        </div>
+      </div>
+      <button class="roles-edit-btn" id="rolesEditBtn" type="button">Adjust Roles</button>
+      <button class="add-war-btn" id="addWarBtn" type="button">+ Add War</button>
+    </div>
   <div class="tab-list" id="campaignStrip"></div>
+</div>
+
+<!-- Player Inspect Drawer -->
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+<div class="player-drawer" id="playerDrawer">
+  <div class="drawer-header">
+    <div>
+      <div class="drawer-player-name" id="drawerName"></div>
+      <div class="drawer-player-role" id="drawerRole"></div>
+    </div>
+    <button class="drawer-close" id="drawerClose" type="button">✕</button>
+  </div>
+  <div class="drawer-summary" id="drawerSummary"></div>
+  <div class="drawer-profile-link" id="drawerProfileLink" style="padding:10px 20px 0;flex-shrink:0;"></div>
+  <div class="drawer-body" id="drawerBody"></div>
+</div>
+
+<!-- Add War Modal -->
+<div class="modal-backdrop hidden" id="addWarModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add New War</div>
+      <button class="modal-close" id="modalClose" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Step 1: Upload -->
+      <div class="modal-step active" id="stepUpload">
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="screenshotInput" accept="image/*" multiple>
+          <div class="upload-icon">🖼</div>
+          <div class="upload-label">Drop your war result screenshot here<br>or <b>click to browse</b></div>
+          <div class="upload-sub">Upload the extended stats screen. If the player list is cut off, upload additional screenshots too — up to 4 total.</div>
+        </div>
+        <div class="upload-preview" id="uploadPreview">
+          <img id="previewImg" src="" alt="Preview">
+        </div>
+        <div class="modal-status" id="uploadStatus"></div>
+        <div class="modal-actions">
+          <button class="modal-btn" id="cancelBtn" type="button">Cancel</button>
+          <button class="modal-btn primary" id="extractBtn" type="button" disabled>Extract Data →</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Review & Confirm -->
+      <div class="modal-step" id="stepReview">
+        <div class="extracted-preview" id="extractedPreview"></div>
+        <div class="modal-status" id="reviewStatus"></div>
+        <div class="modal-actions">
+          <button class="modal-btn" id="backBtn" type="button">← Back</button>
+          <button class="modal-btn primary" id="confirmBtn" type="button">Add to War Log</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
 </div>
 
 <main>
@@ -808,47 +1614,6 @@ const GUILD_NAME = "Node War Log"; // shown in the page title only
 
 const MATCHES = [
   {
-    date: "2026-06-15", day: "Monday", location: "Calpheon", result: "Victory",
-    players: [
-      ["StraightEdge",48,15],["Vem",46,26],["Yulie",44,27],["Aodhan",31,12],
-      ["Ghond",30,25],["BrotherMango",29,32],["Dreamxx",29,27],["Alancar",28,23],
-      ["KillShotz",26,26],["NightBringers",26,31],["HaterApproved",25,23],["Yannik",24,16],
-      ["Kraiok",23,37],["Mcy",17,18],["Serade",15,26],["Onimichi",12,25],
-      ["Valth",12,31],["HiiroNoAme",10,39],["LulzCaptain",9,17],["Rozuns",4,19],
-      ["HeRoisMx",1,0],["XastusMK",1,38],["EXTRA_LARGE",0,1],["SirHeathen",0,2],
-    ]
-  },
-  {
-    date: "2026-06-16", day: "Tuesday", location: "Serendia", result: "Victory",
-    players: [
-      ["BrotherMango",38,16],["KillShotz",32,16],["Aodhan",31,13],["Rozuns",30,17],
-      ["EXTRA_LARGE",28,22],["HaterApproved",27,14],["Alancar",27,16],["Kraiok",17,17],
-      ["Beastylirious",16,19],["StaticHurtYou",15,24],["Mcy",13,10],["LulzCaptain",6,9],
-      ["XastusMK",4,25],["TheWretched",4,10],["Onimichi",3,13],["HeRoisMx",3,0],
-      ["SirHeathen",2,0],
-    ]
-  },
-  {
-    date: "2026-06-17", day: "Wednesday", location: "Calpheon", result: "Defeat",
-    players: [
-      ["HaterApproved",29,19],["LulzCaptain",28,18],["Aodhan",28,11],["Zebraghost",23,16],
-      ["Menteeing",21,13],["EXTRA_LARGE",20,20],["BrotherMango",17,21],["Beastylirious",17,13],
-      ["Dreamxx",13,16],["Serade",11,19],["KillShotz",11,19],["Kraiok",8,21],
-      ["Rostalina",7,16],["HiiroNoAme",7,27],["Onimichi",4,17],["Mcy",4,13],
-      ["Rozuns",2,9],["XastusMK",1,22],["HeRoisMx",0,0],["SirHeathen",0,0],
-    ]
-  },
-  {
-    date: "2026-06-18", day: "Thursday", location: "Ulukita", result: "Defeat",
-    players: [
-      ["KillShotz",65,17],["EXTRA_LARGE",64,27],["HaterApproved",59,29],["BrotherMango",58,24],
-      ["Milkdudh",52,26],["Alancar",51,17],["Aodhan",43,20],["Mcy",40,21],
-      ["Menteeing",35,28],["Zebraghost",35,33],["Ghond",31,28],["Dreamxx",26,32],
-      ["ScummySteve",22,28],["SirHeathen",13,7],["HeRoisMx",7,1],["Lulupeach",6,17],
-      ["Rozuns",6,12],
-    ]
-  },
-  {
     date: "2026-06-19", day: "Friday", location: "Ulukita", result: "Defeat",
     players: [
       ["Popspolar",30,14],["Milkdudh",25,14],["Aodhan",24,10],["Dreamxx",18,21],
@@ -862,6 +1627,43 @@ const MATCHES = [
 ];
 
 /* ================================================================
+   EXTENDED STATS — richer per-player columns for matches where we
+   have the detailed result screenshot. Keyed by match date; matches
+   not listed here just show the standard Kills/Deaths/K/D table.
+   Each player: [name, kills, deaths, streak, dmgDone, dmgTaken, cc,
+   hpHealed, allyHpHealed, fortDmg, cannonsLanded, objDestroyed,
+   cannonDist, traps, timeDeadSeconds, timeAliveSeconds]
+   ================================================================ */
+const EXTENDED_STATS = {
+  "2026-06-19": [
+    ["HaterApproved",17,17,3,471900,434700,60,255500,32633,282500,0,0,0,0,275,2073],
+    ["ScummySteve",13,9,1,339200,480300,67,385500,30071,260000,0,0,0,0,131,2217],
+    ["Milkdudh",25,14,2,554000,471000,92,316100,28755,654200,0,0,0,0,164,2184],
+    ["KillShotz",16,18,2,550100,537100,59,340100,38400,1300000,0,0,0,3,318,2030],
+    ["Mcy",10,15,2,286000,478400,60,313200,26420,302200,0,0,0,2,258,2090],
+    ["BrotherMango",17,16,3,657900,500600,70,318700,43471,692400,0,0,0,0,268,2080],
+    ["Kraiok",10,19,2,332400,543900,37,341600,36608,137500,0,0,0,2,291,2057],
+    ["Beastylirious",15,21,2,344500,643400,14,403500,51969,0,0,0,0,0,396,1952],
+    ["Dreamxx",18,21,3,558600,551700,52,315100,215200,0,0,0,0,0,464,1884],
+    ["Popspolar",30,14,3,878600,522400,122,364300,52152,386800,0,0,0,2,234,2114],
+    ["SirHeathen",3,13,1,173200,298000,18,154300,17807,0,0,0,0,0,225,2123],
+    ["Lulupeach",4,11,1,150400,260700,37,136800,51315,0,0,0,0,0,176,2172],
+    ["Rozuns",6,14,2,259300,370300,34,217800,29738,35378,0,0,0,0,363,1985],
+    ["Aodhan",24,10,2,710100,576200,72,471700,59788,971000,0,0,0,3,183,2165],
+    ["XastusMK",2,21,1,62672,467600,52,229200,204000,0,0,0,0,1,401,1947],
+    ["Valth",12,17,3,311600,526800,41,336800,314500,140100,0,0,0,0,280,2068],
+    ["Serade",7,17,2,227100,404700,40,220600,28060,223400,0,0,0,2,231,2117],
+    ["Rostalina",15,19,2,367900,447400,13,231200,37996,66254,0,0,0,0,323,2025],
+    ["TheWretched",9,21,1,354000,495600,70,260700,29169,48861,0,0,0,1,400,1948],
+    ["Alancar",15,17,1,423600,519400,60,327100,43573,183200,0,0,0,2,286,2062],
+    ["LulzCaptain",9,18,2,382200,472900,56,269900,30689,0,0,0,0,1,327,2021],
+    ["Succs",6,17,1,229200,499400,37,306800,30893,0,0,0,0,0,281,2067],
+    ["Cohrence",5,17,1,251400,514100,41,318600,231700,80719,0,0,0,0,238,2110],
+    ["HeRoisMx",7,3,2,279400,48401,207,17952,2422,0,0,0,0,0,59,2289],
+  ],
+};
+
+/* ================================================================
    LOGIC — no edits needed below this line
    ================================================================ */
 
@@ -873,6 +1675,43 @@ function kd(kills, deaths){
 }
 function fmtKD(v){ return v === null ? "—" : v.toFixed(2); }
 
+function fmtNum(v){
+  if (v >= 1000000) return (v/1000000).toFixed(1) + "M";
+  if (v >= 100000) return (v/1000).toFixed(1) + "K";
+  return String(v);
+}
+function fmtTime(seconds){
+  const m = Math.floor(seconds/60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+}
+
+const ROLE_LABELS = { shotcaller:"Shotcaller", defensive:"Defensive", flex:"Flex Squad", mainball:"Mainball" };
+function fmtRole(role){ return ROLE_LABELS[role] || "—"; }
+
+const EXTENDED_COLS = [
+  ["class","Class", v=>v||""],
+  ["name","Family", v=>v],
+  ["role","Role", fmtRole],
+  ["kills","Kills", v=>v],
+  ["deaths","Deaths", v=>v],
+  ["kd","K/D", fmtKD],
+  ["played","Wars", v=>v!==undefined ? v : ""],
+  ["streak","Streak", v=>v],
+  ["dmgDone","Dmg Done", fmtNum],
+  ["dmgTaken","Dmg Taken", fmtNum],
+  ["cc","CC's", v=>v],
+  ["hpHealed","HP Healed", fmtNum],
+  ["allyHpHealed","Ally HP Healed", fmtNum],
+  ["fortDmg","Fort Dmg", fmtNum],
+  ["cannonsLanded","Cannons Landed", v=>v],
+  ["objDestroyed","Objects Destroyed", v=>v],
+  ["cannonDist","Cannon Dist", v=>v],
+  ["traps","Traps Triggered", v=>v],
+  ["timeDead","Time Dead", fmtTime],
+  ["timeAlive","Time Alive", fmtTime],
+];
+
 function dayShort(dateStr){
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString("en-US", { day:"numeric", month:"short" });
@@ -883,11 +1722,38 @@ function buildOverall(){
   const totals = {};
   MATCHES.forEach(m=>{
     m.players.forEach(([name,k,d])=>{
-      if(!totals[name]) totals[name] = {name, kills:0, deaths:0, played:0};
+      if(!totals[name]) totals[name] = {
+        name, kills:0, deaths:0, played:0,
+        streak:0, dmgDone:0, dmgTaken:0, cc:0,
+        hpHealed:0, allyHpHealed:0, fortDmg:0,
+        cannonsLanded:0, objDestroyed:0, cannonDist:0,
+        traps:0, timeDead:0, timeAlive:0
+      };
       totals[name].kills += k;
       totals[name].deaths += d;
       totals[name].played += 1;
     });
+    // Aggregate extended stats where available
+    const ext = EXTENDED_STATS[m.date];
+    if (ext){
+      ext.forEach(p=>{
+        const [name,,,streak,dmgDone,dmgTaken,cc,hpHealed,allyHpHealed,fortDmg,cannonsLanded,objDestroyed,cannonDist,traps,timeDead,timeAlive] = p;
+        if (!totals[name]) return;
+        totals[name].streak      = Math.max(totals[name].streak, streak ?? 0);
+        totals[name].dmgDone     += dmgDone     ?? 0;
+        totals[name].dmgTaken    += dmgTaken    ?? 0;
+        totals[name].cc          += cc          ?? 0;
+        totals[name].hpHealed    += hpHealed    ?? 0;
+        totals[name].allyHpHealed+= allyHpHealed?? 0;
+        totals[name].fortDmg     += fortDmg     ?? 0;
+        totals[name].cannonsLanded+=cannonsLanded?? 0;
+        totals[name].objDestroyed+= objDestroyed?? 0;
+        totals[name].cannonDist  += cannonDist  ?? 0;
+        totals[name].traps       += traps       ?? 0;
+        totals[name].timeDead    += timeDead    ?? 0;
+        totals[name].timeAlive   += timeAlive   ?? 0;
+      });
+    }
   });
   return Object.values(totals);
 }
@@ -896,6 +1762,142 @@ const wins = MATCHES.filter(m=>m.result==="Victory").length;
 const losses = MATCHES.filter(m=>m.result==="Defeat").length;
 document.getElementById("recordBadge").innerHTML =
   `<b class="win">${wins}W</b><span class="div">/</span><b class="loss">${losses}L</b><span class="div">·</span>${MATCHES.length} wars logged`;
+
+// ---- Squad Roles (Shotcaller / Defensive / Flex Squad) ----
+// Assignments persist via localStorage in this browser only — there's no
+// backend, so this won't sync across different devices or visitors.
+// If localStorage is unavailable (e.g. a sandboxed preview), it just
+// falls back to in-memory for the current session.
+const ROLE_DEFS = [
+  { key:"shotcaller", label:"Shotcaller" },
+  { key:"defensive",  label:"Defensive"  },
+  { key:"flex",        label:"Flex Squad" },
+  { key:"mainball",    label:"Mainball"   },
+];
+const ROLES_STORAGE_KEY    = "nodeWarSquadRoles";
+const PROFILES_STORAGE_KEY = "nodeWarPlayerProfiles";
+
+function loadPlayerProfiles(){
+  try{ const r=localStorage.getItem(PROFILES_STORAGE_KEY); return r?JSON.parse(r):{}; }
+  catch(e){ return {}; }
+}
+let playerProfiles = loadPlayerProfiles();
+
+// Load dynamic matches FIRST so uploaded wars are included in the roster
+// before we build defaults — fixes both the reload bug and missing Mainball role.
+applyDynamicMatches();
+
+let roster = buildOverall().map(r=>r.name).sort((a,b)=>a.localeCompare(b));
+
+function loadRoleAssignments(){
+  try{
+    const raw = localStorage.getItem(ROLES_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  }catch(e){ /* storage unavailable — fall back to in-memory */ }
+  return {};
+}
+function saveRoleAssignments(){
+  try{ localStorage.setItem(ROLES_STORAGE_KEY, JSON.stringify(roleAssignments)); }
+  catch(e){ /* storage unavailable — assignments stay in-memory only for this session */ }
+}
+
+let roleAssignments = loadRoleAssignments();
+
+// Assign anyone with no role to Mainball by default.
+// Rebuilds roster from current MATCHES each time so newly-added wars are included.
+function applyMainballDefaults(){
+  const currentRoster = buildOverall().map(r=>r.name);
+  currentRoster.forEach(name=>{
+    if (!roleAssignments[name]) roleAssignments[name] = "mainball";
+  });
+  saveRoleAssignments();
+  roster = currentRoster.sort((a,b)=>a.localeCompare(b));
+}
+applyMainballDefaults();
+let rolesPanelOpen = false;
+
+function renderRolesPanel(){
+  const panel = document.getElementById("rolesPanel");
+  const btn = document.getElementById("rolesEditBtn");
+  btn.textContent = rolesPanelOpen ? "Done" : "Adjust Roles";
+  btn.classList.toggle("active", rolesPanelOpen);
+
+  if (!rolesPanelOpen){
+    panel.innerHTML = "";
+    panel.classList.remove("open");
+    return;
+  }
+
+  // Edit mode: a 4-column drag-and-drop board — Unassigned plus the
+  // three roles. Dragging a chip into a column assigns that role;
+  // dragging it back into Unassigned clears it.
+  const boardCols = [{ key:"", label:"Unassigned" }, ...ROLE_DEFS];
+
+  const boardHTML = boardCols.map(col=>{
+    const names = roster.filter(n => (roleAssignments[n] || "") === col.key);
+    const chipsHTML = names.length
+      ? names.map(n=>`<div class="roles-chip-drag" draggable="true" data-player="${n}">${n}</div>`).join("")
+      : `<div class="roles-dnd-placeholder">Drop here</div>`;
+    const colClass = col.key || "unassigned";
+    return `
+      <div class="roles-dnd-col ${colClass}">
+        <div class="roles-dnd-title">${col.label} (${names.length})</div>
+        <div class="roles-dnd-zone" data-role-zone="${col.key}">${chipsHTML}</div>
+      </div>
+    `;
+  }).join("");
+
+  panel.innerHTML = `
+    <div class="roles-dnd">
+      <div class="roles-dnd-label">Drag a player into a column to assign their role</div>
+      <div class="roles-dnd-board">${boardHTML}</div>
+      <div class="roles-note">Saved in this browser only — won't sync to other devices or other people viewing this page, since the site has no backend.</div>
+    </div>
+  `;
+  requestAnimationFrame(()=>panel.classList.add("open"));
+
+  // Drag handlers
+  panel.querySelectorAll(".roles-chip-drag").forEach(chip=>{
+    chip.addEventListener("dragstart", (e)=>{
+      e.dataTransfer.setData("text/plain", chip.dataset.player);
+      e.dataTransfer.effectAllowed = "move";
+      chip.classList.add("dragging");
+    });
+    chip.addEventListener("dragend", ()=>{
+      chip.classList.remove("dragging");
+    });
+  });
+
+  panel.querySelectorAll(".roles-dnd-zone").forEach(zone=>{
+    zone.addEventListener("dragover", (e)=>{
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      zone.classList.add("drag-over");
+    });
+    zone.addEventListener("dragleave", ()=>{
+      zone.classList.remove("drag-over");
+    });
+    zone.addEventListener("drop", (e)=>{
+      e.preventDefault();
+      zone.classList.remove("drag-over");
+      const player = e.dataTransfer.getData("text/plain");
+      const role = zone.dataset.roleZone;
+      if (!player) return;
+      if (role) roleAssignments[player] = role;
+      else delete roleAssignments[player];
+      saveRoleAssignments();
+      renderRolesPanel();
+      refreshCurrentPanel();
+    });
+  });
+}
+
+document.getElementById("rolesEditBtn").addEventListener("click", ()=>{
+  rolesPanelOpen = !rolesPanelOpen;
+  renderRolesPanel();
+});
+
+renderRolesPanel();
 
 // ---- Campaign strip ----
 const strip = document.getElementById("campaignStrip");
@@ -950,9 +1952,23 @@ function renderTabs(){
   strip.innerHTML = "";
   strip.appendChild(makeBanner("overall","ALL","Record","Overall","overall"));
 
+  // Rebuild weekSelect options
+  const sel = document.getElementById("weekSelect");
+  const prevVal = sel.value;
+  sel.innerHTML = `<option value="">All weeks</option>`;
+  weekGroups.forEach(group=>{
+    const opt = document.createElement("option");
+    opt.value = group.week;
+    opt.textContent = `${weekLabel(group.week)}  (${group.matches.length} match${group.matches.length>1?"es":""})`;
+    sel.appendChild(opt);
+  });
+  // Restore selection if still valid
+  if (prevVal && weekGroups.some(g=>g.week===prevVal)) sel.value = prevVal;
+
   weekGroups.forEach(group => {
     const groupNode = document.createElement("div");
     groupNode.className = "week-group";
+    groupNode.dataset.week = group.week;
 
     const header = document.createElement("button");
     header.className = "week-header";
@@ -997,10 +2013,27 @@ function toggleWeek(week){
   renderTabs();
 }
 
+// Week dropdown — selecting a week expands it and smoothly scrolls to it
+document.getElementById("weekSelect").addEventListener("change", function(){
+  const week = this.value;
+  if (!week) return;
+
+  // Expand the selected week if not already
+  if (!expandedWeeks.has(week)) expandedWeeks.add(week);
+  renderTabs();
+
+  // Smooth-scroll the week group into view
+  requestAnimationFrame(()=>{
+    const groupEl = document.querySelector(`.week-group[data-week="${week}"]`);
+    if (groupEl) groupEl.scrollIntoView({ behavior:"smooth", block:"nearest" });
+  });
+});
+
 // ---- Sorting state ----
 let sortState = { key:"kd", dir:"desc" };
 let currentMatchKey = "overall";
 
+// Dynamic matches already applied above — just build the week groups and render
 buildWeekGroups();
 renderTabs();
 
@@ -1013,57 +2046,6 @@ function sortRows(rows, key, dir){
     if (typeof av === "string") return av.localeCompare(bv) * mult;
     return (av - bv) * mult;
   });
-}
-
-const meanComments = [
-  "what the fuck was that shit?",
-  "absolutely fucking terrible, my god",
-  "that's the worst bullshit I've ever seen",
-  "holy shit, find a different game you absolute clown",
-  "I've seen better play from a braindead potato",
-  "what the actual fuck is wrong with you?",
-  "that performance was an insult to gaming",
-  "seriously, go fuck yourself with this garbage",
-  "I've watched bronze players do better, you're pathetic",
-  "this is the kind of shit that makes me want to quit",
-  "congratulations, you played like a complete dumbass",
-  "that was so fucking bad it's offensive",
-  "you're a walking nightmare on the battlefield",
-  "this is why I have trust issues",
-  "your KD is as low as your IQ apparently"
-];
-
-const niceComments = [
-  "Okay fine, you actually crushed it!",
-  "Alright, not gonna lie, that was pretty damn good!",
-  "Fine, FINE, you played well!",
-  "I'll admit it, solid performance!",
-  "Respect, you actually showed up!",
-  "For once you didn't disappoint!",
-  "You actually pulled through!"
-];
-
-function buildRozunsNote(rows){
-  const rozuns = rows.find(r => r.name === "Rozuns");
-  if (!rozuns) return "";
-  
-  const kd = rozuns.kd;
-  const meanComment = meanComments[Math.floor(Math.random() * meanComments.length)];
-  
-  if (kd < 1.0){
-    return `
-      <div class="rozuns-note">
-        <span><strong>Special note for <span class="rozuns-highlight">Rozuns</span>: ${meanComment}</strong></span>
-      </div>
-    `;
-  }
-  
-  const niceComment = niceComments[Math.floor(Math.random() * niceComments.length)];
-  return `
-    <div class="rozuns-note">
-      <span><strong><span class="rozuns-highlight">Rozuns</span>: ${niceComment} But ${meanComment}</strong></span>
-    </div>
-  `;
 }
 
 const chartColors = [
@@ -1237,6 +2219,36 @@ function attachScoreChartInteractions(panel){
 }
 
 // ---- Render a match or overall panel ----
+function buildPanelData(key){
+  let rows, title, meta, resultClass, resultLabel, showHof = false, extended = null;
+  if (key === "overall"){
+    rows = buildOverall().map(r=>({...r, kd: kd(r.kills, r.deaths), role: roleAssignments[r.name] || "", class: (playerProfiles[r.name]||{}).class||""}));
+    title = "Overall Record";
+    meta = `${MATCHES.length} wars · ${rows.length} families`;
+    resultClass = "overall"; resultLabel = "All Wars";
+    showHof = true;
+    extended = true;
+  } else {
+    const m = MATCHES[Number(key)];
+    const ext = EXTENDED_STATS[m.date];
+    if (ext){
+      extended = true;
+      rows = ext.map(p=>{
+        const [name,kills,deaths,streak,dmgDone,dmgTaken,cc,hpHealed,allyHpHealed,fortDmg,cannonsLanded,objDestroyed,cannonDist,traps,timeDead,timeAlive] = p;
+        return { name,kills,deaths,kd:kd(kills,deaths),role:roleAssignments[name] || "",class:(playerProfiles[name]||{}).class||"",played:undefined,streak,dmgDone,dmgTaken,cc,hpHealed,allyHpHealed,fortDmg,cannonsLanded,objDestroyed,cannonDist,traps,timeDead,timeAlive };
+      });
+    } else {
+      rows = m.players.map(([name,k,d])=>({name, kills:k, deaths:d, kd: kd(k,d), role: roleAssignments[name] || "", class: (playerProfiles[name]||{}).class||""}));
+    }
+    const dt = new Date(m.date + "T00:00:00");
+    title = dt.toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+    meta = `${m.location} · Node War${extended ? " · Extended Stats" : ""}`;
+    resultClass = m.result === "Victory" ? "victory":"defeat";
+    resultLabel = m.result === "Victory" ? "Occupation Success" : "Occupation Failed";
+  }
+  return { rows, title, meta, resultClass, resultLabel, showHof, extended };
+}
+
 function selectMatch(key){
   currentMatchKey = key;
 
@@ -1244,10 +2256,11 @@ function selectMatch(key){
     const weekGroup = weekGroups.find(g=> g.matches.some(({ index })=> String(index) === key));
     if (weekGroup){
       const weekSelect = document.querySelector("#weekSelect");
-      if (weekSelect){
-        weekSelect.value = weekGroup.week;
-      }
+      if (weekSelect) weekSelect.value = weekGroup.week;
     }
+  } else {
+    const weekSelect = document.querySelector("#weekSelect");
+    if (weekSelect) weekSelect.value = "";
   }
 
   document.querySelectorAll(".tab").forEach(b=>{
@@ -1257,29 +2270,25 @@ function selectMatch(key){
   });
 
   const panel = document.getElementById("matchPanel");
-  let rows, title, meta, resultClass, resultLabel, showHof = false;
-
-  if (key === "overall"){
-    rows = buildOverall().map(r=>({...r, kd: kd(r.kills, r.deaths)}));
-    title = "Overall Record";
-    meta = `${MATCHES.length} wars · ${rows.length} families`;
-    resultClass = "overall"; resultLabel = "All Wars";
-    showHof = true;
-  } else {
-    const m = MATCHES[Number(key)];
-    rows = m.players.map(([name,k,d])=>({name, kills:k, deaths:d, kd: kd(k,d)}));
-    const dt = new Date(m.date + "T00:00:00");
-    title = dt.toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
-    meta = `${m.location} · Node War`;
-    resultClass = m.result === "Victory" ? "victory":"defeat";
-    resultLabel = m.result === "Victory" ? "Occupation Success" : "Occupation Failed";
-  }
-
+  playerProfiles = loadPlayerProfiles(); // refresh class data
+  const data = buildPanelData(key);
+  document.querySelector("main").classList.toggle("wide", !!data.extended);
   sortState = { key:"kd", dir:"desc" };
-  renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof);
+  renderPanel(panel, data.rows, data.title, data.meta, data.resultClass, data.resultLabel, data.showHof, data.extended);
 }
 
-function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof){
+// Re-renders the currently visible table with fresh role values, without
+// resetting the active tab or the user's current sort — used after a
+// Squad Roles edit so the Role column stays live.
+function refreshCurrentPanel(){
+  const panel = document.getElementById("matchPanel");
+  if (!panel || !panel.querySelector(".panel-header")) return;
+  const data = buildPanelData(currentMatchKey);
+  document.querySelector("main").classList.toggle("wide", !!data.extended);
+  renderPanel(panel, data.rows, data.title, data.meta, data.resultClass, data.resultLabel, data.showHof, data.extended);
+}
+
+function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof, extended){
   const sorted = sortRows(rows, sortState.key, sortState.dir);
 
   let hofHTML = "";
@@ -1295,28 +2304,55 @@ function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof
     `).join("") + `</div>`;
   }
 
-  const cols = showHof
-    ? [["name","Family"],["kills","Kills"],["deaths","Deaths"],["kd","K/D"],["played","Wars"]]
-    : [["name","Family"],["kills","Kills"],["deaths","Deaths"],["kd","K/D"]];
+  const cols = extended
+    ? EXTENDED_COLS
+    : showHof
+      ? [["class","Class"],["name","Family"],["role","Role"],["kills","Kills"],["deaths","Deaths"],["kd","K/D"],["played","Wars"]]
+      : [["class","Class"],["name","Family"],["role","Role"],["kills","Kills"],["deaths","Deaths"],["kd","K/D"]];
 
   const headHTML = cols.map(([key,label])=>{
     const isSorted = sortState.key === key;
     const arrow = isSorted ? (sortState.dir === "asc" ? "▲" : "▼") : "";
-    const cls = key === "name" ? "" : "num";
+    const cls = (key === "name" || key === "role") ? "" : "num";
     return `<th class="${cls} ${isSorted?'sorted':''}" data-key="${key}">${label}<span class="arrow">${arrow}</span></th>`;
   }).join("");
 
-  const bodyHTML = sorted.map((r,i)=>{
-    const cells = [
-      `<td class="rank">${i+1}</td>`,
-      `<td data-label="Family">${r.name}</td>`,
-      `<td class="num" data-label="Kills">${r.kills}</td>`,
-      `<td class="num" data-label="Deaths">${r.deaths}</td>`,
-      `<td class="num kd" data-label="K/D">${fmtKD(r.kd)}</td>`,
-    ];
-    if (showHof) cells.push(`<td class="num played" data-label="Wars">${r.played}</td>`);
-    return `<tr data-rank="${i+1}" data-name="${r.name}">${cells.join("")}</tr>`;
-  }).join("");
+  let bodyHTML, tableClass = "", colHTML = "";
+
+  if (extended){
+    tableClass = "extended";
+    colHTML = `<colgroup>${cols.map(([key])=>{
+      if (key === "class") return `<col class="col-class">`;
+      if (key === "name") return `<col class="col-name">`;
+      if (key === "role") return `<col class="col-role">`;
+      return `<col class="col-num">`;
+    }).join("")}</colgroup>`;
+
+    bodyHTML = sorted.map((r,i)=>{
+      const cells = cols.map(([key,label,fmt])=>{
+        if (key === "class") return `<td class="td-class" data-label="${label}">${r.class||""}</td>`;
+        if (key === "name") return `<td data-label="${label}">${r.name}<button class="inspect-btn" data-player="${r.name}" type="button">inspect</button></td>`;
+        if (key === "role") return `<td class="role-cell role-${r.role || 'none'}" data-label="${label}">${fmtRole(r.role)}</td>`;
+        const cls = key === "kd" ? "num kd" : "num";
+        return `<td class="${cls}" data-label="${label}">${fmt(r[key])}</td>`;
+      }).join("");
+      return `<tr data-rank="${i+1}" data-name="${r.name}">${cells}</tr>`;
+    }).join("");
+  } else {
+    bodyHTML = sorted.map((r,i)=>{
+      const cells = [
+        `<td class="rank">${i+1}</td>`,
+        `<td class="td-class" data-label="Class">${r.class||""}</td>`,
+        `<td data-label="Family">${r.name}<button class="inspect-btn" data-player="${r.name}" type="button">inspect</button></td>`,
+        `<td class="role-cell role-${r.role || 'none'}" data-label="Role">${fmtRole(r.role)}</td>`,
+        `<td class="num" data-label="Kills">${r.kills}</td>`,
+        `<td class="num" data-label="Deaths">${r.deaths}</td>`,
+        `<td class="num kd" data-label="K/D">${fmtKD(r.kd)}</td>`,
+      ];
+      if (showHof) cells.push(`<td class="num played" data-label="Wars">${r.played}</td>`);
+      return `<tr data-rank="${i+1}" data-name="${r.name}">${cells.join("")}</tr>`;
+    }).join("");
+  }
 
   panel.innerHTML = `
     <div class="panel-header">
@@ -1324,19 +2360,55 @@ function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof
         <div class="panel-title">${title}</div>
         <div class="panel-meta">${meta}</div>
       </div>
-      <div class="result-pill ${resultClass}">${resultLabel}</div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div class="panel-search-wrap">
+          <span class="panel-search-icon">🔍</span>
+          <input class="panel-search" type="text" placeholder="Search player…" id="panelSearch" autocomplete="off">
+          <button class="panel-search-clear" id="panelSearchClear" type="button">✕</button>
+        </div>
+        <div class="result-pill ${resultClass}">${resultLabel}</div>
+        <button class="clear-wars-btn" id="clearWarsBtn" type="button">Clear Added Wars</button>
+      </div>
     </div>
-    ${buildRozunsNote(rows)}
     ${hofHTML}
-    <div class="table-scroll">
-      <table>
-        <thead><tr><th class="rank"></th>${headHTML}</tr></thead>
+    <div class="table-scroll ${extended ? 'extended' : ''}">
+      <table class="${tableClass}">
+        ${colHTML}
+        <thead><tr>${extended ? '' : '<th class="rank"></th>'}${headHTML}</tr></thead>
         <tbody>${bodyHTML}</tbody>
       </table>
     </div>
   `;
 
   attachScoreChartInteractions(panel);
+
+  // Wire player name search
+  const panelSearch = panel.querySelector("#panelSearch");
+  const panelSearchClear = panel.querySelector("#panelSearchClear");
+  if (panelSearch){
+    function applySearch(term){
+      const q = term.trim().toLowerCase();
+      panel.querySelectorAll("tbody tr[data-name]").forEach(row=>{
+        const name = (row.dataset.name||"").toLowerCase();
+        row.style.display = (!q || name.includes(q)) ? "" : "none";
+      });
+      panelSearchClear.classList.toggle("visible", !!q);
+    }
+    panelSearch.addEventListener("input", ()=>applySearch(panelSearch.value));
+    panelSearchClear.addEventListener("click", ()=>{
+      panelSearch.value = "";
+      applySearch("");
+      panelSearch.focus();
+    });
+  }
+
+  // Wire inspect buttons
+  panel.querySelectorAll(".inspect-btn").forEach(btn=>{
+    btn.addEventListener("click", e=>{
+      e.stopPropagation();
+      openPlayerDrawer(btn.dataset.player);
+    });
+  });
 
   panel.querySelectorAll("thead th[data-key]").forEach(th=>{
     th.addEventListener("click", ()=>{
@@ -1346,13 +2418,439 @@ function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof
       } else {
         sortState = { key, dir: key === "name" ? "asc" : "desc" };
       }
-      renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof);
+      renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof, extended);
     });
   });
 }
 
 // Initial view
 selectMatch("overall");
+
+// ================================================================
+// PLAYER INSPECT DRAWER
+// ================================================================
+const playerDrawer   = document.getElementById("playerDrawer");
+const drawerBackdrop = document.getElementById("drawerBackdrop");
+const drawerClose    = document.getElementById("drawerClose");
+const drawerName     = document.getElementById("drawerName");
+const drawerRole     = document.getElementById("drawerRole");
+const drawerSummary  = document.getElementById("drawerSummary");
+const drawerBody     = document.getElementById("drawerBody");
+
+function closePlayerDrawer(){
+  playerDrawer.classList.remove("open");
+  drawerBackdrop.classList.remove("open");
+}
+drawerClose.addEventListener("click", closePlayerDrawer);
+drawerBackdrop.addEventListener("click", closePlayerDrawer);
+document.addEventListener("keydown", e=>{ if (e.key==="Escape") closePlayerDrawer(); });
+
+function openPlayerDrawer(playerName){
+  // Collect all match appearances for this player
+  const appearances = MATCHES.map((m,i)=>{
+    const basic = m.players.find(([n])=>n===playerName);
+    if (!basic) return null;
+    const [,kills,deaths] = basic;
+    const ext = (EXTENDED_STATS[m.date]||[]).find(r=>r[0]===playerName);
+    return { match:m, index:i, kills, deaths, ext };
+  }).filter(Boolean);
+
+  if (!appearances.length){ return; }
+
+  // Overall totals
+  const totalKills  = appearances.reduce((s,a)=>s+a.kills, 0);
+  const totalDeaths = appearances.reduce((s,a)=>s+a.deaths, 0);
+  const overallKD   = totalDeaths === 0 ? totalKills : totalKills/totalDeaths;
+  const warsPlayed  = appearances.length;
+
+  // Role
+  const role = roleAssignments[playerName] || "";
+  const roleLabel = ROLE_LABELS[role] || "Unassigned";
+
+  // Load player profile data (class) from localStorage
+  // Reload profiles fresh in case class was set after page load
+  playerProfiles = loadPlayerProfiles();
+  let profileData = playerProfiles;
+  const playerProfile = profileData[playerName] || {};
+  const playerClass = playerProfile.class || "";
+
+  // Header
+  drawerName.textContent = playerName;
+  drawerRole.textContent = roleLabel;
+  drawerRole.className = `drawer-player-role role-${role||"none"}`;
+  if(playerClass){
+    const cb = drawerName.parentElement.querySelector(".drawer-class-badge") || document.createElement("div");
+    cb.className = "drawer-class-badge";
+    cb.textContent = playerClass;
+    if(!drawerName.parentElement.querySelector(".drawer-class-badge")) drawerName.parentElement.appendChild(cb);
+  } else {
+    const cb = drawerName.parentElement.querySelector(".drawer-class-badge");
+    if(cb) cb.remove();
+  }
+
+  // Profile link
+  const profileLink = document.getElementById("drawerProfileLink");
+  profileLink.innerHTML = `<a href="player.html?name=${encodeURIComponent(playerName)}">View Full Profile →</a>`;
+
+  // Summary bar
+  drawerSummary.innerHTML = `
+    <div class="drawer-stat"><div class="drawer-stat-val">${totalKills}</div><div class="drawer-stat-label">Kills</div></div>
+    <div class="drawer-stat"><div class="drawer-stat-val">${totalDeaths}</div><div class="drawer-stat-label">Deaths</div></div>
+    <div class="drawer-stat"><div class="drawer-stat-val kd">${fmtKD(overallKD)}</div><div class="drawer-stat-label">K/D</div></div>
+    <div class="drawer-stat"><div class="drawer-stat-val">${warsPlayed}</div><div class="drawer-stat-label">Wars</div></div>
+  `;
+
+  // Match cards
+  const matchCards = appearances.map(a=>{
+    const m = a.match;
+    const kd = a.deaths === 0 ? a.kills : a.kills/a.deaths;
+    const dt = new Date(m.date+"T00:00:00");
+    const dateStr = dt.toLocaleDateString("en-US",{weekday:"short",day:"numeric",month:"short"});
+    const resultCls = m.result==="Victory" ? "victory":"defeat";
+
+    let extHTML = "";
+    if (a.ext){
+      const [,,,streak,dmgDone,dmgTaken,cc,hpHealed,allyHpHealed,fortDmg,cannonsLanded,objDestroyed,cannonDist,traps,timeDead,timeAlive] = a.ext;
+      extHTML = `<div class="drawer-extended-grid">
+        <div class="drawer-ext-row"><span class="drawer-ext-label">Streak</span><span class="drawer-ext-val">${streak}</span></div>
+        <div class="drawer-ext-row"><span class="drawer-ext-label">Dmg Done</span><span class="drawer-ext-val">${fmtNum(dmgDone)}</span></div>
+        <div class="drawer-ext-row"><span class="drawer-ext-label">Dmg Taken</span><span class="drawer-ext-val">${fmtNum(dmgTaken)}</span></div>
+        <div class="drawer-ext-row"><span class="drawer-ext-label">CC's</span><span class="drawer-ext-val">${cc}</span></div>
+        <div class="drawer-ext-row"><span class="drawer-ext-label">HP Healed</span><span class="drawer-ext-val">${fmtNum(hpHealed)}</span></div>
+        <div class="drawer-ext-row"><span class="drawer-ext-label">Ally Healed</span><span class="drawer-ext-val">${fmtNum(allyHpHealed)}</span></div>
+        <div class="drawer-ext-row"><span class="drawer-ext-label">Fort Dmg</span><span class="drawer-ext-val">${fmtNum(fortDmg)}</span></div>
+        <div class="drawer-ext-row"><span class="drawer-ext-label">Traps</span><span class="drawer-ext-val">${traps}</span></div>
+        <div class="drawer-ext-row"><span class="drawer-ext-label">Time Dead</span><span class="drawer-ext-val">${fmtTime(timeDead)}</span></div>
+        <div class="drawer-ext-row"><span class="drawer-ext-label">Time Alive</span><span class="drawer-ext-val">${fmtTime(timeAlive)}</span></div>
+      </div>`;
+    }
+
+    return `
+      <div class="drawer-match">
+        <div class="drawer-match-header">
+          <div>
+            <div class="drawer-match-date">${dateStr}</div>
+            <div class="drawer-match-loc">${m.location}</div>
+          </div>
+          <span class="drawer-match-result ${resultCls}">${m.result}</span>
+        </div>
+        <div class="drawer-match-stats">
+          <div class="drawer-match-stat">
+            <div class="drawer-match-stat-val">${a.kills}</div>
+            <div class="drawer-match-stat-label">Kills</div>
+          </div>
+          <div class="drawer-match-stat">
+            <div class="drawer-match-stat-val">${a.deaths}</div>
+            <div class="drawer-match-stat-label">Deaths</div>
+          </div>
+          <div class="drawer-match-stat">
+            <div class="drawer-match-stat-val kd">${fmtKD(kd)}</div>
+            <div class="drawer-match-stat-label">K/D</div>
+          </div>
+        </div>
+        ${extHTML}
+      </div>
+    `;
+  }).join("");
+
+  drawerBody.innerHTML = `
+    <div class="drawer-section-label">War History (${warsPlayed} appearance${warsPlayed!==1?"s":""})</div>
+    ${matchCards}
+  `;
+
+  // Open
+  playerDrawer.classList.add("open");
+  drawerBackdrop.classList.add("open");
+  drawerBody.scrollTop = 0;
+}
+const DYNAMIC_MATCHES_KEY = "nodeWarDynamicMatches";
+const DYNAMIC_EXTENDED_KEY = "nodeWarDynamicExtended";
+
+function loadDynamicMatches(){
+  try{
+    const m = localStorage.getItem(DYNAMIC_MATCHES_KEY);
+    const e = localStorage.getItem(DYNAMIC_EXTENDED_KEY);
+    return {
+      matches: m ? JSON.parse(m) : [],
+      extended: e ? JSON.parse(e) : {}
+    };
+  } catch(err){ return { matches:[], extended:{} }; }
+}
+
+function saveDynamicMatches(matches, extended){
+  try{
+    localStorage.setItem(DYNAMIC_MATCHES_KEY, JSON.stringify(matches));
+    localStorage.setItem(DYNAMIC_EXTENDED_KEY, JSON.stringify(extended));
+  } catch(err){ console.warn("Could not save to localStorage:", err); }
+}
+
+function applyDynamicMatches(){
+  const { matches, extended } = loadDynamicMatches();
+  matches.forEach(m=>{
+    if (!MATCHES.find(e=>e.date===m.date)){
+      MATCHES.push(m);
+    }
+  });
+  Object.assign(EXTENDED_STATS, extended);
+  MATCHES.sort((a,b)=>a.date.localeCompare(b.date));
+}
+
+// ---- Modal wiring ----
+const modal       = document.getElementById("addWarModal");
+const addWarBtn   = document.getElementById("addWarBtn");
+const modalClose  = document.getElementById("modalClose");
+const cancelBtn   = document.getElementById("cancelBtn");
+const backBtn     = document.getElementById("backBtn");
+const extractBtn  = document.getElementById("extractBtn");
+const confirmBtn  = document.getElementById("confirmBtn");
+const uploadZone  = document.getElementById("uploadZone");
+const screenshotInput = document.getElementById("screenshotInput");
+const uploadPreview = document.getElementById("uploadPreview");
+const previewImg  = document.getElementById("previewImg");
+const uploadStatus  = document.getElementById("uploadStatus");
+const reviewStatus  = document.getElementById("reviewStatus");
+const extractedPreview = document.getElementById("extractedPreview");
+const stepUpload  = document.getElementById("stepUpload");
+const stepReview  = document.getElementById("stepReview");
+
+let uploadedImages = [];  // [{base64, mediaType}]
+let extractedData  = null;
+
+function openModal(){
+  modal.classList.remove("hidden");
+  resetModal();
+}
+function closeModal(){ modal.classList.add("hidden"); }
+
+function resetModal(){
+  uploadedImages = [];
+  extractedData = null;
+  previewImg.src = "";
+  uploadPreview.style.display = "none";
+  uploadStatus.textContent = "";
+  uploadStatus.className = "modal-status";
+  reviewStatus.textContent = "";
+  reviewStatus.className = "modal-status";
+  extractedPreview.innerHTML = "";
+  extractBtn.disabled = true;
+  stepUpload.classList.add("active");
+  stepReview.classList.remove("active");
+}
+
+addWarBtn.addEventListener("click", openModal);
+
+document.addEventListener("click", e=>{
+  if (e.target && e.target.id === "clearWarsBtn"){
+    const btn = e.target;
+    if (btn.dataset.confirming === "1"){
+      localStorage.removeItem("nodeWarDynamicMatches");
+      localStorage.removeItem("nodeWarDynamicExtended");
+      location.reload();
+    } else {
+      btn.dataset.confirming = "1";
+      btn.textContent = "Tap again to confirm";
+      btn.style.background = "rgba(178,64,47,0.28)";
+      setTimeout(()=>{
+        btn.dataset.confirming = "";
+        btn.textContent = "Clear Added Wars";
+        btn.style.background = "";
+      }, 3000);
+    }
+  }
+});
+modalClose.addEventListener("click", closeModal);
+cancelBtn.addEventListener("click", closeModal);
+backBtn.addEventListener("click", ()=>{
+  stepReview.classList.remove("active");
+  stepUpload.classList.add("active");
+});
+modal.addEventListener("click", e=>{ if (e.target === modal) closeModal(); });
+
+// Drag-over highlight on the upload zone
+uploadZone.addEventListener("dragover", e=>{ e.preventDefault(); uploadZone.classList.add("drag-over"); });
+uploadZone.addEventListener("dragleave", ()=>uploadZone.classList.remove("drag-over"));
+uploadZone.addEventListener("drop", e=>{
+  e.preventDefault();
+  uploadZone.classList.remove("drag-over");
+  handleFiles(e.dataTransfer.files);
+});
+screenshotInput.addEventListener("change", e=>handleFiles(e.target.files));
+
+function handleFiles(files){
+  if (!files.length) return;
+  uploadedImages = [];
+  const readers = Array.from(files).slice(0, 4).map(file=>{
+    return new Promise(resolve=>{
+      const reader = new FileReader();
+      reader.onload = evt=>{
+        const [header, data] = evt.target.result.split(",");
+        const mediaType = header.match(/:(.*?);/)[1];
+        uploadedImages.push({ base64: data, mediaType });
+        resolve();
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+  Promise.all(readers).then(()=>{
+    // Show a preview of the first image
+    previewImg.src = URL.createObjectURL(files[0]);
+    uploadPreview.style.display = "block";
+    uploadStatus.className = "modal-status success";
+    uploadStatus.innerHTML = `${uploadedImages.length} screenshot${uploadedImages.length>1?"s":""} ready`;
+    extractBtn.disabled = false;
+  });
+}
+
+extractBtn.addEventListener("click", async ()=>{
+  if (!uploadedImages.length) return;
+  extractBtn.disabled = true;
+  uploadStatus.className = "modal-status";
+  uploadStatus.innerHTML = `<span class="spinner"></span> Sending to Claude — extracting war data…`;
+
+  const imageContent = uploadedImages.map(img=>({
+    type: "image",
+    source: { type: "base64", media_type: img.mediaType, data: img.base64 }
+  }));
+
+  const prompt = `You are extracting Node War result data from screenshots of Black Desert Online.
+
+Look at the screenshot(s) carefully and extract ALL of the following:
+
+1. DATE — shown in top-left like "26-6-19" = 2026-06-19 (year is always 2026, format as YYYY-MM-DD)
+2. DAY — the day name shown e.g. "Monday", "Tuesday" etc.
+3. LOCATION — the node name shown in the centre top e.g. "Calpheon", "Ulukita", "Serendia"
+4. RESULT — either "Victory" or "Defeat" (Occupation Success = Victory, Occupation Failed = Defeat)
+5. PLAYERS — every row in the table. The columns are always:
+   Family Name, Kills, Deaths, Streaks, Damage Done, Damage Taken, CC's, HP Healed, Ally HP Healed, Fort Damage, Cannons Landed, Objects Destroyed, Cannon Distance, Traps Triggered, Time Dead, Time Alive
+   - Numbers like "1.3M" = 1300000, "471.9K" = 471900, "62672" = 62672
+   - Times like "04:35" = 275 seconds, "34:33" = 2073 seconds (MM:SS → total seconds)
+   - Extract ALL players visible across all screenshots provided
+
+Respond with ONLY valid JSON — no markdown fences, no explanation — in exactly this format:
+{
+  "date": "2026-06-19",
+  "day": "Friday",
+  "location": "Ulukita",
+  "result": "Victory",
+  "type": "extended",
+  "players": [
+    {"name":"PlayerName","kills":17,"deaths":12,"streak":3,"dmgDone":471900,"dmgTaken":434700,"cc":60,"hpHealed":255500,"allyHpHealed":32633,"fortDmg":282500,"cannonsLanded":0,"objDestroyed":0,"cannonDist":0,"traps":0,"timeDead":275,"timeAlive":2073}
+  ]
+}
+
+Always set "type" to "extended". Every player must include all stat fields — use 0 if a value is genuinely zero in the screenshot.`;
+
+  try{
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body: JSON.stringify({
+        model:"claude-sonnet-4-6",
+        max_tokens:4096,
+        messages:[{
+          role:"user",
+          content:[...imageContent, { type:"text", text: prompt }]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const raw = data.content.map(c=>c.text||"").join("");
+
+    // Strip markdown fences and find the JSON object
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON found in response. Raw: " + raw.slice(0, 200));
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    extractedData = parsed;
+    showReviewStep(parsed);
+
+  } catch(err){
+    uploadStatus.className = "modal-status error";
+    uploadStatus.innerHTML = `Error: ${err.message}. Check the console for details.`;
+    extractBtn.disabled = false;
+    console.error("Extraction error:", err);
+  }
+});
+
+function showReviewStep(d){
+  stepUpload.classList.remove("active");
+  stepReview.classList.add("active");
+
+  const resultClass = d.result==="Victory" ? "ext-green" : "ext-red";
+  const dt = new Date(d.date + "T00:00:00");
+  const dateStr = dt.toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+
+  const playerRows = d.players.map(p=>{
+    if (d.type === "extended"){
+      return `<div><b>${p.name}</b> — ${p.kills}K / ${p.deaths}D · ${p.streak} streak · ${fmtNum(p.dmgDone)} dmg</div>`;
+    }
+    return `<div><b>${p.name}</b> — ${p.kills}K / ${p.deaths}D</div>`;
+  }).join("");
+
+  const alreadyExists = MATCHES.some(m=>m.date===d.date);
+
+  extractedPreview.innerHTML = `
+    <div class="${resultClass}">● ${d.result.toUpperCase()}</div>
+    <div><b>${dateStr}</b></div>
+    <div>${d.location} · Node War · ${d.players.length} players · ${d.type === "extended" ? "Extended stats" : "Basic stats"}</div>
+    <br>
+    ${playerRows}
+    ${alreadyExists ? `<br><span style="color:var(--orange)">⚠ A match on ${d.date} already exists — confirming will overwrite it.</span>` : ""}
+  `;
+  reviewStatus.textContent = "";
+  reviewStatus.className = "modal-status";
+}
+
+confirmBtn.addEventListener("click", ()=>{
+  if (!extractedData) return;
+  const d = extractedData;
+
+  // Build the MATCHES-format object
+  const matchObj = {
+    date: d.date,
+    day: d.day,
+    location: d.location,
+    result: d.result,
+    players: d.players.map(p=>[p.name, p.kills, p.deaths])
+  };
+
+  // Remove any existing entry for this date
+  const idx = MATCHES.findIndex(m=>m.date===d.date);
+  if (idx !== -1) MATCHES.splice(idx, 1);
+  MATCHES.push(matchObj);
+  MATCHES.sort((a,b)=>a.date.localeCompare(b.date));
+
+  // Always save to EXTENDED_STATS
+  EXTENDED_STATS[d.date] = d.players.map(p=>[
+    p.name, p.kills, p.deaths, p.streak??0,
+    p.dmgDone??0, p.dmgTaken??0, p.cc??0,
+    p.hpHealed??0, p.allyHpHealed??0, p.fortDmg??0,
+    p.cannonsLanded??0, p.objDestroyed??0, p.cannonDist??0,
+    p.traps??0, p.timeDead??0, p.timeAlive??0
+  ]);
+
+  // Persist dynamic matches to localStorage
+  const { matches: dynMatches, extended: dynExtended } = loadDynamicMatches();
+  const filtered = dynMatches.filter(m=>m.date!==d.date);
+  filtered.push(matchObj);
+  dynExtended[d.date] = EXTENDED_STATS[d.date];
+  saveDynamicMatches(filtered, dynExtended);
+
+  // Rebuild the week groups and campaign strip, then switch to the new match
+  weekGroups.length = 0;
+  weekIndex.clear();
+  buildWeekGroups();
+  renderTabs();
+  // Apply Mainball to any new players from this war
+  applyMainballDefaults();
+  const newIdx = MATCHES.findIndex(m=>m.date===d.date);
+  selectMatch(String(newIdx));
+
+  closeModal();
+  reviewStatus.className = "modal-status success";
+  reviewStatus.textContent = "Added!";
+});
 </script>
 
 </body>

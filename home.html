@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Purge — Node War Guild</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:           #080608;
+    --bg2:          #0E0A0C;
+    --panel:        #120D0F;
+    --panel-raised: #1A1215;
+    --hairline:     #2E1F22;
+    --hairline-soft:#1E1517;
+    --text:         #EDE8E0;
+    --text-muted:   #8A8088;
+    --text-faint:   #4E454A;
+    --crimson:      #8B1A1A;
+    --crimson-mid:  #B32020;
+    --crimson-bright:#D63030;
+    --crimson-glow: #FF3A3A;
+    --gold:         #C49A30;
+    --gold-bright:  #E8BC55;
+    --font-display: 'Fraunces', serif;
+    --font-mono:    'IBM Plex Mono', monospace;
+    --font-ui:      'Inter', sans-serif;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; }
+
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-ui);
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+
+  /* Atmospheric background */
+  body::before{
+    content:"";
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(139,26,26,0.18), transparent 65%),
+      radial-gradient(ellipse 40% 60% at 0% 100%, rgba(100,10,10,0.12), transparent 60%),
+      radial-gradient(ellipse 40% 60% at 100% 80%, rgba(100,10,10,0.08), transparent 60%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
+  }
+
+  nav, header, main, footer{ position:relative; z-index:1; }
+
+  /* ---- NAV ---- */
+  .site-nav{
+    display:flex; flex-wrap:wrap; gap:8px;
+    padding:20px 24px 0;
+    max-width:1000px; margin:0 auto;
+  }
+  .site-nav a{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:0.04em;
+    color:var(--text-muted); text-decoration:none;
+    padding:8px 16px; border:1px solid var(--hairline); border-radius:999px;
+    background:var(--panel);
+    transition:all 0.16s ease;
+  }
+  .site-nav a:hover{ color:var(--text); border-color:rgba(255,255,255,0.14); transform:translateY(-1px); }
+  .site-nav a.current{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(139,26,26,0.15); }
+
+  /* ---- HERO ---- */
+  .hero{
+    max-width:1000px; margin:32px auto 0;
+    padding:0 24px;
+    display:grid;
+    grid-template-columns:280px 1fr;
+    gap:40px;
+    align-items:center;
+    min-height:320px;
+  }
+
+  /* Logo placeholder */
+  .logo-wrap{
+    position:relative;
+  }
+  .logo-placeholder{
+    width:100%; aspect-ratio:1;
+    max-width:260px;
+    border:1px solid var(--crimson);
+    border-radius:12px;
+    background:var(--panel);
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:10px;
+    position:relative;
+    overflow:hidden;
+    box-shadow:0 0 60px rgba(139,26,26,0.25), inset 0 0 40px rgba(139,26,26,0.08);
+  }
+  /* Corner brackets — Purge aesthetic */
+  .logo-placeholder::before,
+  .logo-placeholder::after{
+    content:"";
+    position:absolute;
+    width:20px; height:20px;
+    border-color:var(--crimson-bright);
+    border-style:solid;
+  }
+  .logo-placeholder::before{
+    top:10px; left:10px;
+    border-width:2px 0 0 2px;
+  }
+  .logo-placeholder::after{
+    bottom:10px; right:10px;
+    border-width:0 2px 2px 0;
+  }
+  .logo-icon{ font-size:52px; opacity:0.25; }
+  .logo-swap-hint{
+    font-family:var(--font-mono); font-size:9px; letter-spacing:0.12em;
+    text-transform:uppercase; color:var(--text-faint); text-align:center;
+    line-height:1.6; padding:0 16px;
+  }
+  /* To swap the logo: replace .logo-placeholder contents with:
+     <img src="logo.png" alt="Purge" style="width:100%;height:100%;object-fit:contain;border-radius:12px;">
+     and remove the placeholder CSS above. */
+
+  .logo-glow{
+    position:absolute; inset:-20px;
+    background:radial-gradient(ellipse at center, rgba(139,26,26,0.2), transparent 70%);
+    pointer-events:none;
+  }
+
+  /* Hero copy */
+  .hero-copy{}
+  .hero-eyebrow{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.32em;
+    text-transform:uppercase; color:var(--crimson-mid); margin-bottom:14px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .hero-eyebrow::before{
+    content:""; display:inline-block; width:28px; height:1px;
+    background:var(--crimson-mid);
+  }
+  .hero-title{
+    font-family:var(--font-display);
+    font-size:clamp(52px, 9vw, 96px);
+    font-weight:800;
+    letter-spacing:-0.02em;
+    line-height:0.92;
+    color:var(--text);
+    text-shadow:0 0 80px rgba(214,48,48,0.35), 0 2px 0 rgba(0,0,0,0.8);
+  }
+  .hero-title span{
+    color:var(--crimson-bright);
+    font-style:italic;
+  }
+  .hero-tagline{
+    margin-top:18px;
+    font-size:15px;
+    color:var(--text-muted);
+    line-height:1.65;
+    max-width:400px;
+    border-left:2px solid var(--crimson);
+    padding-left:14px;
+  }
+
+  /* Divider */
+  .divider{
+    max-width:1000px; margin:40px auto;
+    padding:0 24px;
+    display:flex; align-items:center; gap:16px;
+  }
+  .divider-line{
+    flex:1; height:1px; background:var(--hairline);
+  }
+  .divider-mark{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.2em;
+    text-transform:uppercase; color:var(--text-faint);
+  }
+
+  /* ---- STATS STRIP ---- */
+  .stats-strip{
+    max-width:1000px; margin:0 auto;
+    padding:0 24px;
+  }
+  .stats-grid{
+    display:grid; grid-template-columns:repeat(5,1fr);
+    gap:1px; background:var(--hairline);
+    border:1px solid var(--hairline); border-radius:12px; overflow:hidden;
+  }
+  .stat-cell{
+    background:var(--panel); padding:20px 14px; text-align:center;
+    transition:background 0.16s;
+  }
+  .stat-cell:hover{ background:var(--panel-raised); }
+  .stat-val{
+    font-family:var(--font-mono); font-size:30px; font-weight:700;
+    line-height:1; color:var(--text);
+  }
+  .stat-val.red{ color:var(--crimson-bright); }
+  .stat-val.gold{ color:var(--gold-bright); }
+  .stat-val.muted{ color:var(--text-muted); }
+  .stat-label{
+    font-family:var(--font-mono); font-size:9px; letter-spacing:0.12em;
+    text-transform:uppercase; color:var(--text-faint); margin-top:7px;
+  }
+
+  /* ---- QUICK LINKS ---- */
+  .links-section{
+    max-width:1000px; margin:0 auto;
+    padding:0 24px;
+  }
+  .links-grid{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:14px;
+  }
+  .link-card{
+    background:var(--panel);
+    border:1px solid var(--hairline);
+    border-radius:12px;
+    padding:24px 20px;
+    text-decoration:none;
+    display:block;
+    transition:transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    position:relative; overflow:hidden;
+  }
+  .link-card::before{
+    content:"";
+    position:absolute; top:0; left:0; right:0; height:2px;
+    background:var(--crimson);
+    transform:scaleX(0); transform-origin:left;
+    transition:transform 0.22s ease;
+  }
+  .link-card:hover{
+    transform:translateY(-4px);
+    border-color:var(--crimson);
+    box-shadow:0 12px 40px rgba(139,26,26,0.2);
+    background:var(--panel-raised);
+  }
+  .link-card:hover::before{ transform:scaleX(1); }
+
+  .link-icon{
+    font-size:28px; margin-bottom:12px; display:block;
+    filter:grayscale(0.3);
+  }
+  .link-title{
+    font-family:var(--font-display); font-size:17px; font-weight:640;
+    color:var(--text); margin-bottom:6px;
+  }
+  .link-desc{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.04em;
+    color:var(--text-faint); line-height:1.6;
+  }
+  .link-arrow{
+    position:absolute; bottom:18px; right:18px;
+    font-family:var(--font-mono); font-size:12px;
+    color:var(--crimson); opacity:0;
+    transition:opacity 0.16s ease, transform 0.16s ease;
+  }
+  .link-card:hover .link-arrow{ opacity:1; transform:translateX(3px); }
+
+  /* ---- RECENT WAR ---- */
+  .recent-section{
+    max-width:1000px; margin:0 auto;
+    padding:0 24px;
+  }
+  .recent-panel{
+    background:var(--panel);
+    border:1px solid var(--hairline);
+    border-radius:12px; overflow:hidden;
+  }
+  .recent-header{
+    padding:18px 22px;
+    border-bottom:1px solid var(--hairline-soft);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .recent-header-label{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.16em;
+    text-transform:uppercase; color:var(--text-faint);
+  }
+  .recent-result{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.08em;
+    text-transform:uppercase; padding:4px 12px; border-radius:999px; font-weight:600;
+  }
+  .recent-result.victory{ color:var(--gold-bright); background:rgba(196,154,48,0.12); border:1px solid rgba(196,154,48,0.3); }
+  .recent-result.defeat{ color:var(--crimson-bright); background:rgba(139,26,26,0.12); border:1px solid rgba(139,26,26,0.3); }
+
+  .recent-body{
+    padding:22px 22px;
+    display:grid; grid-template-columns:1fr auto; gap:20px; align-items:center;
+  }
+  .recent-title{
+    font-family:var(--font-display); font-size:22px; font-weight:640;
+  }
+  .recent-meta{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-muted);
+    margin-top:5px; letter-spacing:0.04em;
+  }
+  .recent-stats{
+    display:flex; gap:20px;
+  }
+  .recent-stat{ text-align:center; }
+  .recent-stat-val{
+    font-family:var(--font-mono); font-size:22px; font-weight:600; color:var(--text);
+  }
+  .recent-stat-label{
+    font-family:var(--font-mono); font-size:9px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--text-faint); margin-top:3px;
+  }
+
+  .recent-top{
+    padding:0 22px 18px;
+    display:flex; gap:8px; flex-wrap:wrap;
+    border-top:1px solid var(--hairline-soft); padding-top:14px;
+  }
+  .top-chip{
+    font-family:var(--font-mono); font-size:11px;
+    padding:4px 10px; border-radius:6px;
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    color:var(--text-muted);
+  }
+  .top-chip b{ color:var(--gold-bright); }
+  .top-chip.mvp{ border-color:var(--gold); background:rgba(196,154,48,0.08); }
+
+  .view-all-link{
+    display:block; text-align:center;
+    padding:13px;
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--text-faint);
+    text-decoration:none; border-top:1px solid var(--hairline-soft);
+    transition:color 0.14s, background 0.14s;
+  }
+  .view-all-link:hover{ color:var(--crimson-bright); background:rgba(139,26,26,0.06); }
+
+  footer{
+    text-align:center; padding:48px 24px 56px;
+    font-size:11px; color:var(--text-faint); font-family:var(--font-mono);
+    letter-spacing:0.06em;
+  }
+  footer span{ color:var(--crimson); }
+
+  @media(max-width:760px){
+    .hero{ grid-template-columns:1fr; gap:24px; }
+    .logo-placeholder{ max-width:160px; }
+    .stats-grid{ grid-template-columns:repeat(3,1fr); }
+    .links-grid{ grid-template-columns:repeat(2,1fr); }
+    .recent-body{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <a href="home.html" class="current">Home</a>
+  <a href="index.html">War Scores</a>
+  <a href="players.html">Roster</a>
+  <a href="dashboard.html">Dashboard</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="logo-wrap">
+    <div class="logo-glow"></div>
+    <!-- LOGO PLACEHOLDER
+         To swap in your guild logo:
+         1. Place your image file (e.g. logo.png) next to this HTML file
+         2. Replace the entire .logo-placeholder div below with:
+            <img src="logo.png" alt="Purge" style="width:100%;max-width:260px;border-radius:12px;">
+    -->
+    <div class="logo-placeholder">
+      <span class="logo-icon">⚔️</span>
+      <span class="logo-swap-hint">Drop logo.png here<br>to replace this placeholder</span>
+    </div>
+  </div>
+
+  <div class="hero-copy">
+    <div class="hero-eyebrow">Black Desert Online · Node War Guild</div>
+    <div class="hero-title">P<span>urge</span></div>
+    <p class="hero-tagline">
+      We don't negotiate. We don't retreat.<br>
+      Every node falls, or we fall taking it.
+    </p>
+  </div>
+</div>
+
+<!-- DIVIDER -->
+<div class="divider">
+  <div class="divider-line"></div>
+  <div class="divider-mark">Guild Status</div>
+  <div class="divider-line"></div>
+</div>
+
+<!-- STATS -->
+<div class="stats-strip">
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-cell"><div class="stat-val muted">—</div><div class="stat-label">Wars</div></div>
+    <div class="stat-cell"><div class="stat-val muted">—</div><div class="stat-label">Victories</div></div>
+    <div class="stat-cell"><div class="stat-val muted">—</div><div class="stat-label">Defeats</div></div>
+    <div class="stat-cell"><div class="stat-val muted">—</div><div class="stat-label">Win Rate</div></div>
+    <div class="stat-cell"><div class="stat-val muted">—</div><div class="stat-label">Members</div></div>
+  </div>
+</div>
+
+<!-- DIVIDER -->
+<div class="divider">
+  <div class="divider-line"></div>
+  <div class="divider-mark">Navigate</div>
+  <div class="divider-line"></div>
+</div>
+
+<!-- QUICK LINKS -->
+<div class="links-section">
+  <div class="links-grid">
+    <a class="link-card" href="war-scores.html">
+      <span class="link-icon">⚔️</span>
+      <div class="link-title">War Scores</div>
+      <div class="link-desc">Per-war kill / death records, extended stats, and match history</div>
+      <span class="link-arrow">→</span>
+    </a>
+    <a class="link-card" href="players.html">
+      <span class="link-icon">👥</span>
+      <div class="link-title">Roster</div>
+      <div class="link-desc">All 76 members — class, gear screenshots, and individual profiles</div>
+      <span class="link-arrow">→</span>
+    </a>
+    <a class="link-card" href="dashboard.html">
+      <span class="link-icon">📊</span>
+      <div class="link-title">Dashboard</div>
+      <div class="link-desc">Win rate, top performers, node breakdown, and player trends</div>
+      <span class="link-arrow">→</span>
+    </a>
+  </div>
+</div>
+
+<!-- DIVIDER -->
+<div class="divider">
+  <div class="divider-line"></div>
+  <div class="divider-mark">Most Recent War</div>
+  <div class="divider-line"></div>
+</div>
+
+<!-- RECENT WAR -->
+<div class="recent-section">
+  <div class="recent-panel" id="recentPanel">
+    <div style="padding:40px;text-align:center;font-family:var(--font-mono);font-size:12px;color:var(--text-faint)">
+      Loading war data…
+    </div>
+  </div>
+</div>
+
+<footer>
+  <span>PURGE</span> · Node War Guild · Black Desert Online
+</footer>
+
+<script>
+/* ================================================================
+   MATCH DATA — keep in sync with index.html
+================================================================ */
+const MATCHES = [
+  {
+    date: "2026-06-19", day: "Friday", location: "Ulukita", result: "Defeat",
+    players: [
+      ["Popspolar",30,14],["Milkdudh",25,14],["Aodhan",24,10],["Dreamxx",18,21],
+      ["HaterApproved",17,17],["BrotherMango",17,16],["KillShotz",16,18],["Beastylirious",15,21],
+      ["Rostalina",15,19],["Alancar",15,17],["ScummySteve",13,9],["Valth",12,17],
+      ["Mcy",10,15],["Kraiok",10,19],["LulzCaptain",9,18],["TheWretched",9,21],
+      ["Serade",7,17],["HeRoisMx",7,3],["Rozuns",6,14],["Succs",6,17],
+      ["Cohrence",5,17],["Lulupeach",4,11],["SirHeathen",3,13],["XastusMK",2,21],
+    ]
+  },
+];
+
+const ROSTER_MEMBERS = [
+  "Boondoggle","Bossdogg","Clip","Creetin","DesertPunkk","Em_Bargo","Embberr","EXTRA_LARGE",
+  "Flusha","Ghond","GreenBerry","Greedyboy","Heals","HiiroNoAme","Intruder","Krill","LePewPew",
+  "LunAqua","MadeInHell","Menteeing","Myoubi","NeatJoe","NightBringers","NoCap","Obituary",
+  "Odare","Onimichi","Pebbles","Pewcifer","Pronvos","PsycheaEU","Rabid","RocketG","Ruarein",
+  "Seljah","Siegrein","SpartanKing","Sploogesque","StaticHurtYou","StraightEdge","TTard",
+  "Taells","Talshani","Vem","Voltaic","Vouge","Weapon","Wergin","XTatsuyAX","Yannik","Yulie",
+  "Zebraghost"
+];
+
+const DYNAMIC_MATCHES_KEY = "nodeWarDynamicMatches";
+
+function getAllMatches(){
+  const all = [...MATCHES];
+  try{
+    const raw = localStorage.getItem(DYNAMIC_MATCHES_KEY);
+    if(raw){ JSON.parse(raw).forEach(m=>{ if(!all.find(e=>e.date===m.date)) all.push(m); }); }
+  }catch(e){}
+  return all.sort((a,b)=>a.date.localeCompare(b.date));
+}
+
+function kd(k,d){ return (k===0&&d===0)?null:d===0?k:k/d; }
+function fmtKD(v){ return v===null?"—":v.toFixed(2); }
+
+const allMatches = getAllMatches();
+const wins   = allMatches.filter(m=>m.result==="Victory").length;
+const losses = allMatches.filter(m=>m.result==="Defeat").length;
+const total  = allMatches.length;
+const winPct = total ? Math.round((wins/total)*100) : 0;
+
+// Count unique members (match players + roster-only)
+const matchPlayers = new Set(allMatches.flatMap(m=>m.players.map(p=>p[0])));
+const allMembers   = new Set([...matchPlayers, ...ROSTER_MEMBERS]);
+const memberCount  = allMembers.size;
+
+/* ---- Stats grid ---- */
+document.getElementById("statsGrid").innerHTML = `
+  <div class="stat-cell"><div class="stat-val">${total}</div><div class="stat-label">Wars</div></div>
+  <div class="stat-cell"><div class="stat-val gold">${wins}</div><div class="stat-label">Victories</div></div>
+  <div class="stat-cell"><div class="stat-val red">${losses}</div><div class="stat-label">Defeats</div></div>
+  <div class="stat-cell"><div class="stat-val ${winPct>=50?'gold':'red'}">${winPct}%</div><div class="stat-label">Win Rate</div></div>
+  <div class="stat-cell"><div class="stat-val">${memberCount}</div><div class="stat-label">Members</div></div>
+`;
+
+/* ---- Most recent war ---- */
+const panel = document.getElementById("recentPanel");
+if(!allMatches.length){
+  panel.innerHTML = `<div style="padding:40px;text-align:center;font-family:var(--font-mono);font-size:12px;color:var(--text-faint)">No wars logged yet.</div>`;
+} else {
+  const m   = allMatches[allMatches.length - 1];
+  const dt  = new Date(m.date+"T00:00:00");
+  const dateStr = dt.toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  const rc  = m.result==="Victory"?"victory":"defeat";
+
+  // Top 3 by K/D
+  const sorted = [...m.players]
+    .map(([name,k,d])=>({name,kills:k,deaths:d,kd:kd(k,d)??0}))
+    .sort((a,b)=>b.kd-a.kd);
+
+  const topKills  = [...m.players].sort((a,b)=>b[1]-a[1])[0];
+  const totalK    = m.players.reduce((s,p)=>s+p[1],0);
+  const totalD    = m.players.reduce((s,p)=>s+p[2],0);
+
+  const top3HTML = sorted.slice(0,3).map((r,i)=>{
+    const medal = ["🥇","🥈","🥉"][i];
+    return `<div class="top-chip ${i===0?'mvp':''}">${medal} <b>${r.name}</b> ${fmtKD(r.kd)} K/D</div>`;
+  }).join("");
+
+  panel.innerHTML = `
+    <div class="recent-header">
+      <div class="recent-header-label">Most Recent War</div>
+      <span class="recent-result ${rc}">${m.result}</span>
+    </div>
+    <div class="recent-body">
+      <div>
+        <div class="recent-title">${m.location}</div>
+        <div class="recent-meta">${dateStr} · ${m.players.length} players fielded</div>
+      </div>
+      <div class="recent-stats">
+        <div class="recent-stat">
+          <div class="recent-stat-val">${totalK}</div>
+          <div class="recent-stat-label">Guild Kills</div>
+        </div>
+        <div class="recent-stat">
+          <div class="recent-stat-val">${totalD}</div>
+          <div class="recent-stat-label">Guild Deaths</div>
+        </div>
+        <div class="recent-stat">
+          <div class="recent-stat-val">${fmtKD(kd(totalK,totalD))}</div>
+          <div class="recent-stat-label">Guild K/D</div>
+        </div>
+      </div>
+    </div>
+    <div class="recent-top">${top3HTML}</div>
+    <a class="view-all-link" href="war-scores.html">View full war record →</a>
+  `;
+}
+</script>
+</body>
+</html>

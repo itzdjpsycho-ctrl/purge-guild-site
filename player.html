@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Player Profile — Node War Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:            #080608;
+    --bg2:           #0E0A0C;
+    --panel:         #120D0F;
+    --panel-raised:  #1A1215;
+    --hairline:      #2E1F22;
+    --hairline-soft: #1E1517;
+    --text:          #EDE8E0;
+    --text-muted:    #8A8088;
+    --text-faint:    #4E454A;
+    --crimson:       #8B1A1A;
+    --crimson-mid:   #B32020;
+    --crimson-bright:#D63030;
+    --crimson-glow:  #FF3A3A;
+    --gold:          #C49A30;
+    --gold-bright:   #E8BC55;
+    --red:           #B2402F;
+    --red-bright:    #D65A45;
+    --green:         #4A9F5D;
+    --green-bright:  #5BC976;
+    --bronze:        #8C6A3F;
+    --orange:        #E0793C;
+    --font-display:  'Fraunces', serif;
+    --font-mono:     'IBM Plex Mono', monospace;
+    --font-ui:       'Inter', sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; }
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:var(--font-ui); min-height:100vh;
+    position:relative; overflow-x:hidden;
+  }
+    body::before{
+    content:"";
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(139,26,26,0.18), transparent 65%),
+      radial-gradient(ellipse 40% 60% at 0% 100%, rgba(100,10,10,0.12), transparent 60%),
+      radial-gradient(ellipse 40% 60% at 100% 80%, rgba(100,10,10,0.08), transparent 60%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
+  }
+  main, header, footer, nav, .profile-hero{ position:relative; z-index:1; }
+
+  .site-nav{
+    display:flex; flex-wrap:wrap; gap:8px;
+    padding:20px 24px 0; max-width:980px; margin:0 auto;
+  }
+  .site-nav a{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:0.04em;
+    color:var(--text-muted); text-decoration:none;
+    padding:8px 16px; border:1px solid var(--hairline); border-radius:999px;
+    background:var(--panel);
+    transition:background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+  }
+  .site-nav a:hover{ color:var(--text); border-color:rgba(255,255,255,0.18); transform:translateY(-1px); }
+    .site-nav a.current{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(139,26,26,0.15); }
+
+  /* ---- Profile Hero ---- */
+  .profile-hero{
+    max-width:980px; margin:24px auto 0; padding:0 24px;
+    display:grid; grid-template-columns:auto 1fr; gap:28px; align-items:start;
+  }
+
+  /* Identity block */
+  .hero-identity{
+    background:var(--panel); border:1px solid var(--hairline);
+    border-radius:14px; overflow:hidden; min-width:220px; max-width:260px;
+  }
+  .hero-role-strip{
+    height:4px; background:var(--hairline);
+  }
+  .hero-role-strip.shotcaller{ background:var(--orange); }
+  .hero-role-strip.defensive{ background:var(--green-bright); }
+  .hero-role-strip.flex{ background:var(--gold-bright); }
+  .hero-role-strip.mainball{ background:#A78BFA; }
+
+  .hero-name-block{
+    padding:20px 18px 14px;
+    border-bottom:1px solid var(--hairline-soft);
+  }
+  .hero-eyebrow{
+    font-family:var(--font-mono); font-size:9px; letter-spacing:0.18em;
+    text-transform:uppercase; color:var(--text-faint); margin-bottom:6px;
+  }
+  .hero-name{
+    font-family:var(--font-display); font-size:24px; font-weight:680;
+    word-break:break-all;
+  }
+  .hero-role-label{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.1em;
+    text-transform:uppercase; margin-top:4px;
+  }
+  .hero-role-label.shotcaller{ color:var(--orange); }
+  .hero-role-label.defensive{ color:var(--green-bright); }
+  .hero-role-label.flex{ color:var(--gold-bright); }
+  .hero-role-label.mainball{ color:#A78BFA; }
+  .hero-role-label.none{ color:var(--text-faint); }
+
+  /* Class selector */
+  .hero-class-row{
+    padding:12px 18px;
+    border-bottom:1px solid var(--hairline-soft);
+    display:flex; align-items:center; gap:10px; justify-content:space-between;
+  }
+  .class-label{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--text-faint);
+  }
+  .class-select{
+    flex:1; max-width:160px;
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    color:var(--text); font-family:var(--font-mono); font-size:12px;
+    padding:6px 10px; border-radius:6px; cursor:pointer;
+    appearance:none; -webkit-appearance:none; outline:none;
+    transition:border-color 0.16s ease;
+  }
+  .class-select:hover{ border-color:rgba(255,255,255,0.2); }
+  .class-select:focus{ border-color:var(--gold); box-shadow:0 0 0 2px rgba(217,164,65,0.12); }
+
+  /* Overall stats */
+  .hero-stats{
+    display:grid; grid-template-columns:repeat(3,1fr);
+    gap:1px; background:var(--hairline-soft);
+  }
+  .hero-stat{
+    background:var(--panel); padding:14px 10px; text-align:center;
+  }
+  .hero-stat-val{
+    font-family:var(--font-mono); font-size:22px; font-weight:600;
+  }
+  .hero-stat-val.kd{ color:var(--gold-bright); }
+  .hero-stat-label{
+    font-family:var(--font-mono); font-size:9px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--text-faint); margin-top:3px;
+  }
+
+  /* ---- Screenshot cards ---- */
+  .hero-screenshots{
+    display:flex; flex-direction:column; gap:14px; flex:1;
+  }
+  .screenshots-row{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:14px;
+  }
+
+  .screenshot-slot{
+    background:var(--panel); border:1px solid var(--hairline);
+    border-radius:12px; overflow:hidden;
+    display:flex; flex-direction:column;
+  }
+  .slot-label{
+    padding:10px 14px 8px;
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.12em;
+    text-transform:uppercase; color:var(--text-faint);
+    border-bottom:1px solid var(--hairline-soft);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .slot-label-name{ color:var(--text-muted); font-weight:600; }
+  .slot-clear-btn{
+    background:none; border:none; color:var(--text-faint); cursor:pointer;
+    font-size:11px; padding:2px 6px; border-radius:4px;
+    font-family:var(--font-mono); letter-spacing:0.04em;
+    transition:color 0.14s ease, background 0.14s ease;
+  }
+  .slot-clear-btn:hover{ color:var(--red-bright); background:rgba(178,64,47,0.1); }
+
+  .slot-img-area{
+    flex:1; min-height:140px;
+    display:flex; align-items:center; justify-content:center;
+    position:relative; cursor:pointer; overflow:hidden;
+    transition:background 0.16s ease;
+  }
+  .slot-img-area:hover{ background:rgba(255,255,255,0.03); }
+  .slot-img-area.has-img:hover::after{
+    content:"Click to enlarge";
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.06em;
+    text-transform:uppercase; color:var(--text-muted);
+    background:rgba(0,0,0,0.55);
+  }
+  .slot-img-area img{
+    width:100%; height:100%; object-fit:cover; display:block;
+  }
+  .slot-upload-prompt{
+    display:flex; flex-direction:column; align-items:center;
+    gap:6px; padding:20px;
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.06em;
+    text-transform:uppercase; color:var(--text-faint);
+    pointer-events:none;
+  }
+  .slot-upload-icon{ font-size:24px; opacity:0.3; }
+  .slot-upload-hint{ font-size:9px; }
+  .slot-file-input{
+    position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%;
+  }
+
+  /* ---- War History ---- */
+  .section{
+    max-width:980px; margin:28px auto 0; padding:0 24px;
+  }
+  .section-heading{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.16em;
+    text-transform:uppercase; color:var(--text-faint); margin-bottom:14px;
+  }
+
+  .panel{
+    background:var(--panel); border:1px solid var(--hairline); border-radius:10px; overflow:hidden;
+  }
+
+  table{ width:100%; border-collapse:collapse; }
+  thead th{
+    text-align:left; font-family:var(--font-mono); font-size:10px;
+    letter-spacing:0.08em; text-transform:uppercase; color:var(--text-faint);
+    padding:10px 14px; border-bottom:1px solid var(--hairline);
+    white-space:nowrap;
+  }
+  tbody td{
+    padding:11px 14px; border-bottom:1px solid var(--hairline-soft); font-size:14px;
+  }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover td{ background:rgba(255,255,255,0.02); }
+  .num{ font-family:var(--font-mono); }
+  .kd-cell{ font-family:var(--font-mono); font-weight:600; color:var(--gold-bright); }
+  .result-pill{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.08em;
+    text-transform:uppercase; padding:3px 10px; border-radius:999px; font-weight:600;
+  }
+  .result-pill.victory{ color:var(--gold-bright); background:rgba(217,164,65,0.12); border:1px solid rgba(217,164,65,0.3); }
+  .result-pill.defeat{ color:var(--red-bright); background:rgba(178,64,47,0.12); border:1px solid rgba(178,64,47,0.3); }
+
+  .empty-row td{
+    text-align:center; padding:40px; color:var(--text-faint);
+    font-family:var(--font-mono); font-size:12px; font-style:italic;
+  }
+
+  /* ---- Lightbox ---- */
+  .lightbox{
+    position:fixed; inset:0; z-index:300;
+    background:rgba(0,0,0,0.88);
+    display:flex; align-items:center; justify-content:center;
+    padding:24px; opacity:0; pointer-events:none;
+    transition:opacity 0.2s ease; backdrop-filter:blur(6px);
+  }
+  .lightbox.open{ opacity:1; pointer-events:auto; }
+  .lightbox img{
+    max-width:100%; max-height:90vh; border-radius:8px;
+    border:1px solid var(--hairline); object-fit:contain;
+  }
+  .lightbox-close{
+    position:absolute; top:20px; right:24px;
+    background:none; border:none; color:var(--text-muted);
+    font-size:28px; cursor:pointer; line-height:1; padding:4px 8px;
+    transition:color 0.14s ease;
+  }
+  .lightbox-close:hover{ color:var(--text); }
+
+  /* Toast */
+  .toast{
+    position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    border-radius:10px; padding:11px 20px;
+    font-family:var(--font-mono); font-size:12px; color:var(--text-muted);
+    box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    opacity:0; transition:opacity 0.22s ease, transform 0.22s ease;
+    pointer-events:none; z-index:200; white-space:nowrap;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .toast.success{ color:var(--green-bright); }
+  .toast.error{ color:var(--red-bright); }
+
+  footer{
+    text-align:center; padding:48px 24px 56px;
+    font-size:12px; color:var(--text-faint); font-family:var(--font-mono);
+  }
+</style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <a href="home.html">Home</a>
+  <a href="index.html">War Scores</a>
+  <a href="players.html">Roster</a>
+  <a href="dashboard.html">Dashboard</a>
+</nav>
+
+<div class="profile-hero" id="profileHero">
+  <!-- Populated by JS -->
+</div>
+
+<div class="section" style="margin-top:28px;">
+  <div class="section-heading">War History</div>
+  <div class="panel">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Location</th>
+          <th>Result</th>
+          <th class="num">Kills</th>
+          <th class="num">Deaths</th>
+          <th class="num">K/D</th>
+        </tr>
+      </thead>
+      <tbody id="warHistoryBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<footer>Node War Log · Player Profile</footer>
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lightboxClose">✕</button>
+  <img id="lightboxImg" src="" alt="Screenshot">
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================================================================
+   MATCH DATA — must match index.html exactly
+================================================================ */
+const MATCHES = [
+  {
+    date: "2026-06-19", day: "Friday", location: "Ulukita", result: "Defeat",
+    players: [
+      ["Popspolar",30,14],["Milkdudh",25,14],["Aodhan",24,10],["Dreamxx",18,21],
+      ["HaterApproved",17,17],["BrotherMango",17,16],["KillShotz",16,18],["Beastylirious",15,21],
+      ["Rostalina",15,19],["Alancar",15,17],["ScummySteve",13,9],["Valth",12,17],
+      ["Mcy",10,15],["Kraiok",10,19],["LulzCaptain",9,18],["TheWretched",9,21],
+      ["Serade",7,17],["HeRoisMx",7,3],["Rozuns",6,14],["Succs",6,17],
+      ["Cohrence",5,17],["Lulupeach",4,11],["SirHeathen",3,13],["XastusMK",2,21],
+    ]
+  },
+];
+
+const ROSTER_MEMBERS = [
+  "Boondoggle",
+  "Bossdogg",
+  "Clip",
+  "Creetin",
+  "DesertPunkk",
+  "EXTRA_LARGE",
+  "Em_Bargo",
+  "Embberr",
+  "Flusha",
+  "Ghond",
+  "Greedyboy",
+  "GreenBerry",
+  "Heals",
+  "HiiroNoAme",
+  "Intruder",
+  "Krill",
+  "LePewPew",
+  "LunAqua",
+  "MadeInHell",
+  "Menteeing",
+  "Myoubi",
+  "NeatJoe",
+  "NightBringers",
+  "NoCap",
+  "Obituary",
+  "Odare",
+  "Onimichi",
+  "Pebbles",
+  "Pewcifer",
+  "Pronvos",
+  "PsycheaEU",
+  "Rabid",
+  "RocketG",
+  "Ruarein",
+  "Seljah",
+  "Siegrein",
+  "SpartanKing",
+  "Sploogesque",
+  "StaticHurtYou",
+  "StraightEdge",
+  "TTard",
+  "Taells",
+  "Talshani",
+  "Vem",
+  "Voltaic",
+  "Vouge",
+  "Weapon",
+  "Wergin",
+  "XTatsuyAX",
+  "Yannik",
+  "Yulie",
+  "Zebraghost"
+];
+
+const ROLES_STORAGE_KEY    = "nodeWarSquadRoles";
+const PROFILES_STORAGE_KEY = "nodeWarPlayerProfiles";
+const DYNAMIC_MATCHES_KEY  = "nodeWarDynamicMatches";
+
+const BDO_CLASSES = [
+  "Warrior","Ranger","Sorceress","Berserker","Tamer","Musa","Maehwa","Valkyrie",
+  "Kunoichi","Ninja","Wizard","Witch","Dark Knight","Striker","Mystic","Lahn",
+  "Archer","Shai","Guardian","Nova","Sage","Corsair","Hashashin","Drakania",
+  "Woosa","Maegu","Scholar","Dosa","Deadeye","Wukong","Seraph"
+].sort();
+
+const ROLE_LABELS = { shotcaller:"Shotcaller", defensive:"Defensive", flex:"Flex Squad", mainball:"Mainball" };
+
+function kd(k,d){ return (k===0&&d===0) ? null : d===0 ? k : k/d; }
+function fmtKD(v){ return v===null ? "—" : v.toFixed(2); }
+
+function getParam(name){
+  return new URLSearchParams(window.location.search).get(name);
+}
+
+function loadProfiles(){
+  try{ const r=localStorage.getItem(PROFILES_STORAGE_KEY); return r?JSON.parse(r):{}; }
+  catch(e){ return {}; }
+}
+function saveProfiles(p){
+  try{ localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(p)); }
+  catch(e){ showToast("Could not save — localStorage unavailable","error"); }
+}
+function loadRoles(){
+  try{ const r=localStorage.getItem(ROLES_STORAGE_KEY); return r?JSON.parse(r):{}; }
+  catch(e){ return {}; }
+}
+
+function getAllMatches(){
+  const all = [...MATCHES];
+  try{
+    const raw = localStorage.getItem(DYNAMIC_MATCHES_KEY);
+    if(raw){
+      const dyn = JSON.parse(raw);
+      dyn.forEach(m=>{ if(!all.find(e=>e.date===m.date)) all.push(m); });
+    }
+  }catch(e){}
+  return all.sort((a,b)=>a.date.localeCompare(b.date));
+}
+
+/* ---- Toast ---- */
+let toastTimer;
+function showToast(msg, type=""){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "toast show " + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"), 2800);
+}
+
+/* ---- Lightbox ---- */
+const lightbox     = document.getElementById("lightbox");
+const lightboxImg  = document.getElementById("lightboxImg");
+const lightboxClose = document.getElementById("lightboxClose");
+function openLightbox(src){ lightboxImg.src=src; lightbox.classList.add("open"); }
+function closeLightbox(){ lightbox.classList.remove("open"); lightboxImg.src=""; }
+lightboxClose.addEventListener("click", closeLightbox);
+lightbox.addEventListener("click", e=>{ if(e.target===lightbox) closeLightbox(); });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeLightbox(); });
+
+/* ================================================================
+   MAIN RENDER
+================================================================ */
+const playerName = getParam("name");
+
+if(!playerName){
+  document.querySelector(".profile-hero").innerHTML =
+    `<p style="padding:40px;color:var(--text-faint);font-family:var(--font-mono)">No player specified. <a href="players.html" style="color:var(--gold-bright)">Back to Roster →</a></p>`;
+} else {
+  document.title = `${playerName} — Node War Log`;
+  init();
+}
+
+function init(){
+  const allMatches  = getAllMatches();
+  const profiles    = loadProfiles();
+  const roles       = loadRoles();
+
+  const appearances = allMatches.map(m=>{
+    const p = m.players.find(([n])=>n===playerName);
+    if(!p) return null;
+    return { match:m, kills:p[1], deaths:p[2] };
+  }).filter(Boolean);
+
+  const totalKills  = appearances.reduce((s,a)=>s+a.kills, 0);
+  const totalDeaths = appearances.reduce((s,a)=>s+a.deaths, 0);
+  const kdVal       = kd(totalKills, totalDeaths);
+  const role        = roles[playerName] || "";
+  const profile     = profiles[playerName] || {};
+
+  /* ---- Hero ---- */
+  renderHero(profile, role, totalKills, totalDeaths, kdVal, profiles);
+
+  /* ---- War History ---- */
+  const body = document.getElementById("warHistoryBody");
+  if(!appearances.length){
+    body.innerHTML = `<tr class="empty-row"><td colspan="6">No war history found.</td></tr>`;
+  } else {
+    body.innerHTML = [...appearances].reverse().map(a=>{
+      const m  = a.match;
+      const kv = kd(a.kills, a.deaths);
+      const dt = new Date(m.date+"T00:00:00");
+      const dateStr = dt.toLocaleDateString("en-US",{weekday:"short",day:"numeric",month:"short",year:"numeric"});
+      const rc = m.result==="Victory" ? "victory":"defeat";
+      return `<tr>
+        <td>${dateStr}</td>
+        <td>${m.location}</td>
+        <td><span class="result-pill ${rc}">${m.result}</span></td>
+        <td class="num">${a.kills}</td>
+        <td class="num">${a.deaths}</td>
+        <td class="kd-cell">${fmtKD(kv)}</td>
+      </tr>`;
+    }).join("");
+  }
+}
+
+function renderHero(profile, role, totalKills, totalDeaths, kdVal, profiles){
+  const classOptions = BDO_CLASSES.map(c=>
+    `<option value="${c}" ${profile.class===c?"selected":""}>${c}</option>`
+  ).join("");
+
+  const slotDefs = [
+    { key:"gearImg",      label:"Gear" },
+    { key:"crystalsImg",  label:"Crystals" },
+    { key:"addonsImg",    label:"Skill-Addons" },
+  ];
+
+  const slotsHTML = slotDefs.map(s=>{
+    const src = profile[s.key] || "";
+    const hasImg = !!src;
+    return `
+      <div class="screenshot-slot">
+        <div class="slot-label">
+          <span class="slot-label-name">${s.label}</span>
+          ${hasImg ? `<button class="slot-clear-btn" data-slot="${s.key}" type="button">Remove</button>` : ""}
+        </div>
+        <div class="slot-img-area ${hasImg?"has-img":""}" data-slot="${s.key}">
+          ${hasImg
+            ? `<img src="${src}" alt="${s.label}" data-slot="${s.key}">`
+            : `<div class="slot-upload-prompt">
+                 <span class="slot-upload-icon">📷</span>
+                 <span>Upload Screenshot</span>
+                 <span class="slot-upload-hint">Click to browse</span>
+               </div>`
+          }
+          ${!hasImg ? `<input type="file" class="slot-file-input" data-slot="${s.key}" accept="image/*">` : ""}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  document.getElementById("profileHero").innerHTML = `
+    <div class="hero-identity">
+      <div class="hero-role-strip ${role||"none"}"></div>
+      <div class="hero-name-block">
+        <div class="hero-eyebrow">Family Name</div>
+        <div class="hero-name">${playerName}</div>
+        <div class="hero-role-label ${role||"none"}">${ROLE_LABELS[role]||"Unassigned"}</div>
+      </div>
+      <div class="hero-class-row">
+        <span class="class-label">Class</span>
+        <select class="class-select" id="classSelect">
+          <option value="">Unknown</option>
+          ${classOptions}
+        </select>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="hero-stat-val kd">${fmtKD(kdVal)}</div>
+          <div class="hero-stat-label">K/D</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-val">${totalKills}</div>
+          <div class="hero-stat-label">Kills</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-val">${totalDeaths}</div>
+          <div class="hero-stat-label">Deaths</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-screenshots">
+      <div class="screenshots-row">
+        ${slotsHTML}
+      </div>
+      <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-faint);letter-spacing:0.04em;">
+        Screenshots and class are saved in this browser. Export from the Roster page to back them up.
+      </div>
+    </div>
+  `;
+
+  /* ---- Wire class select ---- */
+  document.getElementById("classSelect").addEventListener("change", function(){
+    const profiles = loadProfiles();
+    if(!profiles[playerName]) profiles[playerName] = {};
+    profiles[playerName].class = this.value;
+    saveProfiles(profiles);
+    showToast("Class saved", "success");
+  });
+
+  /* ---- Wire screenshot uploads ---- */
+  document.querySelectorAll(".slot-file-input").forEach(input=>{
+    input.addEventListener("change", function(){
+      const slot = this.dataset.slot;
+      const file = this.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = evt=>{
+        const profiles = loadProfiles();
+        if(!profiles[playerName]) profiles[playerName] = {};
+        profiles[playerName][slot] = evt.target.result;
+        saveProfiles(profiles);
+        showToast("Screenshot saved", "success");
+        // Re-render hero to show uploaded image
+        const p = profiles[playerName]||{};
+        const roles = loadRoles();
+        const allM = getAllMatches();
+        const apps = allM.map(m=>{ const pl=m.players.find(([n])=>n===playerName); return pl?{kills:pl[1],deaths:pl[2]}:null; }).filter(Boolean);
+        const tK = apps.reduce((s,a)=>s+a.kills,0);
+        const tD = apps.reduce((s,a)=>s+a.deaths,0);
+        renderHero(p, roles[playerName]||"", tK, tD, kd(tK,tD), profiles);
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+
+  /* ---- Wire image clicks (enlarge) ---- */
+  document.querySelectorAll(".slot-img-area.has-img").forEach(area=>{
+    area.addEventListener("click", ()=>{
+      const img = area.querySelector("img");
+      if(img) openLightbox(img.src);
+    });
+  });
+
+  /* ---- Wire clear buttons ---- */
+  document.querySelectorAll(".slot-clear-btn").forEach(btn=>{
+    btn.addEventListener("click", e=>{
+      e.stopPropagation();
+      const slot = btn.dataset.slot;
+      const profiles = loadProfiles();
+      if(profiles[playerName]) delete profiles[playerName][slot];
+      saveProfiles(profiles);
+      showToast("Screenshot removed", "");
+      const p = profiles[playerName]||{};
+      const roles = loadRoles();
+      const allM = getAllMatches();
+      const apps = allM.map(m=>{ const pl=m.players.find(([n])=>n===playerName); return pl?{kills:pl[1],deaths:pl[2]}:null; }).filter(Boolean);
+      const tK = apps.reduce((s,a)=>s+a.kills,0);
+      const tD = apps.reduce((s,a)=>s+a.deaths,0);
+      renderHero(p, roles[playerName]||"", tK, tD, kd(tK,tD), profiles);
+    });
+  });
+}
+</script>
+</body>
+</html>

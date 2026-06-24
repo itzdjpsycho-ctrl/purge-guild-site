@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Node War Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:            #080608;
+    --bg2:           #0E0A0C;
+    --panel:         #120D0F;
+    --panel-raised:  #1A1215;
+    --hairline:      #2E1F22;
+    --hairline-soft: #1E1517;
+    --text:          #EDE8E0;
+    --text-muted:    #8A8088;
+    --text-faint:    #4E454A;
+    --crimson:       #8B1A1A;
+    --crimson-mid:   #B32020;
+    --crimson-bright:#D63030;
+    --crimson-glow:  #FF3A3A;
+    --gold:          #C49A30;
+    --gold-bright:   #E8BC55;
+    --red:           #B2402F;
+    --red-bright:    #D65A45;
+    --green:         #4A9F5D;
+    --green-bright:  #5BC976;
+    --bronze:        #8C6A3F;
+    --orange:        #E0793C;
+    --font-display:  'Fraunces', serif;
+    --font-mono:     'IBM Plex Mono', monospace;
+    --font-ui:       'Inter', sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; }
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:var(--font-ui); min-height:100vh;
+    position:relative; overflow-x:hidden;
+  }
+    body::before{
+    content:"";
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(139,26,26,0.18), transparent 65%),
+      radial-gradient(ellipse 40% 60% at 0% 100%, rgba(100,10,10,0.12), transparent 60%),
+      radial-gradient(ellipse 40% 60% at 100% 80%, rgba(100,10,10,0.08), transparent 60%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
+  }
+  nav,header,main,footer{ position:relative; z-index:1; }
+
+  /* NAV */
+  .site-nav{
+    display:flex; flex-wrap:wrap; gap:8px;
+    padding:20px 24px 0; max-width:1100px; margin:0 auto;
+  }
+  .site-nav a{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:0.04em;
+    color:var(--text-muted); text-decoration:none;
+    padding:8px 16px; border:1px solid var(--hairline); border-radius:999px;
+    background:var(--panel);
+    transition:background 0.16s,border-color 0.16s,color 0.16s,transform 0.16s;
+  }
+  .site-nav a:hover{ color:var(--text); border-color:rgba(255,255,255,0.18); transform:translateY(-1px); }
+    .site-nav a.current{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(139,26,26,0.15); }
+
+  /* HEADER */
+  header{
+    max-width:880px; margin:20px auto 28px;
+    padding:20px 20px 16px; text-align:center;
+    border:1px solid rgba(255,255,255,0.08); border-radius:36px;
+    background:rgba(11,12,14,0.78); backdrop-filter:blur(16px);
+    box-shadow:0 28px 72px rgba(0,0,0,0.28);
+  }
+  .eyebrow{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.28em;
+    text-transform:uppercase; color:var(--text-faint); margin-bottom:8px;
+  }
+  h1{ font-family:var(--font-display); font-weight:680; font-size:clamp(24px,4vw,36px); }
+  h1 span{ color:var(--gold); font-style:italic; font-weight:480; }
+  .subtitle{ font-size:14px; color:var(--text-muted); margin-top:8px; }
+
+  /* LAYOUT */
+  main{ max-width:1100px; margin:0 auto; padding:0 24px 80px; }
+
+  .section-label{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.18em;
+    text-transform:uppercase; color:var(--text-faint); margin-bottom:14px;
+  }
+  .section{ margin-bottom:32px; }
+
+  /* PANEL */
+  .panel{
+    background:var(--panel); border:1px solid var(--hairline);
+    border-radius:12px; overflow:hidden;
+  }
+  .panel-pad{ padding:22px 24px; }
+
+  /* STAT GRID — top summary row */
+  .stat-grid{
+    display:grid; grid-template-columns:repeat(5,1fr);
+    gap:1px; background:var(--hairline-soft);
+    border:1px solid var(--hairline); border-radius:12px; overflow:hidden;
+    margin-bottom:32px;
+  }
+  .stat-card{
+    background:var(--panel); padding:20px 16px; text-align:center;
+  }
+  .stat-val{
+    font-family:var(--font-mono); font-size:28px; font-weight:700; color:var(--text);
+    line-height:1;
+  }
+  .stat-val.gold{ color:var(--gold-bright); }
+  .stat-val.green{ color:var(--green-bright); }
+  .stat-val.red{ color:var(--red-bright); }
+  .stat-label{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--text-faint); margin-top:6px;
+  }
+
+  /* WIN RATE SECTION */
+  .winrate-grid{
+    display:grid; grid-template-columns:200px 1fr; gap:24px; align-items:center;
+  }
+  .winrate-ring-wrap{
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+  }
+  .winrate-ring{ position:relative; width:160px; height:160px; }
+  .winrate-ring svg{ transform:rotate(-90deg); }
+  .winrate-ring-label{
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+  }
+  .winrate-pct{
+    font-family:var(--font-mono); font-size:30px; font-weight:700; color:var(--crimson-bright);
+  }
+  .winrate-sub{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--text-faint); margin-top:2px;
+  }
+  .streak-badge{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:0.06em;
+    text-transform:uppercase; padding:6px 14px; border-radius:999px; font-weight:600;
+    text-align:center;
+  }
+  .streak-badge.win{ color:var(--gold-bright); background:rgba(217,164,65,0.12); border:1px solid rgba(217,164,65,0.3); }
+  .streak-badge.loss{ color:var(--red-bright); background:rgba(178,64,47,0.12); border:1px solid rgba(178,64,47,0.3); }
+  .streak-badge.none{ color:var(--text-faint); background:var(--panel-raised); border:1px solid var(--hairline); }
+
+  /* NODE BREAKDOWN */
+  .node-list{ display:flex; flex-direction:column; gap:10px; }
+  .node-row{
+    display:grid; grid-template-columns:110px 1fr 80px;
+    align-items:center; gap:12px;
+  }
+  .node-name{ font-family:var(--font-mono); font-size:12px; color:var(--text-muted); }
+  .node-bar-track{
+    height:8px; background:var(--panel-raised); border-radius:999px; overflow:hidden;
+  }
+  .node-bar-fill{ height:100%; border-radius:999px; transition:width 0.4s ease; }
+  .node-bar-fill.win{ background:var(--green-bright); }
+  .node-bar-fill.mixed{ background:var(--gold); }
+  .node-bar-fill.loss{ background:var(--red-bright); }
+  .node-record{
+    font-family:var(--font-mono); font-size:11px; text-align:right;
+    white-space:nowrap;
+  }
+  .node-record .w{ color:var(--gold-bright); }
+  .node-record .l{ color:var(--red-bright); }
+
+  /* TWO-COL LAYOUT */
+  .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:32px; }
+
+  /* TOP PERFORMERS */
+  .perf-tabs{
+    display:flex; gap:8px; padding:16px 20px 0; border-bottom:1px solid var(--hairline-soft);
+  }
+  .perf-tab{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.06em;
+    text-transform:uppercase; padding:7px 14px; border-radius:8px 8px 0 0;
+    cursor:pointer; border:none; background:none; color:var(--text-faint);
+    transition:color 0.14s,background 0.14s;
+    border-bottom:2px solid transparent; margin-bottom:-1px;
+  }
+  .perf-tab:hover{ color:var(--text-muted); }
+  .perf-tab.active{ color:var(--gold-bright); border-bottom-color:var(--gold-bright); }
+
+  .perf-list{ padding:10px 0 6px; }
+  .perf-row{
+    display:grid; grid-template-columns:28px 1fr 60px;
+    align-items:center; gap:10px;
+    padding:9px 20px; border-bottom:1px solid var(--hairline-soft);
+    transition:background 0.14s;
+  }
+  .perf-row:last-child{ border-bottom:none; }
+  .perf-row:hover{ background:rgba(255,255,255,0.02); }
+  .perf-rank{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-faint); text-align:center;
+  }
+  .perf-row[data-rank="1"] .perf-rank{ color:var(--gold-bright); font-weight:700; }
+  .perf-row[data-rank="2"] .perf-rank{ color:#C9CCD1; font-weight:600; }
+  .perf-row[data-rank="3"] .perf-rank{ color:var(--bronze); font-weight:600; }
+  .perf-name{ font-size:13px; font-weight:500; }
+  .perf-val{
+    font-family:var(--font-mono); font-size:14px; font-weight:600;
+    color:var(--gold-bright); text-align:right;
+  }
+  .perf-val.kills{ color:var(--green-bright); }
+  .perf-val.deaths{ color:var(--red-bright); }
+
+  /* TREND SECTION */
+  .trend-controls{
+    display:flex; align-items:center; gap:12px;
+    padding:18px 22px 14px; border-bottom:1px solid var(--hairline-soft);
+    flex-wrap:wrap;
+  }
+  .trend-label{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--text-faint);
+  }
+  .trend-select{
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    color:var(--text); font-family:var(--font-mono); font-size:12px;
+    padding:7px 12px; border-radius:8px; cursor:pointer;
+    appearance:none; outline:none; min-width:180px;
+    transition:border-color 0.16s;
+  }
+  .trend-select:focus{ border-color:var(--gold); }
+  .trend-body{ padding:20px 22px 22px; }
+  .trend-charts{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .chart-title{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.12em;
+    text-transform:uppercase; color:var(--text-faint); margin-bottom:12px;
+  }
+  canvas{ width:100% !important; display:block; }
+
+  .no-data{
+    text-align:center; padding:40px; color:var(--text-faint);
+    font-family:var(--font-mono); font-size:12px; font-style:italic;
+  }
+
+  footer{
+    text-align:center; padding:36px 24px 56px;
+    font-size:12px; color:var(--text-faint); font-family:var(--font-mono);
+  }
+
+  @media(max-width:760px){
+    .stat-grid{ grid-template-columns:repeat(3,1fr); }
+    .two-col{ grid-template-columns:1fr; }
+    .winrate-grid{ grid-template-columns:1fr; }
+    .trend-charts{ grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <a href="home.html">Home</a>
+  <a href="index.html">War Scores</a>
+  <a href="players.html">Roster</a>
+  <a href="dashboard.html" class="current">Dashboard</a>
+</nav>
+
+<header>
+  <div class="eyebrow">Guild Analytics</div>
+  <h1>Purge <span>Statistics</span></h1>
+  <div class="subtitle" id="dashSubtitle">Loading…</div>
+</header>
+
+<main>
+
+  <!-- SUMMARY STATS -->
+  <div class="stat-grid" id="statGrid"></div>
+
+  <!-- WIN RATE + NODE BREAKDOWN -->
+  <div class="two-col">
+    <div class="section">
+      <div class="section-label">Win Rate</div>
+      <div class="panel panel-pad">
+        <div class="winrate-grid">
+          <div class="winrate-ring-wrap">
+            <div class="winrate-ring">
+              <svg viewBox="0 0 160 160" width="160" height="160">
+                <circle cx="80" cy="80" r="64" fill="none" stroke="#202226" stroke-width="14"/>
+                <circle cx="80" cy="80" r="64" fill="none"
+                  stroke="#D9A441" stroke-width="14"
+                  stroke-linecap="round"
+                  stroke-dasharray="402.1"
+                  stroke-dashoffset="402.1"
+                  id="winRateCircle"/>
+              </svg>
+              <div class="winrate-ring-label">
+                <div class="winrate-pct" id="winRatePct">—%</div>
+                <div class="winrate-sub">Win Rate</div>
+              </div>
+            </div>
+            <div class="streak-badge none" id="streakBadge">No streak</div>
+          </div>
+          <div class="node-list" id="nodeList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOP PERFORMERS -->
+    <div class="section">
+      <div class="section-label">Top Performers</div>
+      <div class="panel">
+        <div class="perf-tabs">
+          <button class="perf-tab active" data-metric="kd" type="button">K/D Ratio</button>
+          <button class="perf-tab" data-metric="kills" type="button">Kills</button>
+          <button class="perf-tab" data-metric="deaths" type="button">Deaths</button>
+        </div>
+        <div class="perf-list" id="perfList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLAYER TRENDS -->
+  <div class="section">
+    <div class="section-label">Per-Player Trends</div>
+    <div class="panel">
+      <div class="trend-controls">
+        <span class="trend-label">Player</span>
+        <select class="trend-select" id="trendSelect"></select>
+      </div>
+      <div class="trend-body">
+        <div class="trend-charts" id="trendCharts">
+          <div>
+            <div class="chart-title">K/D Ratio — war by war</div>
+            <canvas id="lineChart" height="200"></canvas>
+          </div>
+          <div>
+            <div class="chart-title">Kills vs Deaths — per war</div>
+            <canvas id="barChart" height="200"></canvas>
+          </div>
+        </div>
+        <div class="no-data" id="trendNoData" style="display:none">
+          This player hasn't appeared in any logged wars yet.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>Node War Log · Dashboard</footer>
+
+<script>
+/* ================================================================
+   MATCH DATA — keep in sync with index.html
+================================================================ */
+const MATCHES = [
+  {
+    date: "2026-06-19", day: "Friday", location: "Ulukita", result: "Defeat",
+    players: [
+      ["Popspolar",30,14],["Milkdudh",25,14],["Aodhan",24,10],["Dreamxx",18,21],
+      ["HaterApproved",17,17],["BrotherMango",17,16],["KillShotz",16,18],["Beastylirious",15,21],
+      ["Rostalina",15,19],["Alancar",15,17],["ScummySteve",13,9],["Valth",12,17],
+      ["Mcy",10,15],["Kraiok",10,19],["LulzCaptain",9,18],["TheWretched",9,21],
+      ["Serade",7,17],["HeRoisMx",7,3],["Rozuns",6,14],["Succs",6,17],
+      ["Cohrence",5,17],["Lulupeach",4,11],["SirHeathen",3,13],["XastusMK",2,21],
+    ]
+  },
+];
+
+const ROSTER_MEMBERS = [
+  "Boondoggle","Bossdogg","Clip","Creetin","DesertPunkk","Em_Bargo","Embberr","EXTRA_LARGE",
+  "Flusha","Ghond","GreenBerry","Greedyboy","Heals","HiiroNoAme","Intruder","Krill","LePewPew",
+  "LunAqua","MadeInHell","Menteeing","Myoubi","NeatJoe","NightBringers","NoCap","Obituary",
+  "Odare","Onimichi","Pebbles","Pewcifer","Pronvos","PsycheaEU","Rabid","RocketG","Ruarein",
+  "Seljah","Siegrein","SpartanKing","Sploogesque","StaticHurtYou","StraightEdge","TTard",
+  "Taells","Talshani","Vem","Voltaic","Vouge","Weapon","Wergin","XTatsuyAX","Yannik","Yulie",
+  "Zebraghost"
+];
+
+const DYNAMIC_MATCHES_KEY  = "nodeWarDynamicMatches";
+const DYNAMIC_EXTENDED_KEY = "nodeWarDynamicExtended";
+
+/* ---- helpers ---- */
+function kd(k,d){ return (k===0&&d===0)?null:d===0?k:k/d; }
+function fmtKD(v){ return v===null?"—":v.toFixed(2); }
+
+function getAllMatches(){
+  const all = [...MATCHES];
+  try{
+    const raw = localStorage.getItem(DYNAMIC_MATCHES_KEY);
+    if(raw){ JSON.parse(raw).forEach(m=>{ if(!all.find(e=>e.date===m.date)) all.push(m); }); }
+  }catch(e){}
+  return all.sort((a,b)=>a.date.localeCompare(b.date));
+}
+
+function buildOverall(matches){
+  const totals = {};
+  matches.forEach(m=>{
+    m.players.forEach(([name,k,d])=>{
+      if(!totals[name]) totals[name]={name,kills:0,deaths:0,played:0};
+      totals[name].kills+=k; totals[name].deaths+=d; totals[name].played+=1;
+    });
+  });
+  return Object.values(totals);
+}
+
+/* ---- compute streak ---- */
+function computeStreak(matches){
+  if(!matches.length) return { count:0, type:"none" };
+  const results = [...matches].reverse().map(m=>m.result);
+  const first = results[0];
+  let count = 0;
+  for(const r of results){ if(r===first) count++; else break; }
+  return { count, type: first==="Victory"?"win":"loss" };
+}
+
+/* ================================================================
+   RENDER
+================================================================ */
+const allMatches = getAllMatches();
+const wins   = allMatches.filter(m=>m.result==="Victory").length;
+const losses = allMatches.filter(m=>m.result==="Defeat").length;
+const total  = allMatches.length;
+const winPct = total ? Math.round((wins/total)*100) : 0;
+const streak = computeStreak(allMatches);
+const overall = buildOverall(allMatches);
+
+/* subtitle */
+document.getElementById("dashSubtitle").textContent =
+  `${total} war${total!==1?"s":""} logged · ${wins}W / ${losses}L`;
+
+/* ---- Summary stat grid ---- */
+const topKD = overall.filter(r=>r.played>0).sort((a,b)=>{
+  const av=kd(a.kills,a.deaths)??-1, bv=kd(b.kills,b.deaths)??-1;
+  return bv-av;
+})[0];
+const topKills = overall.sort((a,b)=>b.kills-a.kills)[0];
+
+document.getElementById("statGrid").innerHTML = `
+  <div class="stat-card">
+    <div class="stat-val">${total}</div>
+    <div class="stat-label">Wars Logged</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-val green">${wins}</div>
+    <div class="stat-label">Victories</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-val red">${losses}</div>
+    <div class="stat-label">Defeats</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-val gold">${winPct}%</div>
+    <div class="stat-label">Win Rate</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-val">${overall.filter(r=>r.played>0).length}</div>
+    <div class="stat-label">Active Players</div>
+  </div>
+`;
+
+/* ---- Win rate ring ---- */
+const circumference = 2 * Math.PI * 64; // 402.1
+const offset = circumference - (winPct / 100) * circumference;
+const circle = document.getElementById("winRateCircle");
+circle.style.strokeDashoffset = offset;
+circle.style.transition = "stroke-dashoffset 0.8s ease";
+// Color ring by win rate
+if(winPct >= 60) circle.style.stroke = "#5BC976";
+else if(winPct >= 40) circle.style.stroke = "#D9A441";
+else circle.style.stroke = "#D65A45";
+
+document.getElementById("winRatePct").textContent = `${winPct}%`;
+
+/* ---- Streak badge ---- */
+const sb = document.getElementById("streakBadge");
+if(streak.count > 1){
+  sb.textContent = streak.type==="win"
+    ? `${streak.count} Win Streak 🔥`
+    : `${streak.count} Loss Streak`;
+  sb.className = `streak-badge ${streak.type}`;
+} else if(total > 0){
+  sb.textContent = streak.type==="win" ? "Last war: Victory" : "Last war: Defeat";
+  sb.className = `streak-badge ${streak.type}`;
+}
+
+/* ---- Node breakdown ---- */
+const nodeStats = {};
+allMatches.forEach(m=>{
+  if(!nodeStats[m.location]) nodeStats[m.location]={w:0,l:0};
+  if(m.result==="Victory") nodeStats[m.location].w++;
+  else nodeStats[m.location].l++;
+});
+const nodeEntries = Object.entries(nodeStats).sort((a,b)=>(b[1].w+b[1].l)-(a[1].w+a[1].l));
+const maxNodeGames = Math.max(...nodeEntries.map(([,v])=>v.w+v.l));
+document.getElementById("nodeList").innerHTML = nodeEntries.map(([name,{w,l}])=>{
+  const played = w+l;
+  const pct = Math.round((w/played)*100);
+  const fillClass = pct===100?"win":pct===0?"loss":"mixed";
+  return `<div class="node-row">
+    <div class="node-name">${name}</div>
+    <div class="node-bar-track">
+      <div class="node-bar-fill ${fillClass}" style="width:${Math.round((played/maxNodeGames)*100)*(pct/100)}%"></div>
+    </div>
+    <div class="node-record"><span class="w">${w}W</span> / <span class="l">${l}L</span></div>
+  </div>`;
+}).join("") || `<div class="no-data">No wars logged yet.</div>`;
+
+/* ---- Top Performers ---- */
+let currentMetric = "kd";
+
+function renderPerformers(metric){
+  const qualified = buildOverall(allMatches).filter(r=>r.played>0);
+  let sorted;
+  if(metric==="kd"){
+    sorted = qualified.sort((a,b)=>(kd(b.kills,b.deaths)??-1)-(kd(a.kills,a.deaths)??-1));
+  } else {
+    sorted = qualified.sort((a,b)=>b[metric]-a[metric]);
+  }
+  const top10 = sorted.slice(0,10);
+  const maxVal = top10[0] ? (metric==="kd" ? kd(top10[0].kills,top10[0].deaths) : top10[0][metric]) : 1;
+
+  document.getElementById("perfList").innerHTML = top10.map((r,i)=>{
+    const val = metric==="kd" ? kd(r.kills,r.deaths) : r[metric];
+    const display = metric==="kd" ? fmtKD(val) : val;
+    const valClass = metric==="kd"?"":metric;
+    return `<div class="perf-row" data-rank="${i+1}">
+      <div class="perf-rank">${i+1}</div>
+      <div class="perf-name">${r.name}</div>
+      <div class="perf-val ${valClass}">${display}</div>
+    </div>`;
+  }).join("") || `<div class="no-data">No data yet.</div>`;
+}
+
+renderPerformers("kd");
+
+document.querySelectorAll(".perf-tab").forEach(tab=>{
+  tab.addEventListener("click",()=>{
+    document.querySelectorAll(".perf-tab").forEach(t=>t.classList.remove("active"));
+    tab.classList.add("active");
+    currentMetric = tab.dataset.metric;
+    renderPerformers(currentMetric);
+  });
+});
+
+/* ================================================================
+   TREND CHARTS — pure canvas, no library needed
+================================================================ */
+const allPlayers = [
+  ...new Set([
+    ...ROSTER_MEMBERS,
+    ...allMatches.flatMap(m=>m.players.map(p=>p[0]))
+  ])
+].sort();
+
+const trendSelect = document.getElementById("trendSelect");
+trendSelect.innerHTML = allPlayers.map(n=>`<option value="${n}">${n}</option>`).join("");
+
+// Pick first player with actual war data as default
+const firstActive = allMatches.length
+  ? allMatches[0].players[0][0]
+  : allPlayers[0];
+trendSelect.value = firstActive;
+
+function getPlayerAppearances(name){
+  return allMatches.map(m=>{
+    const p = m.players.find(([n])=>n===name);
+    if(!p) return null;
+    return { date:m.date, location:m.location, result:m.result, kills:p[1], deaths:p[2] };
+  }).filter(Boolean);
+}
+
+function drawLineChart(appearances){
+  const canvas = document.getElementById("lineChart");
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio||1;
+  const W = canvas.parentElement.clientWidth;
+  const H = 200;
+  canvas.width = W*dpr; canvas.height = H*dpr;
+  canvas.style.width = W+"px"; canvas.style.height = H+"px";
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+
+  if(!appearances.length){
+    ctx.fillStyle="#5C5F66"; ctx.font="12px 'IBM Plex Mono'"; ctx.textAlign="center";
+    ctx.fillText("No war data",W/2,H/2); return;
+  }
+
+  const kdVals = appearances.map(a=>kd(a.kills,a.deaths)??0);
+  const maxKD  = Math.max(...kdVals, 1);
+  const pad = { t:16, r:16, b:36, l:40 };
+  const chartW = W - pad.l - pad.r;
+  const chartH = H - pad.t - pad.b;
+
+  // Grid lines
+  ctx.strokeStyle="#202226"; ctx.lineWidth=1;
+  [0,0.25,0.5,0.75,1].forEach(f=>{
+    const y = pad.t + chartH*(1-f);
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+chartW,y); ctx.stroke();
+    ctx.fillStyle="#5C5F66"; ctx.font="9px 'IBM Plex Mono'"; ctx.textAlign="right";
+    ctx.fillText((maxKD*f).toFixed(1), pad.l-6, y+3);
+  });
+
+  const xStep = appearances.length > 1 ? chartW/(appearances.length-1) : chartW/2;
+
+  // Line
+  ctx.beginPath(); ctx.strokeStyle="#D9A441"; ctx.lineWidth=2; ctx.lineJoin="round";
+  appearances.forEach((a,i)=>{
+    const x = pad.l + (appearances.length>1 ? i*xStep : chartW/2);
+    const y = pad.t + chartH*(1-(kdVals[i]/maxKD));
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  // Dots + labels
+  appearances.forEach((a,i)=>{
+    const x = pad.l + (appearances.length>1 ? i*xStep : chartW/2);
+    const y = pad.t + chartH*(1-(kdVals[i]/maxKD));
+    ctx.beginPath(); ctx.arc(x,y,4,0,Math.PI*2);
+    ctx.fillStyle= a.result==="Victory"?"#5BC976":"#D65A45";
+    ctx.fill();
+    ctx.strokeStyle="#0B0C0E"; ctx.lineWidth=1.5; ctx.stroke();
+
+    // Date label
+    const dt = new Date(a.date+"T00:00:00");
+    const lbl = dt.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+    ctx.fillStyle="#5C5F66"; ctx.font="8px 'IBM Plex Mono'"; ctx.textAlign="center";
+    ctx.fillText(lbl, x, H-pad.b+14);
+  });
+}
+
+function drawBarChart(appearances){
+  const canvas = document.getElementById("barChart");
+  const ctx = canvas.getContext("2d");
+  const dpr = window.devicePixelRatio||1;
+  const W = canvas.parentElement.clientWidth;
+  const H = 200;
+  canvas.width = W*dpr; canvas.height = H*dpr;
+  canvas.style.width = W+"px"; canvas.style.height = H+"px";
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,W,H);
+
+  if(!appearances.length){
+    ctx.fillStyle="#5C5F66"; ctx.font="12px 'IBM Plex Mono'"; ctx.textAlign="center";
+    ctx.fillText("No war data",W/2,H/2); return;
+  }
+
+  const maxVal = Math.max(...appearances.flatMap(a=>[a.kills,a.deaths]),1);
+  const pad = { t:16, r:16, b:36, l:40 };
+  const chartW = W - pad.l - pad.r;
+  const chartH = H - pad.t - pad.b;
+  const n = appearances.length;
+  const groupW = chartW / n;
+  const barW = Math.min((groupW - 8) / 2, 18);
+
+  // Grid
+  ctx.strokeStyle="#202226"; ctx.lineWidth=1;
+  [0,0.25,0.5,0.75,1].forEach(f=>{
+    const y = pad.t + chartH*(1-f);
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+chartW,y); ctx.stroke();
+    ctx.fillStyle="#5C5F66"; ctx.font="9px 'IBM Plex Mono'"; ctx.textAlign="right";
+    ctx.fillText(Math.round(maxVal*f), pad.l-6, y+3);
+  });
+
+  appearances.forEach((a,i)=>{
+    const cx = pad.l + i*groupW + groupW/2;
+
+    // Kills bar
+    const kH = (a.kills/maxVal)*chartH;
+    ctx.fillStyle="#5BC976";
+    ctx.fillRect(cx - barW - 2, pad.t+chartH-kH, barW, kH);
+
+    // Deaths bar
+    const dH = (a.deaths/maxVal)*chartH;
+    ctx.fillStyle="#D65A45";
+    ctx.fillRect(cx + 2, pad.t+chartH-dH, barW, dH);
+
+    // Date label
+    const dt = new Date(a.date+"T00:00:00");
+    const lbl = dt.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+    ctx.fillStyle="#5C5F66"; ctx.font="8px 'IBM Plex Mono'"; ctx.textAlign="center";
+    ctx.fillText(lbl, cx, H-pad.b+14);
+  });
+
+  // Legend
+  ctx.fillStyle="#5BC976"; ctx.fillRect(pad.l, pad.t-2, 8, 8);
+  ctx.fillStyle="#8A8D93"; ctx.font="9px 'IBM Plex Mono'"; ctx.textAlign="left";
+  ctx.fillText("Kills", pad.l+11, pad.t+6);
+  ctx.fillStyle="#D65A45"; ctx.fillRect(pad.l+48, pad.t-2, 8, 8);
+  ctx.fillStyle="#8A8D93"; ctx.fillText("Deaths", pad.l+61, pad.t+6);
+}
+
+function renderTrends(name){
+  const appearances = getPlayerAppearances(name);
+  const noData = document.getElementById("trendNoData");
+  const charts  = document.getElementById("trendCharts");
+
+  if(!appearances.length){
+    noData.style.display="block"; charts.style.display="none"; return;
+  }
+  noData.style.display="none"; charts.style.display="grid";
+
+  requestAnimationFrame(()=>{
+    drawLineChart(appearances);
+    drawBarChart(appearances);
+  });
+}
+
+trendSelect.addEventListener("change",()=>renderTrends(trendSelect.value));
+renderTrends(trendSelect.value);
+
+window.addEventListener("resize",()=>renderTrends(trendSelect.value));
+</script>
+</body>
+</html>
