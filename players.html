@@ -9,19 +9,19 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:            #080608;
-    --bg2:           #0E0A0C;
-    --panel:         #120D0F;
-    --panel-raised:  #1A1215;
-    --hairline:      #2E1F22;
-    --hairline-soft: #1E1517;
+    --bg:            #08060C;
+    --bg2:           #0C0A12;
+    --panel:         #110D18;
+    --panel-raised:  #181222;
+    --hairline:      #2A1F3A;
+    --hairline-soft: #1A1426;
     --text:          #EDE8E0;
     --text-muted:    #8A8088;
     --text-faint:    #4E454A;
-    --crimson:       #8B1A1A;
-    --crimson-mid:   #B32020;
-    --crimson-bright:#D63030;
-    --crimson-glow:  #FF3A3A;
+    --crimson:       #6E1FB8;
+    --crimson-mid:   #8B2FD9;
+    --crimson-bright:#AB4DFF;
+    --crimson-glow:  #C77DFF;
     --gold:          #C49A30;
     --gold-bright:   #E8BC55;
     --red:           #B2402F;
@@ -48,7 +48,7 @@
     content:"";
     position:fixed; inset:0; pointer-events:none; z-index:0;
     background:
-      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(139,26,26,0.18), transparent 65%),
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(110,31,184,0.18), transparent 65%),
       radial-gradient(ellipse 40% 60% at 0% 100%, rgba(100,10,10,0.12), transparent 60%),
       radial-gradient(ellipse 40% 60% at 100% 80%, rgba(100,10,10,0.08), transparent 60%),
       repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
@@ -68,7 +68,7 @@
     transition:background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
   }
   .site-nav a:hover{ color:var(--text); border-color:rgba(255,255,255,0.18); transform:translateY(-1px); }
-    .site-nav a.current{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(139,26,26,0.15); }
+    .site-nav a.current{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(110,31,184,0.15); }
 
   header{
     max-width:880px; margin:20px auto 28px;

@@ -25,19 +25,21 @@ Dark-themed static HTML guild management site for a Black Desert Online (BDO) No
 
 ---
 
-## Theme — Purge Crimson Dark (all pages)
+## Theme — Purge Neon Purple Dark (all pages)
 
 ```
-Background:    #080608 with crimson radial glow atmosphere
-Panels:        #120D0F / #1A1215
-Hairlines:     #2E1F22 / #1E1517
-UI accent:     crimson #8B1A1A / #B32020 / #D63030
+Background:    #08060C with neon-purple radial glow atmosphere
+Panels:        #110D18 / #181222
+Hairlines:     #2A1F3A / #1A1426
+UI accent:     neon purple #6E1FB8 / #8B2FD9 / #AB4DFF (glow #C77DFF)
 Data colours:  gold #C49A30 / #E8BC55 (K/D, victories)
                green #5BC976 (kills)
                red #D65A45 (deaths/defeats)
 Fonts:         Fraunces (display), IBM Plex Mono (mono), Inter (UI)
-Nav active:    crimson (not gold)
+Nav active:    neon purple (not gold)
 ```
+
+*(CSS vars are still named `--crimson*` for historical reasons — they now hold purple values.)*
 
 ---
 

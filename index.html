@@ -12,19 +12,19 @@
      DESIGN TOKENS
      ============================================================ */
   :root{
-    --bg:            #080608;
-    --bg2:           #0E0A0C;
-    --panel:         #120D0F;
-    --panel-raised:  #1A1215;
-    --hairline:      #2E1F22;
-    --hairline-soft: #1E1517;
+    --bg:            #08060C;
+    --bg2:           #0C0A12;
+    --panel:         #110D18;
+    --panel-raised:  #181222;
+    --hairline:      #2A1F3A;
+    --hairline-soft: #1A1426;
     --text:          #EDE8E0;
     --text-muted:    #8A8088;
     --text-faint:    #4E454A;
-    --crimson:       #8B1A1A;
-    --crimson-mid:   #B32020;
-    --crimson-bright:#D63030;
-    --crimson-glow:  #FF3A3A;
+    --crimson:       #6E1FB8;
+    --crimson-mid:   #8B2FD9;
+    --crimson-bright:#AB4DFF;
+    --crimson-glow:  #C77DFF;
     --gold:          #C49A30;
     --gold-bright:   #E8BC55;
     --red:           #B2402F;
@@ -56,7 +56,7 @@
     content:"";
     position:fixed; inset:0; pointer-events:none; z-index:0;
     background:
-      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(139,26,26,0.18), transparent 65%),
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(110,31,184,0.18), transparent 65%),
       radial-gradient(ellipse 40% 60% at 0% 100%, rgba(100,10,10,0.12), transparent 60%),
       radial-gradient(ellipse 40% 60% at 100% 80%, rgba(100,10,10,0.08), transparent 60%),
       repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
@@ -100,7 +100,7 @@
     outline-offset:2px;
   }
 
-    .site-nav a.current{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(139,26,26,0.15); }
+    .site-nav a.current{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(110,31,184,0.15); }
 
   /* ============================================================
      PLAYER INSPECT DRAWER
@@ -334,12 +334,12 @@
     color:var(--gold-bright);
     text-decoration:none;
     padding:7px 14px;
-    border:1px solid rgba(139,26,26,0.35);
+    border:1px solid rgba(110,31,184,0.35);
     border-radius:999px;
-    background:rgba(139,26,26,0.1);
+    background:rgba(110,31,184,0.1);
     transition:background 0.14s ease, border-color 0.14s ease;
   }
-  .drawer-profile-link a:hover{ background:rgba(139,26,26,0.2); border-color:var(--crimson); }
+  .drawer-profile-link a:hover{ background:rgba(110,31,184,0.2); border-color:var(--crimson); }
 
   .drawer-class-badge{
     font-family:var(--font-mono);
@@ -355,7 +355,7 @@
     font-size:12px;
     letter-spacing:0.04em;
     color:var(--crimson-bright);
-    background:rgba(139,26,26,0.12);
+    background:rgba(110,31,184,0.12);
     border:1px solid var(--crimson);
     border-radius:999px;
     padding:7px 16px;
@@ -363,7 +363,7 @@
     transition:background 0.16s ease, box-shadow 0.16s ease;
     white-space:nowrap;
   }
-  .add-war-btn:hover{ background:rgba(139,26,26,0.22); box-shadow:0 0 16px rgba(139,26,26,0.2); }
+  .add-war-btn:hover{ background:rgba(110,31,184,0.22); box-shadow:0 0 16px rgba(110,31,184,0.2); }
 
   .clear-wars-btn{
     font-family:var(--font-mono); font-size:12px; letter-spacing:0.04em;
@@ -437,7 +437,7 @@
   }
   .upload-zone:hover, .upload-zone.drag-over{
     border-color:var(--crimson);
-    background:rgba(139,26,26,0.05);
+    background:rgba(110,31,184,0.05);
   }
   .upload-zone input[type=file]{
     position:absolute;
@@ -490,11 +490,11 @@
   }
   .modal-btn:hover{ color:var(--text); border-color:rgba(255,255,255,0.18); }
   .modal-btn.primary{
-    background:rgba(139,26,26,0.14);
+    background:rgba(110,31,184,0.14);
     color:var(--crimson-bright);
     border-color:var(--crimson);
   }
-  .modal-btn.primary:hover{ background:rgba(139,26,26,0.26); }
+  .modal-btn.primary:hover{ background:rgba(110,31,184,0.26); }
   .modal-btn:disabled{ opacity:0.4; pointer-events:none; }
 
   .modal-status{
@@ -521,7 +521,7 @@
     transition:color 0.14s, background 0.14s, border-color 0.14s;
   }
   .modal-mode-tab:hover{ color:var(--text-muted); }
-  .modal-mode-tab.active{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(139,26,26,0.12); }
+  .modal-mode-tab.active{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(110,31,184,0.12); }
 
   .json-input-area{ display:none; }
   .json-input-area.visible{ display:block; }
@@ -582,7 +582,7 @@
   .roles-edit-btn.active{
     color:var(--crimson-bright);
     border-color:var(--crimson);
-    background:rgba(139,26,26,0.12);
+    background:rgba(110,31,184,0.12);
   }
 
   .roles-panel{
@@ -701,7 +701,7 @@
     min-height:140px;
   }
   .roles-dnd-zone.drag-over{
-    background:rgba(139,26,26,0.08);
+    background:rgba(110,31,184,0.08);
     box-shadow:inset 0 0 0 2px var(--crimson);
   }
   .roles-dnd-placeholder{
@@ -753,7 +753,7 @@
     margin:0 auto 24px;
     padding:22px 20px 18px;
     text-align:center;
-    border:1px solid rgba(139,26,26,0.2);
+    border:1px solid rgba(110,31,184,0.2);
     border-radius:36px;
     background:rgba(8,6,8,0.85);
     backdrop-filter:blur(16px);
@@ -884,7 +884,7 @@
 
   select#weekSelect:focus{
     border-color:var(--crimson);
-    box-shadow:0 0 0 3px rgba(139,26,26,0.15);
+    box-shadow:0 0 0 3px rgba(110,31,184,0.15);
   }
 
   .week-select-arrow{
@@ -1364,7 +1364,7 @@
   }
   .panel-search:focus{
     border-color:var(--crimson);
-    box-shadow:0 0 0 3px rgba(139,26,26,0.12);
+    box-shadow:0 0 0 3px rgba(110,31,184,0.12);
     width:220px;
   }
   .panel-search::placeholder{ color:var(--text-faint); }
