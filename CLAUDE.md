@@ -6,7 +6,7 @@ Dark-themed static HTML guild management site for a Black Desert Online (BDO) No
 
 - **Live site:** https://cheery-puppy-6057d8.netlify.app
 - **GitHub:** https://github.com/itzdjpsycho-ctrl/purge-guild-site
-- **Local folder:** D:\Website Building
+- **Local folder:** C:\Users\MyPC\src (original was D:\Website Building — force pushed to sync)
 
 ---
 
@@ -15,10 +15,12 @@ Dark-themed static HTML guild management site for a Black Desert Online (BDO) No
 | File | Purpose |
 |------|---------|
 | `home.html` | Landing page. Crimson dark theme, logo placeholder, live stats strip, quick-link cards, most recent war panel. |
-| `index.html` | **War Scores page (main page).** Match tabs grouped by week (collapsible). Squad Roles panel with drag-and-drop (Mainball / Shotcaller / Defensive / Flex Squad). + Add War button with screenshot upload → Claude API extraction (up to 4 screenshots). Player name search. Class column. "Clear Added Wars" double-tap button inside the match panel. |
-| `players.html` | Roster page. Grid of 76 player cards. Export/Import JSON. |
-| `player.html` | Individual player profile (`player.html?name=Popspolar`). Class dropdown (34 BDO classes), 3 screenshot slots (Gear / Crystals / Skill-Addons), war history table. |
-| `dashboard.html` | Guild stats. Win rate ring, streak badge, node location breakdown, top 10 performers (K/D / Kills / Deaths tabs), per-player trend charts (line + bar, pure canvas). |
+| `index.html` | **War Scores page (main page).** Match tabs grouped by week (collapsible). Squad Roles panel with drag-and-drop — scrollable when overflow. + Add War button: 📸 Screenshot mode (Netlify function proxy) OR { } Manual JSON paste mode. Player name search. Class column. "Clear Added Wars" double-tap button. |
+| `players.html` | Roster page. Grid of player cards. Each card has a role dropdown that saves to localStorage instantly and syncs with War Scores. Export/Import JSON. |
+| `player.html` | Individual player profile (`player.html?name=Popspolar`). Class dropdown (31 BDO classes), 3 screenshot slots (Gear / Crystals / Skill-Addons), war history table. |
+| `dashboard.html` | Guild stats. Banner: "Purge Statistics". Win rate ring, streak badge, node location breakdown, top 10 performers (K/D / Kills / Deaths tabs), per-player trend charts. |
+| `netlify/functions/extract-war.js` | Serverless proxy — forwards screenshot extraction to Anthropic API server-side (avoids CORS). Requires `ANTHROPIC_API_KEY` env var in Netlify → Project configuration → Environment variables. **Not yet configured.** |
+| `netlify.toml` | Netlify config pointing functions to `netlify/functions/`. |
 | `push.bat` | Double-click to commit and push to GitHub. |
 
 ---
@@ -42,18 +44,18 @@ Nav active:    crimson (not gold)
 ## Data Architecture
 
 - `MATCHES` array — hardcoded in every file, must stay in sync across all pages
-- `ROSTER_MEMBERS` array — 52 members not yet in a war, also in every file
+- `ROSTER_MEMBERS` array — members not yet in a war, also in every file
 - `localStorage["nodeWarDynamicMatches"]` — uploaded wars
 - `localStorage["nodeWarDynamicExtended"]` — extended stats from uploads
 - `localStorage["nodeWarPlayerProfiles"]` — class + gear screenshots per player
-- `localStorage["nodeWarSquadRoles"]` — role assignments
+- `localStorage["nodeWarSquadRoles"]` — role assignments (shared: index.html + players.html)
 - Export/Import JSON on roster page saves everything to `guild-data.json`
 
 **Function order matters:** `applyDynamicMatches()` must run before `buildOverall()` and `applyMainballDefaults()`.
 
 ---
 
-## Current Hardcoded MATCHES (1 war)
+## Current Hardcoded MATCHES (2 wars)
 
 ```js
 { date:"2026-06-19", day:"Friday", location:"Ulukita", result:"Defeat",
@@ -65,10 +67,31 @@ Nav active:    crimson (not gold)
     ["Serade",7,17],["HeRoisMx",7,3],["Rozuns",6,14],["Succs",6,17],
     ["Cohrence",5,17],["Lulupeach",4,11],["SirHeathen",3,13],["XastusMK",2,21],
   ]
+},
+{ date:"2026-06-23", day:"Tuesday", location:"Calpheon", result:"Victory",
+  players:[
+    ["Seljah",15,0],["Ghond",10,0],["Pewcifer",9,0],["Menteeing",9,1],["Kraiok",9,2],
+    ["ScummySteve",6,0],["BrotherMango",6,0],["Rozuns",6,0],["Pebbles",6,1],
+    ["Alancar",5,0],["Rabid",5,0],["Flusha",5,0],["Rostalina",5,0],
+    ["KillShotz",4,1],["Aodhan",3,0],["Dreamxx",3,1],
+    ["Bossdogg",2,1],["Beastylirious",2,0],["HiiroNoAme",2,0],
+    ["Mcy",1,1],["LunAqua",1,0],["SirHeathen",1,2],
+    ["HaterApproved",0,1],["XastusMK",0,0],
+  ]
 }
 ```
 
-76 total members = 24 from match data + 52 `ROSTER_MEMBERS`.
+Full extended stats exist for both wars in `EXTENDED_STATS` (keyed by date) in `index.html`.
+
+---
+
+## Adding New Wars
+
+**Preferred workflow:** User pastes war screenshots in chat → Claude reads them, extracts all stats → edits `index.html` MATCHES + EXTENDED_STATS directly → commits and pushes. No API key needed.
+
+The + Add War modal also supports:
+- **📸 Screenshot** — Netlify function proxy to Claude API (needs `ANTHROPIC_API_KEY` configured — not yet done)
+- **{ } Manual JSON** — paste data directly, no API needed
 
 ---
 
@@ -79,14 +102,17 @@ Nav active:    crimson (not gold)
 - New players auto-assigned **Mainball** role until manually changed
 - Screenshot extraction: kills from **score/flag icon column**, NOT fox/wolf icon
 - Class icons rejected — plain mono text used instead
-- **Nav on all pages:** Home · War Scores · Roster · Dashboard (Guild & Community removed)
-- All 5 pages share identical nav — keep in sync when adding pages
+- **Nav on all pages:** Home · War Scores · Roster · Dashboard
+- All pages share identical nav — keep in sync when adding pages
+- Roles shared between pages via `localStorage["nodeWarSquadRoles"]`
 
 ---
 
 ## BDO Classes (31)
 
 Warrior, Ranger, Sorceress, Berserker, Tamer, Musa, Maehwa, Valkyrie, Kunoichi, Ninja, Wizard, Witch, Dark Knight, Striker, Mystic, Lahn, Archer, Shai, Guardian, Nova, Sage, Corsair, Hashashin, Drakania, Woosa, Maegu, Scholar, Dosa, Deadeye, Wukong, Seraph
+
+*(Verified against official NA/EU site. Taoist, Plum Blossom, Lancer were removed — not real classes.)*
 
 ---
 
@@ -95,7 +121,7 @@ Warrior, Ranger, Sorceress, Berserker, Tamer, Musa, Maehwa, Valkyrie, Kunoichi, 
 ```powershell
 git add .
 git commit -m "your message"
-git push
+git push origin main
 ```
 
 Or double-click `push.bat`.
