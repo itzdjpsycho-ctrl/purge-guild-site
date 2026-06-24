@@ -199,6 +199,17 @@
   .card-role.role-mainball{ color:#A78BFA; border:1px solid rgba(167,139,250,0.4); }
   .card-role.role-none{ display:none; }
 
+  .card-flag{
+    position:absolute; top:10px; left:10px; z-index:1;
+    display:inline-flex; align-items:center; gap:4px;
+    font-family:var(--font-mono); font-size:9px; letter-spacing:0.06em;
+    text-transform:uppercase; padding:3px 8px; border-radius:999px;
+    font-weight:600; background:rgba(0,0,0,0.55);
+  }
+  .card-flag.flag-mvp{ color:var(--gold-bright); border:1px solid rgba(240,195,107,0.45); }
+  .card-flag.flag-onfire{ color:var(--gold-bright); border:1px solid rgba(240,195,107,0.45); }
+  .card-flag.flag-watch{ color:var(--red-bright); border:1px solid rgba(178,64,47,0.45); }
+
   .card-role-row{
     margin-top:10px;
     position:relative;
@@ -280,79 +291,16 @@
 <footer>Node War Log · Roster</footer>
 <div class="toast" id="toast"></div>
 
+<script src="flags.js"></script>
+<script src="data.js"></script>
 <script>
 /* ================================================================
    MATCH DATA — must match index.html exactly
    (shared via localStorage for dynamic matches)
 ================================================================ */
-const MATCHES = [
-  {
-    date: "2026-06-19", day: "Friday", location: "Ulukita", result: "Defeat",
-    players: [
-      ["Popspolar",30,14],["Milkdudh",25,14],["Aodhan",24,10],["Dreamxx",18,21],
-      ["HaterApproved",17,17],["BrotherMango",17,16],["KillShotz",16,18],["Beastylirious",15,21],
-      ["Rostalina",15,19],["Alancar",15,17],["ScummySteve",13,9],["Valth",12,17],
-      ["Mcy",10,15],["Kraiok",10,19],["LulzCaptain",9,18],["TheWretched",9,21],
-      ["Serade",7,17],["HeRoisMx",7,3],["Rozuns",6,14],["Succs",6,17],
-      ["Cohrence",5,17],["Lulupeach",4,11],["SirHeathen",3,13],["XastusMK",2,21],
-    ]
-  },
-];
+const MATCHES = window.GUILD_DATA.matches;
 
-const ROSTER_MEMBERS = [
-  "Boondoggle",
-  "Bossdogg",
-  "Clip",
-  "Creetin",
-  "DesertPunkk",
-  "EXTRA_LARGE",
-  "Em_Bargo",
-  "Embberr",
-  "Flusha",
-  "Ghond",
-  "Greedyboy",
-  "GreenBerry",
-  "Heals",
-  "HiiroNoAme",
-  "Intruder",
-  "Krill",
-  "LePewPew",
-  "LunAqua",
-  "MadeInHell",
-  "Menteeing",
-  "Myoubi",
-  "NeatJoe",
-  "NightBringers",
-  "NoCap",
-  "Obituary",
-  "Odare",
-  "Onimichi",
-  "Pebbles",
-  "Pewcifer",
-  "Pronvos",
-  "PsycheaEU",
-  "Rabid",
-  "RocketG",
-  "Ruarein",
-  "Seljah",
-  "Siegrein",
-  "SpartanKing",
-  "Sploogesque",
-  "StaticHurtYou",
-  "StraightEdge",
-  "TTard",
-  "Taells",
-  "Talshani",
-  "Vem",
-  "Voltaic",
-  "Vouge",
-  "Weapon",
-  "Wergin",
-  "XTatsuyAX",
-  "Yannik",
-  "Yulie",
-  "Zebraghost"
-];
+const ROSTER_MEMBERS = window.GUILD_DATA.rosterMembers;
 
 const ROLES_STORAGE_KEY   = "nodeWarSquadRoles";
 const PROFILES_STORAGE_KEY = "nodeWarPlayerProfiles";
@@ -439,11 +387,14 @@ function render(){
   }
 
   const ROLE_LABELS = { shotcaller:"Shotcaller", defensive:"Defensive", flex:"Flex Squad", mainball:"Mainball" };
+  const matches = getAllMatches();
 
   grid.innerHTML = roster.map(r=>{
     const p     = profiles[r.name] || {};
     const role  = roles[r.name]   || "";
     const kdVal = kd(r.kills, r.deaths);
+    const flag  = GuildFlags.currentFlag(r.name, matches, roles, profiles);
+    const flagMeta = flag ? GuildFlags.META[flag] : null;
     const gearThumb = p.gearImg
       ? `<img src="${p.gearImg}" alt="Gear" loading="lazy">`
       : `<span class="card-gear-placeholder">🛡</span><span class="no-img-label">No gear screenshot</span>`;
@@ -452,6 +403,7 @@ function render(){
     const roleClass = role ? `role-${role}` : "";
     return `
       <a class="player-card" href="player.html?name=${encodeURIComponent(r.name)}">
+        ${flagMeta ? `<div class="card-flag ${flagMeta.cls}" title="${flagMeta.label}">${flagMeta.icon} ${flagMeta.label}</div>` : ""}
         ${role ? `<div class="card-role role-${role}" id="badge-${r.name}">${ROLE_LABELS[role]||role}</div>` : `<div class="card-role role-none" id="badge-${r.name}"></div>`}
         <div class="card-gear-thumb">${gearThumb}</div>
         <div class="card-body">

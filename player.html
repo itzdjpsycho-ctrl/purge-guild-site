@@ -238,6 +238,17 @@
   .result-pill.victory{ color:var(--gold-bright); background:rgba(217,164,65,0.12); border:1px solid rgba(217,164,65,0.3); }
   .result-pill.defeat{ color:var(--red-bright); background:rgba(178,64,47,0.12); border:1px solid rgba(178,64,47,0.3); }
 
+  .flag-tag{
+    display:inline-flex; align-items:center; gap:4px;
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.06em;
+    text-transform:uppercase; padding:2px 8px; border-radius:999px; font-weight:600;
+    white-space:nowrap;
+  }
+  .flag-tag.flag-mvp{ color:var(--gold-bright); background:rgba(217,164,65,0.12); border:1px solid rgba(217,164,65,0.35); }
+  .flag-tag.flag-onfire{ color:var(--gold-bright); background:rgba(217,164,65,0.12); border:1px solid rgba(217,164,65,0.35); }
+  .flag-tag.flag-watch{ color:var(--red-bright); background:rgba(178,64,47,0.12); border:1px solid rgba(178,64,47,0.35); }
+  .flag-none{ color:var(--text-faint); font-family:var(--font-mono); }
+
   .empty-row td{
     text-align:center; padding:40px; color:var(--text-faint);
     font-family:var(--font-mono); font-size:12px; font-style:italic;
@@ -309,6 +320,7 @@
           <th class="num">Kills</th>
           <th class="num">Deaths</th>
           <th class="num">K/D</th>
+          <th>Flag</th>
         </tr>
       </thead>
       <tbody id="warHistoryBody"></tbody>
@@ -323,78 +335,15 @@
 </div>
 <div class="toast" id="toast"></div>
 
+<script src="flags.js"></script>
+<script src="data.js"></script>
 <script>
 /* ================================================================
    MATCH DATA — must match index.html exactly
 ================================================================ */
-const MATCHES = [
-  {
-    date: "2026-06-19", day: "Friday", location: "Ulukita", result: "Defeat",
-    players: [
-      ["Popspolar",30,14],["Milkdudh",25,14],["Aodhan",24,10],["Dreamxx",18,21],
-      ["HaterApproved",17,17],["BrotherMango",17,16],["KillShotz",16,18],["Beastylirious",15,21],
-      ["Rostalina",15,19],["Alancar",15,17],["ScummySteve",13,9],["Valth",12,17],
-      ["Mcy",10,15],["Kraiok",10,19],["LulzCaptain",9,18],["TheWretched",9,21],
-      ["Serade",7,17],["HeRoisMx",7,3],["Rozuns",6,14],["Succs",6,17],
-      ["Cohrence",5,17],["Lulupeach",4,11],["SirHeathen",3,13],["XastusMK",2,21],
-    ]
-  },
-];
+const MATCHES = window.GUILD_DATA.matches;
 
-const ROSTER_MEMBERS = [
-  "Boondoggle",
-  "Bossdogg",
-  "Clip",
-  "Creetin",
-  "DesertPunkk",
-  "EXTRA_LARGE",
-  "Em_Bargo",
-  "Embberr",
-  "Flusha",
-  "Ghond",
-  "Greedyboy",
-  "GreenBerry",
-  "Heals",
-  "HiiroNoAme",
-  "Intruder",
-  "Krill",
-  "LePewPew",
-  "LunAqua",
-  "MadeInHell",
-  "Menteeing",
-  "Myoubi",
-  "NeatJoe",
-  "NightBringers",
-  "NoCap",
-  "Obituary",
-  "Odare",
-  "Onimichi",
-  "Pebbles",
-  "Pewcifer",
-  "Pronvos",
-  "PsycheaEU",
-  "Rabid",
-  "RocketG",
-  "Ruarein",
-  "Seljah",
-  "Siegrein",
-  "SpartanKing",
-  "Sploogesque",
-  "StaticHurtYou",
-  "StraightEdge",
-  "TTard",
-  "Taells",
-  "Talshani",
-  "Vem",
-  "Voltaic",
-  "Vouge",
-  "Weapon",
-  "Wergin",
-  "XTatsuyAX",
-  "Yannik",
-  "Yulie",
-  "Zebraghost"
-];
+const ROSTER_MEMBERS = window.GUILD_DATA.rosterMembers;
 
 const ROLES_STORAGE_KEY    = "nodeWarSquadRoles";
 const PROFILES_STORAGE_KEY = "nodeWarPlayerProfiles";
@@ -497,7 +446,7 @@ function init(){
   /* ---- War History ---- */
   const body = document.getElementById("warHistoryBody");
   if(!appearances.length){
-    body.innerHTML = `<tr class="empty-row"><td colspan="6">No war history found.</td></tr>`;
+    body.innerHTML = `<tr class="empty-row"><td colspan="7">No war history found.</td></tr>`;
   } else {
     body.innerHTML = [...appearances].reverse().map(a=>{
       const m  = a.match;
@@ -505,6 +454,11 @@ function init(){
       const dt = new Date(m.date+"T00:00:00");
       const dateStr = dt.toLocaleDateString("en-US",{weekday:"short",day:"numeric",month:"short",year:"numeric"});
       const rc = m.result==="Victory" ? "victory":"defeat";
+      const flag = GuildFlags.computeWarFlags(m, roles, profiles)[playerName];
+      const meta = flag ? GuildFlags.META[flag] : null;
+      const flagCell = meta
+        ? `<span class="flag-tag ${meta.cls}">${meta.icon} ${meta.label}</span>`
+        : `<span class="flag-none">—</span>`;
       return `<tr>
         <td>${dateStr}</td>
         <td>${m.location}</td>
@@ -512,6 +466,7 @@ function init(){
         <td class="num">${a.kills}</td>
         <td class="num">${a.deaths}</td>
         <td class="kd-cell">${fmtKD(kv)}</td>
+        <td>${flagCell}</td>
       </tr>`;
     }).join("");
   }
@@ -552,13 +507,19 @@ function renderHero(profile, role, totalKills, totalDeaths, kdVal, profiles){
     `;
   }).join("");
 
+  const heroFlag = GuildFlags.currentFlag(playerName, getAllMatches(), loadRoles(), profiles);
+  const heroFlagMeta = heroFlag ? GuildFlags.META[heroFlag] : null;
+  const heroFlagHTML = heroFlagMeta
+    ? `<span class="flag-tag ${heroFlagMeta.cls}">${heroFlagMeta.icon} ${heroFlagMeta.label}</span>`
+    : "";
+
   document.getElementById("profileHero").innerHTML = `
     <div class="hero-identity">
       <div class="hero-role-strip ${role||"none"}"></div>
       <div class="hero-name-block">
         <div class="hero-eyebrow">Family Name</div>
         <div class="hero-name">${playerName}</div>
-        <div class="hero-role-label ${role||"none"}">${ROLE_LABELS[role]||"Unassigned"}</div>
+        <div class="hero-role-label ${role||"none"}">${ROLE_LABELS[role]||"Unassigned"} ${heroFlagHTML}</div>
       </div>
       <div class="hero-class-row">
         <span class="class-label">Class</span>

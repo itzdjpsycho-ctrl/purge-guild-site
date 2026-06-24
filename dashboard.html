@@ -211,6 +211,33 @@
   .perf-val.kills{ color:var(--green-bright); }
   .perf-val.deaths{ color:var(--red-bright); }
 
+  /* FLAGS SECTION */
+  .flags-grid{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:14px;
+  }
+  .flag-col{
+    background:var(--panel); border:1px solid var(--hairline);
+    border-radius:10px; overflow:hidden;
+  }
+  .flag-col-head{
+    display:flex; align-items:center; gap:8px;
+    padding:12px 16px; border-bottom:1px solid var(--hairline-soft);
+    font-size:12px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase;
+  }
+  .flag-col-head .icon{ font-size:14px; }
+  .flag-col.mvp    .flag-col-head{ color:var(--gold-bright); }
+  .flag-col.onfire .flag-col-head{ color:var(--gold-bright); }
+  .flag-col.watch  .flag-col-head{ color:var(--red-bright); }
+  .flag-list{ padding:6px 0; min-height:54px; }
+  .flag-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:8px 16px; border-bottom:1px solid var(--hairline-soft);
+  }
+  .flag-row:last-child{ border-bottom:none; }
+  .flag-row .name{ font-size:13px; font-weight:500; }
+  .flag-row .kd{ font-family:var(--font-mono); font-size:12px; color:var(--text-faint); }
+  .flag-empty{ padding:14px 16px; font-size:12px; color:var(--text-faint); font-family:var(--font-mono); }
+
   /* TREND SECTION */
   .trend-controls{
     display:flex; align-items:center; gap:12px;
@@ -304,6 +331,25 @@
       </div>
     </div>
 
+    <!-- PERFORMANCE FLAGS -->
+    <div class="section">
+      <div class="section-label">Performance Flags</div>
+      <div class="flags-grid">
+        <div class="flag-col mvp">
+          <div class="flag-col-head"><span class="icon">⭐</span> Standouts · Last War</div>
+          <div class="flag-list" id="flagMvpList"></div>
+        </div>
+        <div class="flag-col onfire">
+          <div class="flag-col-head"><span class="icon">🔥</span> On Fire</div>
+          <div class="flag-list" id="flagOnFireList"></div>
+        </div>
+        <div class="flag-col watch">
+          <div class="flag-col-head"><span class="icon">⚠</span> Watch · Last War</div>
+          <div class="flag-list" id="flagWatchList"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- TOP PERFORMERS -->
     <div class="section">
       <div class="section-label">Top Performers</div>
@@ -348,33 +394,15 @@
 
 <footer>Node War Log · Dashboard</footer>
 
+<script src="flags.js"></script>
+<script src="data.js"></script>
 <script>
 /* ================================================================
    MATCH DATA — keep in sync with index.html
 ================================================================ */
-const MATCHES = [
-  {
-    date: "2026-06-19", day: "Friday", location: "Ulukita", result: "Defeat",
-    players: [
-      ["Popspolar",30,14],["Milkdudh",25,14],["Aodhan",24,10],["Dreamxx",18,21],
-      ["HaterApproved",17,17],["BrotherMango",17,16],["KillShotz",16,18],["Beastylirious",15,21],
-      ["Rostalina",15,19],["Alancar",15,17],["ScummySteve",13,9],["Valth",12,17],
-      ["Mcy",10,15],["Kraiok",10,19],["LulzCaptain",9,18],["TheWretched",9,21],
-      ["Serade",7,17],["HeRoisMx",7,3],["Rozuns",6,14],["Succs",6,17],
-      ["Cohrence",5,17],["Lulupeach",4,11],["SirHeathen",3,13],["XastusMK",2,21],
-    ]
-  },
-];
+const MATCHES = window.GUILD_DATA.matches;
 
-const ROSTER_MEMBERS = [
-  "Boondoggle","Bossdogg","Clip","Creetin","DesertPunkk","Em_Bargo","Embberr","EXTRA_LARGE",
-  "Flusha","Ghond","GreenBerry","Greedyboy","Heals","HiiroNoAme","Intruder","Krill","LePewPew",
-  "LunAqua","MadeInHell","Menteeing","Myoubi","NeatJoe","NightBringers","NoCap","Obituary",
-  "Odare","Onimichi","Pebbles","Pewcifer","Pronvos","PsycheaEU","Rabid","RocketG","Ruarein",
-  "Seljah","Siegrein","SpartanKing","Sploogesque","StaticHurtYou","StraightEdge","TTard",
-  "Taells","Talshani","Vem","Voltaic","Vouge","Weapon","Wergin","XTatsuyAX","Yannik","Yulie",
-  "Zebraghost"
-];
+const ROSTER_MEMBERS = window.GUILD_DATA.rosterMembers;
 
 const DYNAMIC_MATCHES_KEY  = "nodeWarDynamicMatches";
 const DYNAMIC_EXTENDED_KEY = "nodeWarDynamicExtended";
@@ -541,6 +569,59 @@ document.querySelectorAll(".perf-tab").forEach(tab=>{
     renderPerformers(currentMetric);
   });
 });
+
+/* ---- Performance Flags ---- */
+function loadRolesMap(){
+  try{ const r=localStorage.getItem("nodeWarSquadRoles"); return r?JSON.parse(r):{}; }
+  catch(e){ return {}; }
+}
+function loadProfilesMap(){
+  try{ const r=localStorage.getItem("nodeWarPlayerProfiles"); return r?JSON.parse(r):{}; }
+  catch(e){ return {}; }
+}
+function renderFlags(){
+  const roles    = loadRolesMap();
+  const profiles = loadProfilesMap();
+  const lastWar  = allMatches.length ? allMatches[allMatches.length-1] : null;
+  const warFlags = lastWar ? GuildFlags.computeWarFlags(lastWar, roles, profiles) : {};
+
+  const kdFor = (name, match) => {
+    const p = match.players.find(x=>x[0]===name);
+    return p ? GuildFlags.kd(p[1], p[2]) : null;
+  };
+  const row = (name, kdVal) =>
+    `<div class="flag-row"><span class="name">${name}</span><span class="kd">${fmtKD(kdVal)}</span></div>`;
+  const fill = (id, html, emptyMsg) => {
+    document.getElementById(id).innerHTML = html || `<div class="flag-empty">${emptyMsg}</div>`;
+  };
+
+  // ⭐ Standouts (MVP) from the most recent war
+  const mvps = lastWar
+    ? Object.keys(warFlags).filter(n=>warFlags[n]==="mvp").map(n=>row(n, kdFor(n, lastWar)))
+    : [];
+  fill("flagMvpList", mvps.join(""), "No standout this war.");
+
+  // 🔥 On Fire — season-wide momentum (show each player's latest appearance K/D)
+  const latestKdFor = (name) => {
+    for(let i=allMatches.length-1; i>=0; i--){
+      const v = kdFor(name, allMatches[i]);
+      if(v !== null) return v;
+    }
+    return null;
+  };
+  const players = [...new Set(allMatches.flatMap(m=>m.players.map(p=>p[0])))];
+  const onFire = players
+    .filter(n=>GuildFlags.computeOnFire(n, allMatches))
+    .map(n=>row(n, latestKdFor(n)));
+  fill("flagOnFireList", onFire.join(""), "Nobody on a hot streak yet.");
+
+  // ⚠ Watch from the most recent war
+  const watch = lastWar
+    ? Object.keys(warFlags).filter(n=>warFlags[n]==="watch").map(n=>row(n, kdFor(n, lastWar)))
+    : [];
+  fill("flagWatchList", watch.join(""), "Nobody flagged this war.");
+}
+renderFlags();
 
 /* ================================================================
    TREND CHARTS — pure canvas, no library needed
