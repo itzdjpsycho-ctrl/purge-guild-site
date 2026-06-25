@@ -128,6 +128,68 @@
   .class-select:hover{ border-color:rgba(255,255,255,0.2); }
   .class-select:focus{ border-color:var(--gold); box-shadow:0 0 0 2px rgba(217,164,65,0.12); }
 
+  /* ---- Gear Score ---- */
+  .hero-gear{
+    padding:12px 18px 14px;
+    border-bottom:1px solid var(--hairline-soft);
+  }
+  .gear-score-row{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .gear-score-label{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--text-faint);
+  }
+  .gear-score-val{
+    font-family:var(--font-mono); font-size:26px; font-weight:700;
+    color:var(--crimson-bright); line-height:1;
+    text-shadow:0 0 18px rgba(171,77,255,0.35);
+  }
+  .gear-inputs{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:8px;
+  }
+  .gear-field{ display:flex; flex-direction:column; gap:4px; }
+  .gear-field span{
+    font-family:var(--font-mono); font-size:9px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--text-faint); text-align:center;
+  }
+  .gear-field input{
+    width:100%; text-align:center;
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    color:var(--text); font-family:var(--font-mono); font-size:14px; font-weight:600;
+    padding:7px 4px; border-radius:6px; outline:none;
+    transition:border-color 0.16s ease, box-shadow 0.16s ease;
+    -moz-appearance:textfield;
+  }
+  .gear-field input::-webkit-outer-spin-button,
+  .gear-field input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .gear-field input:focus{ border-color:var(--crimson); box-shadow:0 0 0 2px rgba(110,31,184,0.2); }
+
+  .gear-read-btn{
+    width:100%; margin-top:10px; cursor:pointer;
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.04em;
+    padding:8px 10px; border-radius:7px;
+    color:var(--crimson-glow); background:rgba(110,31,184,0.12);
+    border:1px solid rgba(171,77,255,0.3);
+    transition:background 0.15s ease, border-color 0.15s ease;
+  }
+  .gear-read-btn:hover{ background:rgba(110,31,184,0.22); border-color:rgba(171,77,255,0.5); }
+  .gear-read-btn:disabled{ opacity:0.55; cursor:default; }
+  .gear-read-status{
+    font-family:var(--font-mono); font-size:10px; line-height:1.5;
+    color:var(--text-faint); margin-top:7px; min-height:14px;
+    display:flex; align-items:center; gap:6px;
+  }
+  .gear-read-status.ok{ color:var(--green-bright); }
+  .gear-read-status.err{ color:var(--red-bright); }
+  .spinner{
+    width:11px; height:11px; flex:none; border-radius:50%;
+    border:2px solid rgba(255,255,255,0.2); border-top-color:var(--crimson-bright);
+    animation:spin 0.7s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
   /* Overall stats */
   .hero-stats{
     display:grid; grid-template-columns:repeat(3,1fr);
@@ -556,6 +618,28 @@ function renderHero(profile, role, totalKills, totalDeaths, kdVal, profiles){
           ${classOptions}
         </select>
       </div>
+      <div class="hero-gear">
+        <div class="gear-score-row">
+          <span class="gear-score-label">Gear Score</span>
+          <span class="gear-score-val" id="gearScoreVal">—</span>
+        </div>
+        <div class="gear-inputs">
+          <label class="gear-field">
+            <span>AP</span>
+            <input type="number" id="gearAP" inputmode="numeric" placeholder="0" value="${profile.ap!=null?profile.ap:""}">
+          </label>
+          <label class="gear-field">
+            <span>Awk AP</span>
+            <input type="number" id="gearAAP" inputmode="numeric" placeholder="0" value="${profile.aap!=null?profile.aap:""}">
+          </label>
+          <label class="gear-field">
+            <span>DP</span>
+            <input type="number" id="gearDP" inputmode="numeric" placeholder="0" value="${profile.dp!=null?profile.dp:""}">
+          </label>
+        </div>
+        <button class="gear-read-btn" id="gearReadBtn" type="button">📷 Read from gear screenshot</button>
+        <div class="gear-read-status" id="gearReadStatus"></div>
+      </div>
       <div class="hero-stats">
         <div class="hero-stat">
           <div class="hero-stat-val kd">${fmtKD(kdVal)}</div>
@@ -577,7 +661,7 @@ function renderHero(profile, role, totalKills, totalDeaths, kdVal, profiles){
         ${slotsHTML}
       </div>
       <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-faint);letter-spacing:0.04em;">
-        Screenshots and class are saved in this browser. Export from the Roster page to back them up.
+        Screenshots, class, and gear score are saved in this browser. Export from the Roster page to back them up.
       </div>
     </div>
   `;
@@ -589,6 +673,96 @@ function renderHero(profile, role, totalKills, totalDeaths, kdVal, profiles){
     profiles[playerName].class = this.value;
     saveProfiles(profiles);
     showToast("Class saved", "success");
+  });
+
+  /* ---- Wire Gear Score (AP + Awk AP) / 2 + DP ---- */
+  const apInput  = document.getElementById("gearAP");
+  const aapInput = document.getElementById("gearAAP");
+  const dpInput  = document.getElementById("gearDP");
+  const gsVal    = document.getElementById("gearScoreVal");
+  function gearNum(v){ const n = parseFloat(v); return isNaN(n) ? 0 : n; }
+  function refreshGearScore(){
+    const anyFilled = [apInput, aapInput, dpInput].some(i => i.value.trim() !== "");
+    if(!anyFilled){ gsVal.textContent = "—"; return; }
+    const gs = Math.round((gearNum(apInput.value) + gearNum(aapInput.value)) / 2 + gearNum(dpInput.value));
+    gsVal.textContent = gs;
+  }
+  function saveGear(){
+    const profiles = loadProfiles();
+    if(!profiles[playerName]) profiles[playerName] = {};
+    const set = (key, el) => {
+      const t = el.value.trim();
+      if(t === "") delete profiles[playerName][key];
+      else profiles[playerName][key] = gearNum(t);
+    };
+    set("ap", apInput); set("aap", aapInput); set("dp", dpInput);
+    saveProfiles(profiles);
+  }
+  [apInput, aapInput, dpInput].forEach(el=>{
+    el.addEventListener("input", ()=>{ refreshGearScore(); saveGear(); });
+    el.addEventListener("change", ()=>{ saveGear(); showToast("Gear score saved", "success"); });
+  });
+  refreshGearScore();
+
+  /* ---- Read AP / Awk AP / DP from the Gear screenshot (Claude vision) ---- */
+  const gearReadBtn    = document.getElementById("gearReadBtn");
+  const gearReadStatus = document.getElementById("gearReadStatus");
+  function setGearStatus(msg, cls){ gearReadStatus.innerHTML = msg; gearReadStatus.className = "gear-read-status" + (cls ? " " + cls : ""); }
+  gearReadBtn.addEventListener("click", async ()=>{
+    const prof = loadProfiles()[playerName] || {};
+    const img  = prof.gearImg;
+    if(!img){ setGearStatus("Upload a Gear screenshot first (the 📷 Gear slot on the right).", "err"); return; }
+    const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/s.exec(img);
+    if(!m){ setGearStatus("That gear image format can't be read.", "err"); return; }
+    const mediaType = m[1], base64 = m[2];
+
+    gearReadBtn.disabled = true;
+    setGearStatus(`<span class="spinner"></span> Reading gear screenshot…`);
+
+    const prompt = `From this Black Desert Online character/gear screenshot, read the three combat stats:
+- "AP" (Attack Power — the non-awakening AP)
+- "Awakening AP"
+- "DP" (Defense Power)
+They are usually shown together near the character, sometimes formatted like "269 / 287 / 401" meaning AP / Awakening AP / DP.
+Respond with ONLY valid JSON — no markdown, no explanation — exactly:
+{"ap":269,"aap":287,"dp":401}
+Use whole numbers. If a value is genuinely not visible, use null for it.`;
+
+    try{
+      const res = await fetch("/.netlify/functions/extract-war", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({
+          model:"claude-sonnet-4-6",
+          max_tokens:300,
+          messages:[{ role:"user", content:[
+            { type:"image", source:{ type:"base64", media_type:mediaType, data:base64 } },
+            { type:"text", text:prompt }
+          ]}]
+        })
+      });
+      const data = await res.json();
+      if(!res.ok || data.error){
+        throw new Error((data.error && (data.error.message || data.error)) || ("HTTP " + res.status));
+      }
+      const raw = (data.content||[]).map(c=>c.text||"").join("");
+      const jm = raw.match(/\{[\s\S]*\}/);
+      if(!jm) throw new Error("No data found in the response.");
+      const parsed = JSON.parse(jm[0]);
+
+      if(parsed.ap  != null) apInput.value  = parsed.ap;
+      if(parsed.aap != null) aapInput.value = parsed.aap;
+      if(parsed.dp  != null) dpInput.value  = parsed.dp;
+      refreshGearScore();
+      saveGear();
+      setGearStatus(`Read AP ${parsed.ap??"?"} · Awk ${parsed.aap??"?"} · DP ${parsed.dp??"?"}.`, "ok");
+      showToast("Gear score read from screenshot", "success");
+    }catch(err){
+      setGearStatus("Couldn't read it: " + err.message, "err");
+      console.error("Gear extract error:", err);
+    }finally{
+      gearReadBtn.disabled = false;
+    }
   });
 
   /* ---- Wire screenshot uploads ---- */
