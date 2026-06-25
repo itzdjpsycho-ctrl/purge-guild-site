@@ -22,7 +22,8 @@ export function slug(name) {
  * different file, it's deleted so we don't leave orphans.
  */
 export async function saveAttachment(attachment, name, slot, prevRelative) {
-  const ext = ALLOWED[attachment.contentType?.split(";")[0]];
+  const mediaType = attachment.contentType?.split(";")[0];
+  const ext = ALLOWED[mediaType];
   if (!ext) {
     return { ok: false, error: "That file isn't a PNG, JPG, or WebP image." };
   }
@@ -56,5 +57,5 @@ export async function saveAttachment(attachment, name, slot, prevRelative) {
     }
   }
 
-  return { ok: true, relativePath, absPath, fileName };
+  return { ok: true, relativePath, absPath, fileName, buffer, mediaType };
 }

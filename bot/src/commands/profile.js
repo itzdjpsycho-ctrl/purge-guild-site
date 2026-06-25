@@ -1,8 +1,9 @@
 import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
 import { BDO_CLASSES, SITE_URL } from "../config.js";
-import { knownNames, canonicalName, getProfile, setClass, setImage, SLOT_KEYS } from "../lib/profiles.js";
+import { knownNames, canonicalName, getProfile, setClass, setImage, setGear, SLOT_KEYS } from "../lib/profiles.js";
 import { nameForUser, link, unlink } from "../lib/links.js";
 import { saveAttachment } from "../lib/images.js";
+import { readGearStats, gearScore } from "../lib/gear.js";
 import { publish } from "../lib/git.js";
 import { PURPLE } from "../lib/embeds.js";
 
@@ -130,6 +131,25 @@ async function upload(interaction) {
 
   setImage(name, slotKey, saved.relativePath);
 
+  // For a Gear screenshot, also read AP / Awakening AP / DP off the image and
+  // store them so the player's Gear Score shows on the roster — same commit.
+  let gearNote = "";
+  if (slot === "gear") {
+    const read = await readGearStats(saved.buffer.toString("base64"), saved.mediaType);
+    if (read.ok) {
+      const prof = setGear(name, read);
+      const gs = gearScore(prof);
+      gearNote =
+        gs != null
+          ? `\n📈 Gear Score **${gs}** (AP ${prof.ap} · Awk ${prof.aap} · DP ${prof.dp}).`
+          : `\n⚠️ Couldn't read all three stats from the image — set any missing ones on your profile page.`;
+    } else if (read.error === "no-key") {
+      gearNote = `\nℹ️ Auto Gear Score read is off (no \`ANTHROPIC_API_KEY\` set on the bot host).`;
+    } else {
+      gearNote = `\n⚠️ Couldn't auto-read Gear Score: ${read.error}`;
+    }
+  }
+
   const pub = await publish(
     ["profiles.js", saved.relativePath],
     `profile: ${name} ${slot} screenshot`
@@ -137,7 +157,7 @@ async function upload(interaction) {
 
   const label = SLOT_CHOICES.find((c) => c.value === slot).name;
   await interaction.editReply(
-    publishLine(`📸 **${label}** screenshot saved for **${name}**.`, pub, name)
+    publishLine(`📸 **${label}** screenshot saved for **${name}**.${gearNote}`, pub, name)
   );
 }
 

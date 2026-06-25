@@ -32,6 +32,15 @@ export const MVP_WEIGHTS = {
 /** Public site base URL — used to link/preview uploaded screenshots. */
 export const SITE_URL = process.env.SITE_URL || "https://cheery-puppy-6057d8.netlify.app";
 
+/**
+ * Anthropic API key for reading Gear Score (AP / Awakening AP / DP) off an
+ * uploaded gear screenshot. OPTIONAL — if unset, `/profile upload slot:Gear`
+ * still saves the image; it just skips the automatic Gear Score read.
+ */
+export const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+/** Vision model used to read gear stats. Matches the website's extractor. */
+export const GEAR_MODEL = process.env.GEAR_MODEL || "claude-sonnet-4-6";
+
 /** 31 BDO classes (verified NA/EU), used for /profile class autocomplete. */
 export const BDO_CLASSES = [
   "Warrior", "Ranger", "Sorceress", "Berserker", "Tamer", "Musa", "Maehwa",

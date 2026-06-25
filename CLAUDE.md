@@ -23,7 +23,7 @@ Dark-themed static HTML guild management site for a Black Desert Online (BDO) No
 | `netlify.toml` | Netlify config pointing functions to `netlify/functions/`. |
 | `push.bat` | Double-click to commit and push to GitHub. |
 | `data.js` | **Canonical guild data — single source of truth for the site AND the Discord bot.** Sets `window.GUILD_DATA = { guildName, rosterMembers, matches, extendedStats }`. Every HTML page loads it via `<script src="data.js"></script>` and reads `MATCHES` / `EXTENDED_STATS` / `ROSTER_MEMBERS` from it. Edit this file to add wars or members. |
-| `profiles.js` | **Canonical per-player profiles — class + gear/crystals/skill-addons screenshot paths.** Sets `window.GUILD_PROFILES = { "<FamilyName>": { class, gearImg, crystalsImg, addonsImg, updatedAt } }`. Read by `players.html` / `player.html`; written by the Discord bot's `/profile` commands. **Contains NO Discord IDs** — the name↔Discord link is kept privately in `bot/data/links.json` (git-ignored), never published. |
+| `profiles.js` | **Canonical per-player profiles — class, gear/crystals/skill-addons screenshot paths, and gear stats.** Sets `window.GUILD_PROFILES = { "<FamilyName>": { class, gearImg, crystalsImg, addonsImg, ap, aap, dp, updatedAt } }`. `ap`/`aap`/`dp` drive the roster Gear Score = `round((ap+aap)/2 + dp)`. Read by `players.html` / `player.html`; written by the Discord bot's `/profile` commands. **Contains NO Discord IDs** — the name↔Discord link is kept privately in `bot/data/links.json` (git-ignored), never published. |
 | `assets/profiles/` | Uploaded gear/crystals/addon screenshots, committed to the repo. Filenames are `<slug>-<slot>.<ext>` (e.g. `haterapproved-gear.webp`). Written by the bot's `/profile upload`. |
 | `bot/` | **Discord bot** (Node.js / discord.js v14). `/mvp` (weighted single-MVP per war), `/stats` (player extended stats), `/signup` (admin-editable Node War sign-up sheet with self-serve buttons), `/profile` (self-serve family-name registration + class/screenshot upload that auto-commits to the site). Reads the same `data.js` / `profiles.js`. Setup in `bot/README.md`. Runs on the user's PC (`npm start`). |
 
@@ -71,14 +71,15 @@ Players self-serve their own profile in Discord; the bot writes `profiles.js` + 
 |------------|--------------|
 | `/profile register family:<name>` | Links the caller's Discord ID to a canonical family name (autocompletes from roster + anyone who's played a war). One name per user, one user per name. |
 | `/profile class class:<class>` | Sets the player's BDO class (autocompletes from the 31 classes). |
-| `/profile upload slot:<Gear\|Crystals\|Skill-Addons> image:<file>` | Downloads the attachment, saves it to `assets/profiles/<slug>-<slot>.<ext>`, records the path. Validates type (PNG/JPG/WebP) and ≤ 8 MB; deletes the prior file if the extension changed. |
+| `/profile upload slot:<Gear\|Crystals\|Skill-Addons> image:<file>` | Downloads the attachment, saves it to `assets/profiles/<slug>-<slot>.<ext>`, records the path. Validates type (PNG/JPG/WebP) and ≤ 8 MB; deletes the prior file if the extension changed. **For the Gear slot**, also reads AP / Awakening AP / DP off the screenshot (Claude vision) and stores `ap`/`aap`/`dp` so the player's **Gear Score** appears on the roster — all in the same commit. |
 | `/profile view [member]` | Embeds a player's class, linked Discord user, and which screenshots exist, with a link to `player.html?name=…`. |
 | `/profile unlink` | Removes the caller's name↔Discord link (uploaded screenshots stay on the site). |
 
 **Supporting libs** (`bot/src/lib/`):
 
 - `profiles.js` — read/write the repo-root `profiles.js` (`window.GUILD_PROFILES`); `knownNames()` / `canonicalName()` resolve typed names against roster + war participants. `SLOT_KEYS` maps slot → `gearImg`/`crystalsImg`/`addonsImg`.
-- `images.js` — downloads & saves attachments under `assets/profiles/`; `slug()`, type/size validation, stale-file cleanup.
+- `images.js` — downloads & saves attachments under `assets/profiles/`; `slug()`, type/size validation, stale-file cleanup. Returns the image `buffer` + `mediaType` so the gear reader can run without re-reading from disk.
+- `gear.js` — `readGearStats(base64, mediaType)` calls the Anthropic Messages API (`claude-sonnet-4-6`, vision) to OCR AP/AwkAP/DP — same prompt the website uses; `gearScore()` computes `round((ap+aap)/2 + dp)`. Needs `ANTHROPIC_API_KEY` in the bot's `.env` (**optional** — without it, gear images still upload, the Gear Score read is just skipped). This runs on the bot host, so it does **not** require the Netlify `ANTHROPIC_API_KEY`.
 - `links.js` — private Discord-ID ↔ family-name map at `bot/data/links.json` (**git-ignored** — never published; `data/` is in `bot/.gitignore`).
 - `git.js` — `publish(paths, message)`: stages **only** the given paths (never `git add -A`), commits, pushes `HEAD:main`, and auto-rebases (`pull --rebase --autostash`) on a rejected push so concurrent pushes and unrelated working-tree files are left untouched.
 

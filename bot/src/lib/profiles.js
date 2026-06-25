@@ -76,6 +76,22 @@ export function setImage(name, slotKey, relativePath) {
   return prev || null;
 }
 
+/**
+ * Store gear stats (ap / aap / dp) for a player. Only non-null values are
+ * written, so a stat the screenshot reader couldn't see never clobbers an
+ * existing good value. The website derives Gear Score = (ap+aap)/2 + dp.
+ */
+export function setGear(name, { ap, aap, dp } = {}) {
+  const profiles = loadProfiles();
+  if (!profiles[name]) profiles[name] = {};
+  if (ap != null) profiles[name].ap = ap;
+  if (aap != null) profiles[name].aap = aap;
+  if (dp != null) profiles[name].dp = dp;
+  profiles[name].updatedAt = new Date().toISOString();
+  writeProfiles(profiles);
+  return profiles[name];
+}
+
 export function unlink(userId) {
   const owned = findByDiscord(userId);
   if (!owned) return null;
