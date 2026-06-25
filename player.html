@@ -709,68 +709,11 @@ function renderHero(profile, role, totalKills, totalDeaths, kdVal, profiles){
   const gearReadBtn    = document.getElementById("gearReadBtn");
   const gearReadStatus = document.getElementById("gearReadStatus");
   function setGearStatus(msg, cls){ gearReadStatus.innerHTML = msg; gearReadStatus.className = "gear-read-status" + (cls ? " " + cls : ""); }
-  gearReadBtn.addEventListener("click", async ()=>{
-    // Screenshot reading needs the Netlify serverless function. On other hosts
-    // (e.g. GitHub Pages) it isn't available — the Discord bot's /profile upload
-    // reads Gear Score automatically, or type AP / Awakening / DP in by hand.
-    if(!location.hostname.includes("netlify")){
-      setGearStatus("Auto-reading isn't available on this site — use the Discord bot's <b>/profile upload</b>, or type the values in below.", "err");
-      return;
-    }
-    const prof = loadProfiles()[playerName] || {};
-    const img  = prof.gearImg;
-    if(!img){ setGearStatus("Upload a Gear screenshot first (the 📷 Gear slot on the right).", "err"); return; }
-    const m = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.*)$/s.exec(img);
-    if(!m){ setGearStatus("That gear image format can't be read.", "err"); return; }
-    const mediaType = m[1], base64 = m[2];
-
-    gearReadBtn.disabled = true;
-    setGearStatus(`<span class="spinner"></span> Reading gear screenshot…`);
-
-    const prompt = `From this Black Desert Online character/gear screenshot, read the three combat stats:
-- "AP" (Attack Power — the non-awakening AP)
-- "Awakening AP"
-- "DP" (Defense Power)
-They are usually shown together near the character, sometimes formatted like "269 / 287 / 401" meaning AP / Awakening AP / DP.
-Respond with ONLY valid JSON — no markdown, no explanation — exactly:
-{"ap":269,"aap":287,"dp":401}
-Use whole numbers. If a value is genuinely not visible, use null for it.`;
-
-    try{
-      const res = await fetch("/.netlify/functions/extract-war", {
-        method:"POST",
-        headers:{ "Content-Type":"application/json" },
-        body: JSON.stringify({
-          model:"claude-sonnet-4-6",
-          max_tokens:300,
-          messages:[{ role:"user", content:[
-            { type:"image", source:{ type:"base64", media_type:mediaType, data:base64 } },
-            { type:"text", text:prompt }
-          ]}]
-        })
-      });
-      const data = await res.json();
-      if(!res.ok || data.error){
-        throw new Error((data.error && (data.error.message || data.error)) || ("HTTP " + res.status));
-      }
-      const raw = (data.content||[]).map(c=>c.text||"").join("");
-      const jm = raw.match(/\{[\s\S]*\}/);
-      if(!jm) throw new Error("No data found in the response.");
-      const parsed = JSON.parse(jm[0]);
-
-      if(parsed.ap  != null) apInput.value  = parsed.ap;
-      if(parsed.aap != null) aapInput.value = parsed.aap;
-      if(parsed.dp  != null) dpInput.value  = parsed.dp;
-      refreshGearScore();
-      saveGear();
-      setGearStatus(`Read AP ${parsed.ap??"?"} · Awk ${parsed.aap??"?"} · DP ${parsed.dp??"?"}.`, "ok");
-      showToast("Gear score read from screenshot", "success");
-    }catch(err){
-      setGearStatus("Couldn't read it: " + err.message, "err");
-      console.error("Gear extract error:", err);
-    }finally{
-      gearReadBtn.disabled = false;
-    }
+  gearReadBtn.addEventListener("click", ()=>{
+    // Auto gear-reading needed a server to hold the API key — it ran on the old
+    // Netlify function, gone now the site is on GitHub Pages. The Discord bot's
+    // /profile upload reads Gear Score automatically, or type the values in below.
+    setGearStatus("Auto-reading isn't available on this site — use the Discord bot's <b>/profile upload</b>, or type the values in below.", "err");
   });
 
   /* ---- Wire screenshot uploads ---- */

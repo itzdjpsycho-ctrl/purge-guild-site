@@ -2684,84 +2684,13 @@ function handleFiles(files){
   });
 }
 
-extractBtn.addEventListener("click", async ()=>{
+extractBtn.addEventListener("click", ()=>{
   if (!uploadedImages.length) return;
-  // Screenshot auto-extraction needs the Netlify serverless function. On other
-  // hosts (e.g. GitHub Pages) it isn't available — the Discord bot handles war
-  // OCR now, or use the { } Manual JSON option below.
-  if (!location.hostname.includes("netlify")) {
-    uploadStatus.className = "modal-status error";
-    uploadStatus.innerHTML = `📸 auto-extraction isn't available on this site. Send the screenshots to the Discord bot, or switch to the <b>{ } Manual JSON</b> option.`;
-    return;
-  }
-  extractBtn.disabled = true;
-  uploadStatus.className = "modal-status";
-  uploadStatus.innerHTML = `<span class="spinner"></span> Sending to Claude — extracting war data…`;
-
-  const imageContent = uploadedImages.map(img=>({
-    type: "image",
-    source: { type: "base64", media_type: img.mediaType, data: img.base64 }
-  }));
-
-  const prompt = `You are extracting Node War result data from screenshots of Black Desert Online.
-
-Look at the screenshot(s) carefully and extract ALL of the following:
-
-1. DATE — shown in top-left like "26-6-19" = 2026-06-19 (year is always 2026, format as YYYY-MM-DD)
-2. DAY — the day name shown e.g. "Monday", "Tuesday" etc.
-3. LOCATION — the node name shown in the centre top e.g. "Calpheon", "Ulukita", "Serendia"
-4. RESULT — either "Victory" or "Defeat" (Occupation Success = Victory, Occupation Failed = Defeat)
-5. PLAYERS — every row in the table. The columns are always:
-   Family Name, Kills, Deaths, Streaks, Damage Done, Damage Taken, CC's, HP Healed, Ally HP Healed, Fort Damage, Cannons Landed, Objects Destroyed, Cannon Distance, Traps Triggered, Time Dead, Time Alive
-   - Numbers like "1.3M" = 1300000, "471.9K" = 471900, "62672" = 62672
-   - Times like "04:35" = 275 seconds, "34:33" = 2073 seconds (MM:SS → total seconds)
-   - Extract ALL players visible across all screenshots provided
-
-Respond with ONLY valid JSON — no markdown fences, no explanation — in exactly this format:
-{
-  "date": "2026-06-19",
-  "day": "Friday",
-  "location": "Ulukita",
-  "result": "Victory",
-  "type": "extended",
-  "players": [
-    {"name":"PlayerName","kills":17,"deaths":12,"streak":3,"dmgDone":471900,"dmgTaken":434700,"cc":60,"hpHealed":255500,"allyHpHealed":32633,"fortDmg":282500,"cannonsLanded":0,"objDestroyed":0,"cannonDist":0,"traps":0,"timeDead":275,"timeAlive":2073}
-  ]
-}
-
-Always set "type" to "extended". Every player must include all stat fields — use 0 if a value is genuinely zero in the screenshot.`;
-
-  try{
-    const response = await fetch("/.netlify/functions/extract-war", {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({
-        model:"claude-sonnet-4-6",
-        max_tokens:4096,
-        messages:[{
-          role:"user",
-          content:[...imageContent, { type:"text", text: prompt }]
-        }]
-      })
-    });
-
-    const data = await response.json();
-    const raw = data.content.map(c=>c.text||"").join("");
-
-    // Strip markdown fences and find the JSON object
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON found in response. Raw: " + raw.slice(0, 200));
-    const parsed = JSON.parse(jsonMatch[0]);
-
-    extractedData = parsed;
-    showReviewStep(parsed);
-
-  } catch(err){
-    uploadStatus.className = "modal-status error";
-    uploadStatus.innerHTML = `Error: ${err.message}. Check the console for details.`;
-    extractBtn.disabled = false;
-    console.error("Extraction error:", err);
-  }
+  // 📸 auto-extraction needed a server to hold the API key — it ran on the old
+  // Netlify function, which is gone now the site is on GitHub Pages. War OCR is
+  // handled by the Discord bot's /addwar, or use the { } Manual JSON option below.
+  uploadStatus.className = "modal-status error";
+  uploadStatus.innerHTML = `📸 auto-extraction isn't available on this site. Send the screenshots to the Discord bot, or switch to the <b>{ } Manual JSON</b> option.`;
 });
 
 function showReviewStep(d){
