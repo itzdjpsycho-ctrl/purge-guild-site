@@ -10,9 +10,18 @@ const STORE_PATH = join(DATA_DIR, "signups.json");
  * Store shape:
  * {
  *   "<messageId>": {
- *     id, channelId, messageId, date, location, notes, status: "open"|"closed",
- *     createdBy, createdAt,
- *     entries: { "<userId>": { status: "in"|"maybe"|"out", role: "mainball"|..|null, at } }
+ *     id, channelId, messageId, date, time, location, notes,
+ *     status: "open"|"closed", createdBy, createdAt, seq,
+ *     entries: {
+ *       "<userId>": {
+ *         num,                       // persistent slot number (sign-up order)
+ *         name,                      // display name at sign-up time
+ *         status: "in"|"bench"|"late"|"tentative"|"absence",
+ *         role: "<roleId>"|null,
+ *         cls: "<BDO class>"|null,
+ *         at,
+ *       }
+ *     }
  *   }
  * }
  * Sign-ups are keyed by the Discord message id of their embed, so a button
@@ -37,18 +46,20 @@ function writeAll(store) {
   writeFileSync(STORE_PATH, JSON.stringify(store, null, 2) + "\n");
 }
 
-export function createSignup({ messageId, channelId, date, location, notes, createdBy }) {
+export function createSignup({ messageId, channelId, date, time, location, notes, createdBy }) {
   const store = readAll();
   store[messageId] = {
     id: messageId,
     messageId,
     channelId,
     date,
+    time: time || "",
     location: location || "",
     notes: notes || "",
     status: "open",
     createdBy,
     createdAt: new Date().toISOString(),
+    seq: 0,
     entries: {},
   };
   writeAll(store);
@@ -77,20 +88,43 @@ function mutate(messageId, fn) {
   return s;
 }
 
-/** Set a member's attendance + optional role. status null removes them. */
-export function setEntry(messageId, userId, { status, role } = {}) {
+/**
+ * Set a member's attendance / role / class. A new member gets the next slot
+ * number. Pass `status: null` to remove them. Any field left `undefined` is
+ * preserved; a brand-new entry defaults to status "in".
+ */
+export function setEntry(messageId, userId, { status, role, cls, name } = {}) {
   return mutate(messageId, (s) => {
     if (status === null) {
       delete s.entries[userId];
       return;
     }
-    const existing = s.entries[userId] || {};
-    s.entries[userId] = {
-      status: status ?? existing.status ?? "in",
-      role: role !== undefined ? role : existing.role ?? null,
-      at: new Date().toISOString(),
-    };
+    const existing = s.entries[userId];
+    if (!existing) {
+      s.seq = (s.seq || 0) + 1;
+      s.entries[userId] = {
+        num: s.seq,
+        name: name || "Unknown",
+        status: status ?? "in",
+        role: role ?? null,
+        cls: cls ?? null,
+        at: new Date().toISOString(),
+      };
+      return;
+    }
+    if (status !== undefined) existing.status = status;
+    if (role !== undefined) existing.role = role;
+    if (cls !== undefined) existing.cls = cls;
+    if (name) existing.name = name;
+    existing.at = new Date().toISOString();
   });
+}
+
+/** How many members are actively filling a role (in-game + late count). */
+export function roleFill(signup, roleId) {
+  return Object.values(signup.entries).filter(
+    (e) => e.role === roleId && (e.status === "in" || e.status === "late")
+  ).length;
 }
 
 export function removeEntry(messageId, userId) {
@@ -111,19 +145,11 @@ export function reopenSignup(messageId) {
   });
 }
 
-export function updateDetails(messageId, { date, location, notes }) {
+export function updateDetails(messageId, { date, time, location, notes }) {
   return mutate(messageId, (s) => {
     if (date !== undefined) s.date = date;
+    if (time !== undefined) s.time = time;
     if (location !== undefined) s.location = location;
     if (notes !== undefined) s.notes = notes;
   });
-}
-
-/** Group entries by attendance status, each as [{ userId, role }]. */
-export function groupEntries(signup) {
-  const groups = { in: [], maybe: [], out: [] };
-  for (const [userId, e] of Object.entries(signup.entries)) {
-    (groups[e.status] || (groups[e.status] = [])).push({ userId, role: e.role });
-  }
-  return groups;
 }

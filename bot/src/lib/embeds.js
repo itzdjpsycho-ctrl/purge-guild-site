@@ -5,10 +5,10 @@ import {
   ButtonStyle,
   StringSelectMenuBuilder,
 } from "discord.js";
-import { SIGNUP_ROLES } from "../config.js";
+import { SIGNUP_ROLES, SIGNUP_STATUSES, BDO_CLASSES } from "../config.js";
 import { fmtNum, fmtKD, fmtTime, fmtDate } from "./data.js";
 import { topReasons } from "./mvp.js";
-import { groupEntries } from "./signups.js";
+import { roleFill } from "./signups.js";
 
 export const PURPLE = 0x8b2fd9;
 const GOLD = 0xc49a30;
@@ -133,91 +133,171 @@ export function statsSummaryEmbed(history) {
 
 // ---------- Sign-up sheet ----------
 
-const ROLE_LABEL = Object.fromEntries(
-  SIGNUP_ROLES.map((r) => [r.id, `${r.emoji} ${r.label}`])
-);
+const ROLE_BY_ID = Object.fromEntries(SIGNUP_ROLES.map((r) => [r.id, r]));
+const STATUS_BY_ID = Object.fromEntries(SIGNUP_STATUSES.map((s) => [s.id, s]));
+const BUTTON_STYLE = {
+  Primary: ButtonStyle.Primary,
+  Secondary: ButtonStyle.Secondary,
+  Success: ButtonStyle.Success,
+  Danger: ButtonStyle.Danger,
+};
+
+/** One roster line: `42` Name (struck through when benched, ⏰ when late). */
+function memberLine(e) {
+  const tag = `\`${String(e.num).padStart(2, " ")}\` `;
+  if (e.status === "bench") return `${tag}~~${e.name}~~`;
+  if (e.status === "late") return `${tag}${e.name} ⏰`;
+  return `${tag}${e.name}`;
+}
+
+/** Bucket every entry into its role column / the unassigned + bottom lists. */
+function arrange(signup) {
+  const byRole = Object.fromEntries(SIGNUP_ROLES.map((r) => [r.id, []]));
+  const unassigned = []; // in/late, no role yet — leadership needs to place
+  const benchNoRole = []; // benched and not slotted into a role
+  const tentative = [];
+  const absence = [];
+
+  const entries = Object.entries(signup.entries)
+    .map(([userId, e]) => ({ userId, ...e }))
+    .sort((a, b) => a.num - b.num);
+
+  for (const e of entries) {
+    if (e.status === "tentative") tentative.push(e);
+    else if (e.status === "absence") absence.push(e);
+    else if (e.role && byRole[e.role]) byRole[e.role].push(e);
+    else if (e.status === "bench") benchNoRole.push(e);
+    else unassigned.push(e);
+  }
+  return { byRole, unassigned, benchNoRole, tentative, absence };
+}
+
+const clip = (s) => (s.length > 1024 ? s.slice(0, 1021) + "…" : s);
 
 export function signupEmbed(signup) {
-  const groups = groupEntries(signup);
   const closed = signup.status === "closed";
+  const g = arrange(signup);
 
-  const fmtList = (arr) =>
-    arr.length
-      ? arr
-          .map(
-            (e) =>
-              `<@${e.userId}>${e.role ? ` — ${ROLE_LABEL[e.role] || e.role}` : ""}`
-          )
-          .join("\n")
-      : "*nobody yet*";
+  const attending = SIGNUP_ROLES.reduce((n, r) => n + roleFill(signup, r.id), 0) + g.unassigned.length;
+
+  const weekday = (() => {
+    const d = new Date(`${signup.date}T00:00:00`);
+    return Number.isNaN(d.getTime())
+      ? ""
+      : d.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase();
+  })();
 
   const embed = new EmbedBuilder()
     .setColor(closed ? 0x555160 : PURPLE)
-    .setTitle(`🗓️ Node War Sign-Up${closed ? " (CLOSED)" : ""}`)
-    .setDescription(
-      [
-        signup.date ? `**Date:** ${fmtDate(signup.date)}` : null,
-        signup.location ? `**Node:** ${signup.location}` : null,
-        signup.notes ? `\n${signup.notes}` : null,
-      ]
-        .filter(Boolean)
-        .join("\n")
-    )
-    .addFields(
-      { name: `✅ Attending (${groups.in.length})`, value: fmtList(groups.in) },
-      { name: `❔ Maybe (${groups.maybe.length})`, value: fmtList(groups.maybe) },
-      { name: `❌ Can't make it (${groups.out.length})`, value: fmtList(groups.out) }
-    )
-    .setFooter({
-      text: closed
-        ? "Sign-ups are closed."
-        : "Tap a button below to sign up, then pick your squad role.",
+    .setTitle(`⚔️ NODE WAR${weekday ? ` · ${weekday}` : ""}${closed ? " (CLOSED)" : ""}`);
+
+  if (signup.notes) embed.setDescription(signup.notes);
+
+  // Header info row (inline → sits in columns like the reference sheet).
+  embed.addFields(
+    { name: "📍 Node", value: signup.location || "TBD", inline: true },
+    { name: "📅 Date", value: signup.date ? fmtDate(signup.date) : "TBD", inline: true },
+    { name: "🕐 Time", value: signup.time || "TBD", inline: true }
+  );
+
+  // Role columns.
+  for (const r of SIGNUP_ROLES) {
+    const list = g.byRole[r.id];
+    const fill = roleFill(signup, r.id);
+    embed.addFields({
+      name: `${r.emoji} ${r.label} (${fill}/${r.cap})`,
+      value: list.length ? clip(list.map(memberLine).join("\n")) : "—",
+      inline: true,
     });
+  }
+
+  // Unassigned / bench / tentative / absence (full-width lists).
+  if (g.unassigned.length) {
+    embed.addFields({
+      name: `🎯 Needs a role (${g.unassigned.length})`,
+      value: clip(g.unassigned.map(memberLine).join("\n")),
+    });
+  }
+  if (g.benchNoRole.length) {
+    embed.addFields({
+      name: `🪑 Bench (${g.benchNoRole.length})`,
+      value: clip(g.benchNoRole.map(memberLine).join("\n")),
+    });
+  }
+  if (g.tentative.length) {
+    embed.addFields({
+      name: `⚖️ Tentative (${g.tentative.length})`,
+      value: clip(g.tentative.map((e) => `\`${e.num}\` ${e.name}`).join(", ")),
+    });
+  }
+  if (g.absence.length) {
+    embed.addFields({
+      name: `🚫 Absence (${g.absence.length})`,
+      value: clip(g.absence.map((e) => `\`${e.num}\` ~~${e.name}~~`).join(", ")),
+    });
+  }
+
+  embed.setFooter({
+    text: closed
+      ? "Sign-ups are closed."
+      : `${attending} in · Pick a role + class below, then set your availability.`,
+  });
   return embed;
 }
+
+// The 31 BDO classes won't fit one 25-option select, so split alphabetically.
+const SORTED_CLASSES = [...BDO_CLASSES].sort((a, b) => a.localeCompare(b));
+const CLASS_SPLIT = Math.ceil(SORTED_CLASSES.length / 2);
+const CLASS_GROUPS = [
+  SORTED_CLASSES.slice(0, CLASS_SPLIT),
+  SORTED_CLASSES.slice(CLASS_SPLIT),
+];
 
 export function signupComponents(signup) {
   const disabled = signup.status === "closed";
 
-  const attendance = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("signup:in")
-      .setLabel("Attending")
-      .setEmoji("✅")
-      .setStyle(ButtonStyle.Success)
-      .setDisabled(disabled),
-    new ButtonBuilder()
-      .setCustomId("signup:maybe")
-      .setLabel("Maybe")
-      .setEmoji("❔")
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(disabled),
-    new ButtonBuilder()
-      .setCustomId("signup:out")
-      .setLabel("Can't make it")
-      .setEmoji("❌")
-      .setStyle(ButtonStyle.Danger)
-      .setDisabled(disabled),
-    new ButtonBuilder()
-      .setCustomId("signup:clear")
-      .setLabel("Withdraw")
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(disabled)
-  );
-
-  const roleMenu = new ActionRowBuilder().addComponents(
+  const roleRow = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
       .setCustomId("signup:role")
-      .setPlaceholder("Pick your squad role (optional)")
+      .setPlaceholder("Pick your role")
       .setDisabled(disabled)
       .addOptions(
-        SIGNUP_ROLES.map((r) => ({
-          label: r.label,
-          value: r.id,
-          emoji: r.emoji,
-        }))
+        SIGNUP_ROLES.map((r) => ({ label: r.label, value: r.id, emoji: r.emoji }))
       )
   );
 
-  return [attendance, roleMenu];
+  const classRows = CLASS_GROUPS.map(
+    (group, i) =>
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`signup:class:${i}`)
+          .setPlaceholder(`Select your class · ${group[0]}–${group[group.length - 1]}`)
+          .setDisabled(disabled)
+          .addOptions(group.map((c) => ({ label: c, value: c })))
+      )
+  );
+
+  const statusRow = new ActionRowBuilder().addComponents(
+    SIGNUP_STATUSES.map((s) =>
+      new ButtonBuilder()
+        .setCustomId(`signup:st:${s.id}`)
+        .setLabel(s.label)
+        .setEmoji(s.emoji)
+        .setStyle(BUTTON_STYLE[s.style] || ButtonStyle.Secondary)
+        .setDisabled(disabled)
+    )
+  );
+
+  const withdrawRow = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("signup:withdraw")
+      .setLabel("Withdraw")
+      .setEmoji("🗑️")
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(disabled)
+  );
+
+  return [roleRow, ...classRows, statusRow, withdrawRow];
 }
+
+export { ROLE_BY_ID, STATUS_BY_ID };

@@ -5,12 +5,17 @@ import {
   latestOpenSignup,
   setEntry,
   removeEntry,
+  roleFill,
   closeSignup,
   reopenSignup,
   updateDetails,
 } from "../lib/signups.js";
-import { signupEmbed, signupComponents } from "../lib/embeds.js";
+import { signupEmbed, signupComponents, ROLE_BY_ID, STATUS_BY_ID } from "../lib/embeds.js";
 import { isAdmin, refreshSignupMessage } from "../lib/signup-message.js";
+import { SIGNUP_ROLES, SIGNUP_STATUSES, BDO_CLASSES } from "../config.js";
+
+const ROLE_CHOICES = SIGNUP_ROLES.map((r) => ({ name: r.label, value: r.id }));
+const STATUS_CHOICES = SIGNUP_STATUSES.map((s) => ({ name: s.label, value: s.id }));
 
 export const data = new SlashCommandBuilder()
   .setName("signup")
@@ -23,37 +28,28 @@ export const data = new SlashCommandBuilder()
         o.setName("date").setDescription("War date, e.g. 2026-06-26").setRequired(true)
       )
       .addStringOption((o) =>
+        o.setName("time").setDescription("Start time, e.g. 11:00 AM").setRequired(false)
+      )
+      .addStringOption((o) =>
         o.setName("location").setDescription("Node / location").setRequired(false)
       )
       .addStringOption((o) =>
-        o.setName("notes").setDescription("Extra notes (time, requirements, etc.)").setRequired(false)
+        o.setName("notes").setDescription("Extra notes (rules, requirements, etc.)").setRequired(false)
       )
   )
   .addSubcommand((s) =>
     s
       .setName("add")
-      .setDescription("Add or set a member's attendance on the sign-up.")
+      .setDescription("Place / override a member on the sign-up (bypasses role capacity).")
       .addUserOption((o) => o.setName("member").setDescription("Member").setRequired(true))
       .addStringOption((o) =>
-        o
-          .setName("status")
-          .setDescription("Attendance")
-          .addChoices(
-            { name: "Attending", value: "in" },
-            { name: "Maybe", value: "maybe" },
-            { name: "Can't make it", value: "out" }
-          )
+        o.setName("status").setDescription("Availability").addChoices(...STATUS_CHOICES)
       )
       .addStringOption((o) =>
-        o
-          .setName("role")
-          .setDescription("Squad role")
-          .addChoices(
-            { name: "Mainball", value: "mainball" },
-            { name: "Shotcaller", value: "shotcaller" },
-            { name: "Defensive", value: "defensive" },
-            { name: "Flex Squad", value: "flex" }
-          )
+        o.setName("role").setDescription("Role group").addChoices(...ROLE_CHOICES)
+      )
+      .addStringOption((o) =>
+        o.setName("class").setDescription("BDO class").setAutocomplete(true)
       )
   )
   .addSubcommand((s) =>
@@ -65,17 +61,33 @@ export const data = new SlashCommandBuilder()
   .addSubcommand((s) =>
     s
       .setName("edit")
-      .setDescription("Edit the sign-up's date / location / notes.")
+      .setDescription("Edit the sign-up's date / time / location / notes.")
       .addStringOption((o) => o.setName("date").setDescription("New date"))
+      .addStringOption((o) => o.setName("time").setDescription("New time"))
       .addStringOption((o) => o.setName("location").setDescription("New location"))
       .addStringOption((o) => o.setName("notes").setDescription("New notes"))
   )
   .addSubcommand((s) => s.setName("close").setDescription("Close the sign-up (locks buttons)."))
   .addSubcommand((s) => s.setName("reopen").setDescription("Reopen a closed sign-up."));
 
+export async function autocomplete(interaction) {
+  const focused = interaction.options.getFocused().toLowerCase();
+  const choices = BDO_CLASSES.filter((c) => c.toLowerCase().includes(focused))
+    .slice(0, 25)
+    .map((c) => ({ name: c, value: c }));
+  await interaction.respond(choices);
+}
+
 /** Resolve which sign-up an admin command targets: the latest open one. */
 function targetSignup() {
   return latestOpenSignup();
+}
+
+/** Best display name we can get for a target user (admin actions). */
+function targetName(interaction) {
+  const member = interaction.options.getMember("member");
+  const user = interaction.options.getUser("member");
+  return member?.displayName || user?.globalName || user?.username || "Unknown";
 }
 
 export async function execute(interaction) {
@@ -90,11 +102,11 @@ export async function execute(interaction) {
 
   if (sub === "create") {
     const date = interaction.options.getString("date");
+    const time = interaction.options.getString("time") || "";
     const location = interaction.options.getString("location") || "";
     const notes = interaction.options.getString("notes") || "";
 
-    // Post a placeholder, then persist keyed by the resulting message id.
-    const placeholder = { date, location, notes, status: "open", entries: {} };
+    const placeholder = { date, time, location, notes, status: "open", seq: 0, entries: {} };
     const msg = await interaction.reply({
       embeds: [signupEmbed(placeholder)],
       components: signupComponents(placeholder),
@@ -105,6 +117,7 @@ export async function execute(interaction) {
       messageId: msg.id,
       channelId: msg.channelId,
       date,
+      time,
       location,
       notes,
       createdBy: interaction.user.id,
@@ -126,19 +139,32 @@ export async function execute(interaction) {
 
   if (sub === "add") {
     const member = interaction.options.getUser("member");
-    const status = interaction.options.getString("status") || "in";
+    const status = interaction.options.getString("status") ?? undefined;
     const role = interaction.options.getString("role") ?? undefined;
-    updated = setEntry(signup.messageId, member.id, { status, role });
-    note = `Set <@${member.id}> to **${status}**${role ? ` (${role})` : ""}.`;
+    const cls = interaction.options.getString("class") ?? undefined;
+    // Admin override: capacity is intentionally NOT enforced here.
+    updated = setEntry(signup.messageId, member.id, {
+      status: status ?? signup.entries[member.id]?.status ?? "in",
+      role,
+      cls,
+      name: targetName(interaction),
+    });
+    const bits = [
+      status && STATUS_BY_ID[status]?.label,
+      role && ROLE_BY_ID[role]?.label,
+      cls,
+    ].filter(Boolean);
+    note = `Updated <@${member.id}>${bits.length ? ` → ${bits.join(" · ")}` : ""}.`;
   } else if (sub === "remove") {
     const member = interaction.options.getUser("member");
     updated = removeEntry(signup.messageId, member.id);
     note = `Removed <@${member.id}> from the sign-up.`;
   } else if (sub === "edit") {
     const date = interaction.options.getString("date") ?? undefined;
+    const time = interaction.options.getString("time") ?? undefined;
     const location = interaction.options.getString("location") ?? undefined;
     const notes = interaction.options.getString("notes") ?? undefined;
-    updated = updateDetails(signup.messageId, { date, location, notes });
+    updated = updateDetails(signup.messageId, { date, time, location, notes });
     note = "Updated sign-up details.";
   } else if (sub === "close") {
     updated = closeSignup(signup.messageId);
@@ -152,45 +178,56 @@ export async function execute(interaction) {
   await interaction.reply({ content: `✅ ${note}`, ephemeral: true });
 }
 
-// ---- button + select handlers (self-service for any member) ----
+// ---- component handlers (self-service for any member) ----
 
 export async function handleComponent(interaction) {
   const signup = getSignup(interaction.message.id);
   if (!signup) {
-    return interaction.reply({
-      content: "This sign-up is no longer tracked.",
-      ephemeral: true,
-    });
+    return interaction.reply({ content: "This sign-up is no longer tracked.", ephemeral: true });
   }
   if (signup.status === "closed") {
     return interaction.reply({ content: "Sign-ups are closed.", ephemeral: true });
   }
 
   const userId = interaction.user.id;
-  let updated = signup;
+  const name = interaction.member?.displayName || interaction.user.globalName || interaction.user.username;
+  const existing = signup.entries[userId];
   let ack = "";
 
   if (interaction.isButton()) {
-    const action = interaction.customId.split(":")[1]; // in | maybe | out | clear
-    if (action === "clear") {
-      updated = removeEntry(signup.messageId, userId);
+    const [, kind, statusId] = interaction.customId.split(":"); // signup:withdraw | signup:st:<id>
+    if (kind === "withdraw") {
+      removeEntry(signup.messageId, userId);
       ack = "You've withdrawn from the sign-up.";
-    } else {
-      updated = setEntry(signup.messageId, userId, { status: action });
-      const label = { in: "Attending", maybe: "Maybe", out: "Can't make it" }[action];
-      ack = `Marked you as **${label}**.`;
+    } else if (kind === "st") {
+      setEntry(signup.messageId, userId, { status: statusId, name });
+      ack = `Marked you **${STATUS_BY_ID[statusId]?.label || statusId}**.`;
     }
   } else if (interaction.isStringSelectMenu()) {
-    const role = interaction.values[0];
-    // Picking a role also signs you in if you weren't already.
-    updated = setEntry(signup.messageId, userId, {
-      status: signup.entries[userId]?.status ?? "in",
-      role,
-    });
-    ack = `Role set to **${role}**.`;
+    const [, kind] = interaction.customId.split(":"); // signup:role | signup:class:<n>
+    if (kind === "role") {
+      const role = interaction.values[0];
+      const cap = ROLE_BY_ID[role]?.cap;
+      const alreadyHere = existing?.role === role;
+      if (!alreadyHere && cap && roleFill(signup, role) >= cap) {
+        return interaction.reply({
+          content: `🚫 **${ROLE_BY_ID[role]?.label || role}** is full (${cap}/${cap}). Pick another role, or ask leadership to slot you in.`,
+          ephemeral: true,
+        });
+      }
+      // Picking a role signs you in if you hadn't set an active status.
+      const status = existing && existing.status !== "absence" ? existing.status : "in";
+      setEntry(signup.messageId, userId, { role, status, name });
+      ack = `Role set to **${ROLE_BY_ID[role]?.label || role}**.`;
+    } else if (kind === "class") {
+      const cls = interaction.values[0];
+      const status = existing?.status ?? "in";
+      setEntry(signup.messageId, userId, { cls, status, name });
+      ack = `Class set to **${cls}**.`;
+    }
   }
 
-  // Update the shared sheet, then privately acknowledge the clicker.
+  const updated = getSignup(signup.messageId);
   await interaction.update({
     embeds: [signupEmbed(updated)],
     components: signupComponents(updated),

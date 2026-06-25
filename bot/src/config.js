@@ -51,12 +51,38 @@ export const BDO_CLASSES = [
   "Wukong", "Seraph",
 ];
 
-/** BDO squad roles offered on the sign-up sheet. */
+/**
+ * Node War role groups shown on the sign-up sheet, in display order.
+ * `cap` is the capacity (filled/cap shown on the sheet); members can't
+ * self-pick a role that's full, but admins can override via `/signup add`.
+ * Tune names / caps / emoji freely.
+ */
 export const SIGNUP_ROLES = [
-  { id: "mainball", label: "Mainball", emoji: "⚔️" },
-  { id: "shotcaller", label: "Shotcaller", emoji: "📣" },
-  { id: "defensive", label: "Defensive", emoji: "🛡️" },
-  { id: "flex", label: "Flex Squad", emoji: "🔀" },
+  { id: "frontliner", label: "Frontliner", emoji: "⚔️", cap: 5 },
+  { id: "ranged", label: "Ranged", emoji: "🏹", cap: 4 },
+  { id: "skirmisher", label: "Skirmisher", emoji: "🗡️", cap: 6 },
+  { id: "caster", label: "Caster", emoji: "🔮", cap: 3 },
+  { id: "shai", label: "Shai", emoji: "🎶", cap: 2 },
+  { id: "trooper", label: "Trooper", emoji: "🐎", cap: 3 },
+  { id: "defense", label: "Defense", emoji: "🛡️", cap: 3 },
+  { id: "flex", label: "Flex", emoji: "🔀", cap: 1 },
+  { id: "scout", label: "Scout", emoji: "🔭", cap: 1 },
+  { id: "elephant", label: "Elephant", emoji: "🐘", cap: 1 },
+  { id: "shotcaller", label: "Shotcaller", emoji: "📣", cap: 1 },
+];
+
+/**
+ * Availability states. `in`/`late` count toward a role's filled capacity and
+ * show in their role column (late tagged with ⏰); `bench` shows struck-through
+ * in its column; `tentative`/`absence` are listed separately at the bottom.
+ * `style` maps to a discord.js ButtonStyle.
+ */
+export const SIGNUP_STATUSES = [
+  { id: "in", label: "In-game", emoji: "🟢", style: "Success" },
+  { id: "bench", label: "Bench", emoji: "🪑", style: "Secondary" },
+  { id: "late", label: "Late", emoji: "🕐", style: "Secondary" },
+  { id: "tentative", label: "Tentative", emoji: "⚖️", style: "Secondary" },
+  { id: "absence", label: "Absence", emoji: "🚫", style: "Danger" },
 ];
 
 export function assertConfig() {

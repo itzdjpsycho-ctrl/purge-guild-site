@@ -6,7 +6,7 @@ Discord bot for the **Purge** BDO Node War guild. Three features:
 |---------|-----|------|
 | `/mvp [date]` | everyone | Posts the **MVP** of a war — one overall winner from a weighted, per-war-normalized score. Defaults to the most recent war. |
 | `/stats <player> [date]` | everyone | Full **extended stats** for a player. No date = career summary; with a date = that war's 16-column breakdown. |
-| `/signup …` | admins | Posts an **editable Node War sign-up sheet**. Members self-sign with buttons + a role picker; admins can add/remove/edit/close. |
+| `/signup …` | admins post · everyone signs | Posts an **editable Node War sign-up sheet** with role columns (Frontliner, Ranged, Skirmisher, Caster, Shai, Trooper, Defense, Flex, Scout, Elephant, Shotcaller — each with a capacity), numbered slots, class picker, and Tentative/Absence lists. Members self-pick a role + class and set availability; admins can place/override/bench. |
 | `/balance` | everyone | **Balanced War Builder.** Opens a panel: tap **➕ Add Guilds** to paste guilds one per line as `Name seed` (seed **1 = strongest … 10 = weakest**), then **🎲 Balance Teams** to split them into two skill-even sides. Re-roll for a different equally-balanced split. |
 
 Both data commands read the shared **`../data.json`** at the repo root — the same source the website uses, so the bot is always in sync.
@@ -57,15 +57,25 @@ while this is running (you chose to host on your own PC).
 minus a deaths penalty) is normalized to the war's max, then weighted. Tune the weights in
 [`src/config.js`](src/config.js) → `MVP_WEIGHTS`. A war with no extended stats can't be scored.
 
-**Sign-up sheet** — `/signup create date:2026-06-26 location:Valencia notes:"9pm ST"` posts the
-sheet. Members click **Attending / Maybe / Can't make it** and pick a squad role. Admin edits all
-target the *latest open* sign-up:
-- `/signup add member:@X status:in role:mainball`
+**Sign-up sheet** — `/signup create date:2026-06-26 time:"11:00 AM" location:Niella notes:"FFA at xx:45"`
+posts the sheet. The embed shows each **role group** as a column with its `filled/cap` count and
+numbered members (late tagged ⏰, benched names struck through), plus **Needs a role / Tentative /
+Absence** lists. Members use the components to:
+- **Pick your role** dropdown — joins that role column if it isn't full.
+- **Select your class** dropdown — 31 BDO classes, split across two menus (alphabetical).
+- **In-game / Bench / Late / Tentative / Absence** buttons — set availability.
+- **Withdraw** — remove yourself.
+
+Admin edits all target the *latest open* sign-up (capacity is **not** enforced for admins, so you
+can override / slot people in):
+- `/signup add member:@X role:Frontliner status:in class:Warrior` — place / move / bench / set class
 - `/signup remove member:@X`
-- `/signup edit date:… location:… notes:…`
+- `/signup edit date:… time:… location:… notes:…`
 - `/signup close` / `/signup reopen`
 
-Sign-up state is saved to `data/signups.json` (git-ignored), so it survives bot restarts.
+Role groups and their capacities live in [`src/config.js`](src/config.js) → `SIGNUP_ROLES`;
+availability states in `SIGNUP_STATUSES`. Sign-up state is saved to `data/signups.json`
+(git-ignored), so it survives bot restarts.
 
 **Balanced War Builder** — `/balance` posts a panel. **➕ Add Guilds** opens a box; type one guild
 per line as `Name seed` (e.g. `Purge 1`), seed **1 = strongest … 10 = weakest** (you can run it
