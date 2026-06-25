@@ -33,13 +33,14 @@ export const MVP_WEIGHTS = {
 export const SITE_URL = process.env.SITE_URL || "https://itzdjpsycho-ctrl.github.io/purge-guild-site";
 
 /**
- * Anthropic API key for reading Gear Score (AP / Awakening AP / DP) off an
- * uploaded gear screenshot. OPTIONAL — if unset, `/profile upload slot:Gear`
- * still saves the image; it just skips the automatic Gear Score read.
+ * Anthropic API key for screenshot OCR — reading Gear Score off a gear shot
+ * (`/profile upload slot:Gear`) and extracting war results (`/addwar`).
+ * OPTIONAL — if unset, gear uploads still save the image (just no auto score)
+ * and `/addwar` reports that OCR is off.
  */
 export const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-/** Vision model used to read gear stats. Matches the website's extractor. */
-export const GEAR_MODEL = process.env.GEAR_MODEL || "claude-sonnet-4-6";
+/** Vision model used for screenshot OCR (gear + war). Matches the website. */
+export const VISION_MODEL = process.env.VISION_MODEL || "claude-sonnet-4-6";
 
 /** 31 BDO classes (verified NA/EU), used for /profile class autocomplete. */
 export const BDO_CLASSES = [

@@ -1,4 +1,4 @@
-import { ANTHROPIC_API_KEY, GEAR_MODEL } from "../config.js";
+import { ANTHROPIC_API_KEY, VISION_MODEL } from "../config.js";
 
 // Same prompt the website uses (player.html) so the bot and site read screenshots
 // identically.
@@ -31,7 +31,7 @@ export async function readGearStats(base64, mediaType) {
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: GEAR_MODEL,
+        model: VISION_MODEL,
         max_tokens: 300,
         messages: [
           {

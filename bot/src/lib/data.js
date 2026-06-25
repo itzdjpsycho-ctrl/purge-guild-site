@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -88,6 +88,52 @@ export function playerHistory(query) {
   if (!canonical) return null;
   wars.sort((a, b) => b.date.localeCompare(a.date));
   return { name: canonical, wars };
+}
+
+/**
+ * Write the data object back to data.js, preserving the file's leading comment
+ * header and the `window.GUILD_DATA = ...;` wrapper. The body is pretty-printed
+ * JSON (2-space), matching the existing file so diffs stay minimal.
+ */
+export function saveData(data) {
+  const raw = readFileSync(DATA_PATH, "utf8");
+  const prefix = raw.slice(0, raw.indexOf("window.GUILD_DATA"));
+  const body = "window.GUILD_DATA = " + JSON.stringify(data, null, 2) + ";\n";
+  writeFileSync(DATA_PATH, prefix + body);
+}
+
+/**
+ * Append (or replace, by date) a war into matches + extendedStats.
+ * @param {{date,day,location,result,players:Array<object>}} war - players carry
+ *        full stat fields keyed like extendedColumns (name, kills, deaths, ...).
+ * @returns {{replaced:boolean, players:number}}
+ */
+export function addWar(war) {
+  const data = loadData();
+  const cols = data.extendedColumns; // canonical column order
+
+  const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  const basicPlayers = war.players.map((p) => [p.name, num(p.kills), num(p.deaths)]);
+  const extRows = war.players.map((p) =>
+    cols.map((c) => (c === "name" ? p.name : num(p[c])))
+  );
+
+  const match = {
+    date: war.date,
+    day: war.day || "",
+    location: war.location || "",
+    result: war.result === "Victory" ? "Victory" : "Defeat",
+    players: basicPlayers,
+  };
+
+  const replaced = data.matches.some((m) => m.date === war.date);
+  data.matches = data.matches.filter((m) => m.date !== war.date);
+  data.matches.push(match);
+  data.matches.sort((a, b) => a.date.localeCompare(b.date)); // keep chronological
+  data.extendedStats[war.date] = extRows;
+
+  saveData(data);
+  return { replaced, players: basicPlayers.length };
 }
 
 /** List of all distinct player names (for autocomplete), sorted. */

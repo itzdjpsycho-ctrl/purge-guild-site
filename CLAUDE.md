@@ -27,7 +27,7 @@ Dark-themed static HTML guild management site for a Black Desert Online (BDO) No
 | `data.js` | **Canonical guild data — single source of truth for the site AND the Discord bot.** Sets `window.GUILD_DATA = { guildName, rosterMembers, matches, extendedStats }`. Every HTML page loads it via `<script src="data.js"></script>` and reads `MATCHES` / `EXTENDED_STATS` / `ROSTER_MEMBERS` from it. Edit this file to add wars or members. |
 | `profiles.js` | **Canonical per-player profiles — class, gear/crystals/skill-addons screenshot paths, and gear stats.** Sets `window.GUILD_PROFILES = { "<FamilyName>": { class, gearImg, crystalsImg, addonsImg, ap, aap, dp, updatedAt } }`. `ap`/`aap`/`dp` drive the roster Gear Score = `round((ap+aap)/2 + dp)`. Read by `players.html` / `player.html`; written by the Discord bot's `/profile` commands. **Contains NO Discord IDs** — the name↔Discord link is kept privately in `bot/data/links.json` (git-ignored), never published. |
 | `assets/profiles/` | Uploaded gear/crystals/addon screenshots, committed to the repo. Filenames are `<slug>-<slot>.<ext>` (e.g. `haterapproved-gear.webp`). Written by the bot's `/profile upload`. |
-| `bot/` | **Discord bot** (Node.js / discord.js v14). `/mvp` (weighted single-MVP per war), `/stats` (player extended stats), `/signup` (admin-editable Node War sign-up sheet with self-serve buttons), `/profile` (self-serve family-name registration + class/screenshot upload that auto-commits to the site). Reads the same `data.js` / `profiles.js`. Setup in `bot/README.md`. Runs on the user's PC (`npm start`). |
+| `bot/` | **Discord bot** (Node.js / discord.js v14). `/mvp` (weighted single-MVP per war), `/stats` (player extended stats), `/signup` (admin sign-up sheet with self-serve buttons), `/profile` (self-serve family-name registration + class/gear-screenshot upload), `/addwar` (admin-only — upload war result screenshots, Claude vision extracts the table, Confirm/Cancel review, then writes the war into `data.js` and auto-pushes). Reads the same `data.js` / `profiles.js`. Setup in `bot/README.md`. Runs on the user's PC (`npm start`). |
 
 ---
 
@@ -121,11 +121,15 @@ Full extended stats exist for both wars in `EXTENDED_STATS` (keyed by date) in `
 
 ## Adding New Wars
 
-**Preferred workflow:** User pastes war screenshots in chat → Claude reads them, extracts all stats → edits **`data.js`** (`matches` + `extendedStats`) directly → commits and pushes. No API key needed. (Both the site and the Discord bot pick up the new war automatically — the bot reads `data.js` fresh on every command, no restart needed.)
+Three ways, in rough order of convenience:
 
-The + Add War modal also supports:
-- **📸 Screenshot** — Netlify function proxy to Claude API (needs `ANTHROPIC_API_KEY` configured — not yet done)
-- **{ } Manual JSON** — paste data directly, no API needed
+1. **`/addwar` Discord command (admin-only).** Upload 1–5 war result screenshots → Claude vision (bot's `ANTHROPIC_API_KEY`) extracts date/day/location/result + every player's full stats → admin reviews a preview embed → **Confirm** writes the war into `data.js` (`matches` + `extendedStats`) and auto-pushes. Lib: `bot/src/lib/war.js` (OCR, same prompt the site used) + `addWar()`/`saveData()` in `bot/src/lib/data.js` (load → mutate → re-serialize pretty-printed JSON, so diffs stay to the one new war). Replaces an existing war if the date matches.
+2. **Paste war screenshots in chat → Claude** reads them, extracts all stats, edits `data.js` directly, commits and pushes. No API key needed.
+3. **War Scores → + Add War → { } Manual JSON** — paste data directly, no API needed.
+
+*(Both the site and the bot pick up new wars automatically — the bot reads `data.js` fresh on every command, no restart needed.)*
+
+> The site's old **📸 Screenshot** mode used the Netlify function and is **inactive on GitHub Pages** (see Hosting note above) — it now shows a fallback message pointing to `/addwar` / Manual JSON.
 
 ---
 
