@@ -30,7 +30,7 @@ export const MVP_WEIGHTS = {
 };
 
 /** Public site base URL — used to link/preview uploaded screenshots. */
-export const SITE_URL = process.env.SITE_URL || "https://cheery-puppy-6057d8.netlify.app";
+export const SITE_URL = process.env.SITE_URL || "https://itzdjpsycho-ctrl.github.io/purge-guild-site";
 
 /**
  * Anthropic API key for reading Gear Score (AP / Awakening AP / DP) off an

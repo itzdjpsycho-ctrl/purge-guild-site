@@ -709,6 +709,13 @@ function renderHero(profile, role, totalKills, totalDeaths, kdVal, profiles){
   const gearReadStatus = document.getElementById("gearReadStatus");
   function setGearStatus(msg, cls){ gearReadStatus.innerHTML = msg; gearReadStatus.className = "gear-read-status" + (cls ? " " + cls : ""); }
   gearReadBtn.addEventListener("click", async ()=>{
+    // Screenshot reading needs the Netlify serverless function. On other hosts
+    // (e.g. GitHub Pages) it isn't available — the Discord bot's /profile upload
+    // reads Gear Score automatically, or type AP / Awakening / DP in by hand.
+    if(!location.hostname.includes("netlify")){
+      setGearStatus("Auto-reading isn't available on this site — use the Discord bot's <b>/profile upload</b>, or type the values in below.", "err");
+      return;
+    }
     const prof = loadProfiles()[playerName] || {};
     const img  = prof.gearImg;
     if(!img){ setGearStatus("Upload a Gear screenshot first (the 📷 Gear slot on the right).", "err"); return; }

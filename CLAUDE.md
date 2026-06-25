@@ -2,11 +2,13 @@
 
 ## Project Overview
 
-Dark-themed static HTML guild management site for a Black Desert Online (BDO) Node War guild called **Purge**. No backend, no build tools — pure HTML/CSS/JS. Auto-deploys to Netlify on every git push.
+Dark-themed static HTML guild management site for a Black Desert Online (BDO) Node War guild called **Purge**. No backend, no build tools — pure HTML/CSS/JS. Auto-deploys to **GitHub Pages** on every git push.
 
-- **Live site:** https://cheery-puppy-6057d8.netlify.app
+- **Live site:** https://itzdjpsycho-ctrl.github.io/purge-guild-site/ (GitHub Pages — moved off Netlify to avoid build-minute limits)
 - **GitHub:** https://github.com/itzdjpsycho-ctrl/purge-guild-site
 - **Local folder:** C:\Users\MyPC\src (original was D:\Website Building — force pushed to sync)
+
+> **Hosting note:** The site is now served by GitHub Pages (free, no build-minute cap). The Netlify serverless function (`netlify/functions/extract-war.js`) does **not** run on Pages, so the in-page 📸 screenshot extraction (War Scores) and the player-page "Read gear" button are inactive there — both guard on `location.hostname.includes("netlify")` and show a fallback message. The Discord bot now handles gear OCR; add wars by pasting screenshots to Claude → editing `data.js`, or via the War Scores **{ } Manual JSON** option.
 
 ---
 

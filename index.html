@@ -2685,6 +2685,14 @@ function handleFiles(files){
 
 extractBtn.addEventListener("click", async ()=>{
   if (!uploadedImages.length) return;
+  // Screenshot auto-extraction needs the Netlify serverless function. On other
+  // hosts (e.g. GitHub Pages) it isn't available — the Discord bot handles war
+  // OCR now, or use the { } Manual JSON option below.
+  if (!location.hostname.includes("netlify")) {
+    uploadStatus.className = "modal-status error";
+    uploadStatus.innerHTML = `📸 auto-extraction isn't available on this site. Send the screenshots to the Discord bot, or switch to the <b>{ } Manual JSON</b> option.`;
+    return;
+  }
   extractBtn.disabled = true;
   uploadStatus.className = "modal-status";
   uploadStatus.innerHTML = `<span class="spinner"></span> Sending to Claude — extracting war data…`;
