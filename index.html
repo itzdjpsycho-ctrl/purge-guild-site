@@ -1597,7 +1597,8 @@
   Built for hosting — edit the MATCHES array in this file to add new wars.
 </footer>
 
-<script src="data.js"></script>
+<!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
+<script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>
 /* ================================================================
    MATCH DATA

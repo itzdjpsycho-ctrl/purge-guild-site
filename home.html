@@ -472,7 +472,8 @@
   <span>PURGE</span> · Node War Guild · Black Desert Online
 </footer>
 
-<script src="data.js"></script>
+<!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
+<script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>
 /* ================================================================
    MATCH DATA — keep in sync with index.html

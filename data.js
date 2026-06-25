@@ -335,7 +335,7 @@ window.GUILD_DATA = {
     {
       "date": "2026-06-24",
       "day": "Wednesday",
-      "location": "Node War",
+      "location": "Calpheon",
       "result": "Defeat",
       "players": [
         [

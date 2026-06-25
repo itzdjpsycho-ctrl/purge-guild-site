@@ -419,8 +419,9 @@
 <div class="toast" id="toast"></div>
 
 <script src="flags.js"></script>
-<script src="data.js"></script>
-<script src="profiles.js"></script>
+<!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
+<script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script>document.write('<scr'+'ipt src="profiles.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>
 /* ================================================================
    MATCH DATA — must match index.html exactly
