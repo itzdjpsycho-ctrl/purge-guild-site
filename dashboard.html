@@ -281,23 +281,39 @@
     .trend-charts{ grid-template-columns:1fr; }
   }
 </style>
+<link rel="stylesheet" href="app.css">
 </head>
 <body>
 
-<nav class="site-nav">
-  <a href="home.html">Home</a>
-  <a href="index.html">War Scores</a>
-  <a href="players.html">Roster</a>
-  <a href="dashboard.html" class="current">Dashboard</a>
-</nav>
+<div class="app-shell">
+<aside class="app-sidebar">
+  <a class="app-brand" href="home.html">
+    <span class="app-brand-logo">⚔</span>
+    <span class="app-brand-text">
+      <span class="app-brand-name">Purge</span>
+      <span class="app-brand-sub">Node War</span>
+    </span>
+  </a>
+  <div class="side-nav-label">Menu</div>
+  <nav class="side-nav">
+    <a href="home.html"><span class="ico">🏠</span> Home</a>
+    <a href="index.html"><span class="ico">⚔️</span> War Scores</a>
+    <a href="players.html"><span class="ico">👥</span> Roster</a>
+    <a href="dashboard.html" class="current"><span class="ico">📊</span> Dashboard</a>
+  </nav>
+  <div class="app-sidebar-foot">
+    <b>Purge</b> · BDO Guild<br>
+    Node War Log
+  </div>
+</aside>
 
-<header>
-  <div class="eyebrow">Guild Analytics</div>
+<main class="app-content">
+
+<div class="page-head">
+  <div class="page-eyebrow">Guild Analytics</div>
   <h1>Purge <span>Statistics</span></h1>
-  <div class="subtitle" id="dashSubtitle">Loading…</div>
-</header>
-
-<main>
+  <div class="page-sub" id="dashSubtitle">Loading…</div>
+</div>
 
   <!-- SUMMARY STATS -->
   <div class="stat-grid" id="statGrid"></div>
@@ -391,6 +407,7 @@
   </div>
 
 </main>
+</div><!-- /app-shell -->
 
 <footer>Node War Log · Dashboard</footer>
 

@@ -294,15 +294,33 @@
     font-size:12px; color:var(--text-faint); font-family:var(--font-mono);
   }
 </style>
+<link rel="stylesheet" href="app.css">
 </head>
 <body>
 
-<nav class="site-nav">
-  <a href="home.html">Home</a>
-  <a href="index.html">War Scores</a>
-  <a href="players.html">Roster</a>
-  <a href="dashboard.html">Dashboard</a>
-</nav>
+<div class="app-shell">
+<aside class="app-sidebar">
+  <a class="app-brand" href="home.html">
+    <span class="app-brand-logo">⚔</span>
+    <span class="app-brand-text">
+      <span class="app-brand-name">Purge</span>
+      <span class="app-brand-sub">Node War</span>
+    </span>
+  </a>
+  <div class="side-nav-label">Menu</div>
+  <nav class="side-nav">
+    <a href="home.html"><span class="ico">🏠</span> Home</a>
+    <a href="index.html"><span class="ico">⚔️</span> War Scores</a>
+    <a href="players.html" class="current"><span class="ico">👥</span> Roster</a>
+    <a href="dashboard.html"><span class="ico">📊</span> Dashboard</a>
+  </nav>
+  <div class="app-sidebar-foot">
+    <b>Purge</b> · BDO Guild<br>
+    Node War Log
+  </div>
+</aside>
+
+<main class="app-content">
 
 <div class="profile-hero" id="profileHero">
   <!-- Populated by JS -->
@@ -328,6 +346,9 @@
   </div>
 </div>
 
+</main>
+</div><!-- /app-shell -->
+
 <footer>Node War Log · Player Profile</footer>
 <div class="lightbox" id="lightbox">
   <button class="lightbox-close" id="lightboxClose">✕</button>
@@ -337,6 +358,7 @@
 
 <script src="flags.js"></script>
 <script src="data.js"></script>
+<script src="profiles.js"></script>
 <script>
 /* ================================================================
    MATCH DATA — must match index.html exactly
@@ -366,8 +388,14 @@ function getParam(name){
 }
 
 function loadProfiles(){
-  try{ const r=localStorage.getItem(PROFILES_STORAGE_KEY); return r?JSON.parse(r):{}; }
-  catch(e){ return {}; }
+  // Shared layer: profiles published by the Discord bot (class + screenshots).
+  const base = (window.GUILD_PROFILES) ? JSON.parse(JSON.stringify(window.GUILD_PROFILES)) : {};
+  let local = {};
+  try{ const r=localStorage.getItem(PROFILES_STORAGE_KEY); if(r) local=JSON.parse(r); }catch(e){}
+  // Local browser edits override the shared layer, per player.
+  const out = {...base};
+  for(const k in local){ out[k] = {...(out[k]||{}), ...local[k]}; }
+  return out;
 }
 function saveProfiles(p){
   try{ localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(p)); }

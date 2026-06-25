@@ -1457,22 +1457,44 @@
     *{ transition:none !important; scroll-behavior:auto !important; }
   }
 </style>
+<link rel="stylesheet" href="app.css">
 </head>
 <body>
 
-<nav class="site-nav">
-  <a href="home.html">Home</a>
-  <a href="index.html" class="current">War Scores</a>
-  <a href="players.html">Roster</a>
-  <a href="dashboard.html">Dashboard</a>
-</nav>
+<div class="app-shell">
+<aside class="app-sidebar">
+  <a class="app-brand" href="home.html">
+    <span class="app-brand-logo">⚔</span>
+    <span class="app-brand-text">
+      <span class="app-brand-name">Purge</span>
+      <span class="app-brand-sub">Node War</span>
+    </span>
+  </a>
+  <div class="side-nav-label">Menu</div>
+  <nav class="side-nav">
+    <a href="home.html"><span class="ico">🏠</span> Home</a>
+    <a href="index.html" class="current"><span class="ico">⚔️</span> War Scores</a>
+    <a href="players.html"><span class="ico">👥</span> Roster</a>
+    <a href="dashboard.html"><span class="ico">📊</span> Dashboard</a>
+  </nav>
+  <div class="app-sidebar-foot">
+    <b>Purge</b> · BDO Guild<br>
+    Node War Log
+  </div>
+</aside>
 
-<header>
-  <div class="eyebrow">Node War Record</div>
-  <h1>War <span>Log</span></h1>
-  <div class="subtitle">Family-by-family kill / death record, war by war</div>
-  <div class="record-badge" id="recordBadge"></div>
-</header>
+<main class="app-content">
+
+<div class="page-head">
+  <div class="page-head-row">
+    <div>
+      <div class="page-eyebrow">Node War Record</div>
+      <h1>War <span>Log</span></h1>
+      <div class="page-sub">Family-by-family kill / death record, war by war</div>
+    </div>
+    <div class="record-badge" id="recordBadge"></div>
+  </div>
+</div>
 
 <div class="roles-panel" id="rolesPanel"></div>
 
@@ -1566,9 +1588,10 @@
   </div>
 </div>
 
-<main>
-  <div class="panel" id="matchPanel"></div>
+<div class="panel" id="matchPanel"></div>
+
 </main>
+</div><!-- /app-shell -->
 
 <footer>
   Built for hosting — edit the MATCHES array in this file to add new wars.

@@ -257,21 +257,39 @@
     font-size:12px; color:var(--text-faint); font-family:var(--font-mono);
   }
 </style>
+<link rel="stylesheet" href="app.css">
 </head>
 <body>
 
-<nav class="site-nav">
-  <a href="home.html">Home</a>
-  <a href="index.html">War Scores</a>
-  <a href="players.html" class="current">Roster</a>
-  <a href="dashboard.html">Dashboard</a>
-</nav>
+<div class="app-shell">
+<aside class="app-sidebar">
+  <a class="app-brand" href="home.html">
+    <span class="app-brand-logo">⚔</span>
+    <span class="app-brand-text">
+      <span class="app-brand-name">Purge</span>
+      <span class="app-brand-sub">Node War</span>
+    </span>
+  </a>
+  <div class="side-nav-label">Menu</div>
+  <nav class="side-nav">
+    <a href="home.html"><span class="ico">🏠</span> Home</a>
+    <a href="index.html"><span class="ico">⚔️</span> War Scores</a>
+    <a href="players.html" class="current"><span class="ico">👥</span> Roster</a>
+    <a href="dashboard.html"><span class="ico">📊</span> Dashboard</a>
+  </nav>
+  <div class="app-sidebar-foot">
+    <b>Purge</b> · BDO Guild<br>
+    Node War Log
+  </div>
+</aside>
 
-<header>
-  <div class="eyebrow">Guild Roster</div>
+<main class="app-content">
+
+<div class="page-head">
+  <div class="page-eyebrow">Guild Roster</div>
   <h1>Player <span>Profiles</span></h1>
-  <div class="subtitle">Class, gear, and war record for every member</div>
-</header>
+  <div class="page-sub">Class, gear, and war record for every member</div>
+</div>
 
 <div class="toolbar">
   <div class="toolbar-left">
@@ -284,15 +302,17 @@
 </div>
 <input type="file" id="importInput" accept=".json">
 
-<main>
-  <div class="roster-grid" id="rosterGrid"></div>
+<div class="roster-grid" id="rosterGrid"></div>
+
 </main>
+</div><!-- /app-shell -->
 
 <footer>Node War Log · Roster</footer>
 <div class="toast" id="toast"></div>
 
 <script src="flags.js"></script>
 <script src="data.js"></script>
+<script src="profiles.js"></script>
 <script>
 /* ================================================================
    MATCH DATA — must match index.html exactly
@@ -311,8 +331,14 @@ function kd(k,d){ return (k===0&&d===0) ? null : d===0 ? k : k/d; }
 function fmtKD(v){ return v===null ? "—" : v.toFixed(2); }
 
 function loadProfiles(){
-  try{ const r=localStorage.getItem(PROFILES_STORAGE_KEY); return r?JSON.parse(r):{}; }
-  catch(e){ return {}; }
+  // Shared layer: profiles published by the Discord bot (class + screenshots).
+  const base = (window.GUILD_PROFILES) ? JSON.parse(JSON.stringify(window.GUILD_PROFILES)) : {};
+  let local = {};
+  try{ const r=localStorage.getItem(PROFILES_STORAGE_KEY); if(r) local=JSON.parse(r); }catch(e){}
+  // Local browser edits override the shared layer, per player.
+  const out = {...base};
+  for(const k in local){ out[k] = {...(out[k]||{}), ...local[k]}; }
+  return out;
 }
 function saveProfiles(p){
   try{ localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(p)); }

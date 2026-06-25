@@ -1,0 +1,170 @@
+/* ============================================================================
+   app.css — shared app-shell design system for the Purge guild site.
+
+   Linked from every page AFTER its inline <style> so the shell + a handful of
+   scoped polish rules win the cascade. Provides:
+     • the left sidebar nav rail (.app-shell / .app-sidebar)
+     • the content column (.app-content) + page headers (.page-head)
+     • unified scrollbar, panel, section spacing scoped under .app-content
+   Keeps the existing neon-purple-on-near-black theme (CSS vars defined per page;
+   fallbacks below mirror them so this file also works standalone).
+   Desktop-only by design — no mobile breakpoints.
+   ========================================================================== */
+
+:root{
+  --sidebar-w: 226px;
+}
+
+/* ---- App shell ---------------------------------------------------------- */
+.app-shell{
+  display:grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  align-items:start;
+  min-height:100vh;
+  position:relative;
+  z-index:1;
+}
+
+.app-sidebar{
+  position:sticky; top:0;
+  align-self:start;
+  height:100vh;
+  display:flex; flex-direction:column;
+  background:linear-gradient(180deg, #0D0A14 0%, #0A0810 100%);
+  border-right:1px solid var(--hairline, #2A1F3A);
+  padding:22px 0 18px;
+  overflow-y:auto;
+}
+
+/* Brand */
+.app-brand{
+  display:flex; align-items:center; gap:11px;
+  padding:2px 20px 22px;
+  margin-bottom:8px;
+  border-bottom:1px solid var(--hairline-soft, #1A1426);
+  text-decoration:none;
+}
+.app-brand-logo{
+  width:36px; height:36px; flex:none;
+  display:flex; align-items:center; justify-content:center;
+  border-radius:10px; font-size:17px;
+  background:linear-gradient(150deg, #6E1FB8 0%, #AB4DFF 100%);
+  box-shadow:0 0 18px rgba(171,77,255,0.35), inset 0 0 0 1px rgba(255,255,255,0.12);
+}
+.app-brand-text{ display:flex; flex-direction:column; line-height:1; }
+.app-brand-name{
+  font-family:var(--font-display, 'Fraunces', serif);
+  font-size:19px; font-weight:720; letter-spacing:0.01em;
+  color:var(--text, #EDE8E0);
+}
+.app-brand-sub{
+  font-family:var(--font-mono, monospace);
+  font-size:8.5px; letter-spacing:0.22em; text-transform:uppercase;
+  color:var(--text-faint, #4E454A); margin-top:5px;
+}
+
+/* Nav links */
+.side-nav{ display:flex; flex-direction:column; gap:3px; padding:14px 12px 0; }
+.side-nav a{
+  display:flex; align-items:center; gap:12px;
+  padding:10px 14px; border-radius:9px;
+  font-family:var(--font-mono, monospace); font-size:12.5px; letter-spacing:0.03em;
+  color:var(--text-muted, #8A8088); text-decoration:none;
+  border:1px solid transparent;
+  transition:background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.side-nav a .ico{
+  width:18px; text-align:center; font-size:14px; flex:none; opacity:0.85;
+}
+.side-nav a:hover{
+  background:rgba(255,255,255,0.04);
+  color:var(--text, #EDE8E0);
+}
+.side-nav a.current{
+  background:rgba(110,31,184,0.16);
+  color:var(--crimson-glow, #C77DFF);
+  border-color:rgba(171,77,255,0.30);
+  box-shadow:inset 2px 0 0 var(--crimson-bright, #AB4DFF), 0 0 16px rgba(110,31,184,0.18);
+}
+.side-nav a.current .ico{ opacity:1; }
+
+.side-nav-label{
+  font-family:var(--font-mono, monospace); font-size:9px; letter-spacing:0.18em;
+  text-transform:uppercase; color:var(--text-faint, #4E454A);
+  padding:18px 18px 6px;
+}
+
+/* Sidebar footer */
+.app-sidebar-foot{
+  margin-top:auto;
+  padding:16px 22px 4px;
+  border-top:1px solid var(--hairline-soft, #1A1426);
+  font-family:var(--font-mono, monospace); font-size:10px; letter-spacing:0.04em;
+  color:var(--text-faint, #4E454A); line-height:1.7;
+}
+.app-sidebar-foot b{ color:var(--text-muted, #8A8088); font-weight:600; }
+
+/* ---- Content column ----------------------------------------------------- */
+.app-content{
+  max-width:1280px;
+  padding:34px 44px 90px;
+  width:100%;
+}
+
+/* Page header (replaces the old centered rounded header card) */
+.page-head{
+  display:flex; flex-direction:column; gap:6px;
+  padding-bottom:22px; margin-bottom:26px;
+  border-bottom:1px solid var(--hairline-soft, #1A1426);
+}
+.page-eyebrow{
+  font-family:var(--font-mono, monospace); font-size:10px; letter-spacing:0.22em;
+  text-transform:uppercase; color:var(--crimson-bright, #AB4DFF);
+}
+.page-head h1{
+  font-family:var(--font-display, 'Fraunces', serif);
+  font-weight:680; font-size:clamp(26px, 3vw, 34px); letter-spacing:-0.01em;
+  color:var(--text, #EDE8E0);
+}
+.page-head h1 span{ color:var(--gold, #C49A30); font-style:italic; font-weight:480; }
+.page-sub{ font-size:14px; color:var(--text-muted, #8A8088); }
+.page-head-row{ display:flex; align-items:flex-end; justify-content:space-between; gap:18px; flex-wrap:wrap; }
+
+/* ---- Scoped polish (wins over inline .panel via specificity) ------------ */
+.app-content .panel{
+  border:1px solid var(--hairline, #2A1F3A);
+  border-radius:14px;
+}
+.app-content .section{ margin-bottom:30px; }
+.app-content .section-label,
+.app-content .section-heading{
+  font-family:var(--font-mono, monospace); font-size:10px; letter-spacing:0.18em;
+  text-transform:uppercase; color:var(--text-faint, #4E454A); margin-bottom:14px;
+}
+
+/* ---- Neutralize old "center in full-width body" wrappers ---------------- */
+/* These were max-width + margin:0 auto when they were top-level; inside the
+   content column they should fill it and left-align with the page header. */
+.app-content > .hero,
+.app-content > .stats-grid,
+.app-content > .links-grid,
+.app-content > .recent-section,
+.app-content > .toolbar,
+.app-content > .profile-hero,
+.app-content > .roles-panel,
+.app-content > .tab-folder{
+  max-width:none;
+  margin-left:0;
+  margin-right:0;
+  padding-left:0;
+  padding-right:0;
+}
+
+/* ---- Custom scrollbars (purple-tinted) ---------------------------------- */
+*{ scrollbar-width:thin; scrollbar-color:#3A2A52 transparent; }
+*::-webkit-scrollbar{ width:10px; height:10px; }
+*::-webkit-scrollbar-track{ background:transparent; }
+*::-webkit-scrollbar-thumb{
+  background:#2E2142; border-radius:999px; border:2px solid transparent; background-clip:padding-box;
+}
+*::-webkit-scrollbar-thumb:hover{ background:#4A356B; background-clip:padding-box; }
