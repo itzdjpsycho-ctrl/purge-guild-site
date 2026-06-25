@@ -7,6 +7,7 @@ Discord bot for the **Purge** BDO Node War guild. Three features:
 | `/mvp [date]` | everyone | Posts the **MVP** of a war — one overall winner from a weighted, per-war-normalized score. Defaults to the most recent war. |
 | `/stats <player> [date]` | everyone | Full **extended stats** for a player. No date = career summary; with a date = that war's 16-column breakdown. |
 | `/signup …` | admins | Posts an **editable Node War sign-up sheet**. Members self-sign with buttons + a role picker; admins can add/remove/edit/close. |
+| `/balance` | everyone | **Balanced War Builder.** Opens a panel: tap **➕ Add Guilds** to paste guilds one per line as `Name seed` (seed **1 = strongest … 10 = weakest**), then **🎲 Balance Teams** to split them into two skill-even sides. Re-roll for a different equally-balanced split. |
 
 Both data commands read the shared **`../data.json`** at the repo root — the same source the website uses, so the bot is always in sync.
 
@@ -65,6 +66,13 @@ target the *latest open* sign-up:
 - `/signup close` / `/signup reopen`
 
 Sign-up state is saved to `data/signups.json` (git-ignored), so it survives bot restarts.
+
+**Balanced War Builder** — `/balance` posts a panel. **➕ Add Guilds** opens a box; type one guild
+per line as `Name seed` (e.g. `Purge 1`), seed **1 = strongest … 10 = weakest** (you can run it
+again to add more or correct a seed). **🎲 Balance Teams** splits everyone into two teams whose
+total skill is as even as possible — the skill gap shows in the footer, and **🎲** again re-rolls
+for another equally-balanced split. Builder sessions live in memory only, so re-run `/balance` if
+the bot restarts.
 
 ## Adding new wars
 Add the war to the root **`data.json`** (`matches` + `extendedStats`). The bot reads the file

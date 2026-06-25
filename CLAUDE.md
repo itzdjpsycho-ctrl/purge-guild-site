@@ -8,7 +8,7 @@ Dark-themed static HTML guild management site for a Black Desert Online (BDO) No
 - **GitHub:** https://github.com/itzdjpsycho-ctrl/purge-guild-site
 - **Local folder:** C:\Users\MyPC\src (original was D:\Website Building — force pushed to sync)
 
-> **Hosting note:** The site is now served by GitHub Pages (free, no build-minute cap). The Netlify serverless function (`netlify/functions/extract-war.js`) does **not** run on Pages, so the in-page 📸 screenshot extraction (War Scores) and the player-page "Read gear" button are inactive there — both guard on `location.hostname.includes("netlify")` and show a fallback message. The Discord bot now handles gear OCR; add wars by pasting screenshots to Claude → editing `data.js`, or via the War Scores **{ } Manual JSON** option.
+> **Hosting note:** The site is served by GitHub Pages (free, no build-minute cap). It is a **pure static site with no server-side component** — there is no place to safely hold an API key, so there is no in-page Claude/OCR feature. The old Netlify serverless function (`netlify/functions/extract-war.js`) and `netlify.toml` have been **removed** from the repo. The in-page 📸 screenshot extraction (War Scores) and the player-page "Read gear" button now simply show a fallback message pointing to the Discord bot. All OCR (war results + gear) is handled by the **Discord bot** (`/addwar`, `/profile upload`), which holds the API key in `bot/.env`; add wars by pasting screenshots to Claude → editing `data.js`, or via the War Scores **{ } Manual JSON** option.
 
 ---
 
@@ -17,17 +17,15 @@ Dark-themed static HTML guild management site for a Black Desert Online (BDO) No
 | File | Purpose |
 |------|---------|
 | `home.html` | Landing page. Crimson dark theme, logo placeholder, live stats strip, quick-link cards, most recent war panel. |
-| `index.html` | **War Scores page (main page).** Match tabs grouped by week (collapsible). Squad Roles panel with drag-and-drop — scrollable when overflow. + Add War button: 📸 Screenshot mode (Netlify function proxy) OR { } Manual JSON paste mode. Player name search. Class column. "Clear Added Wars" double-tap button. |
+| `index.html` | **War Scores page (main page).** Match tabs grouped by week (collapsible). Squad Roles panel with drag-and-drop — scrollable when overflow. + Add War button: 📸 Screenshot mode (inactive on Pages — shows a "use the Discord bot / Manual JSON" message) OR { } Manual JSON paste mode. Player name search. Class column. "Clear Added Wars" double-tap button. |
 | `players.html` | Roster page. Grid of player cards. Each card has a role dropdown that saves to localStorage instantly and syncs with War Scores. Export/Import JSON. |
 | `player.html` | Individual player profile (`player.html?name=Popspolar`). Class dropdown (31 BDO classes), 3 screenshot slots (Gear / Crystals / Skill-Addons), war history table. |
 | `dashboard.html` | Guild stats. Banner: "Purge Statistics". Win rate ring, streak badge, node location breakdown, top 10 performers (K/D / Kills / Deaths tabs), per-player trend charts. |
-| `netlify/functions/extract-war.js` | Serverless proxy — forwards screenshot extraction to Anthropic API server-side (avoids CORS). Requires `ANTHROPIC_API_KEY` env var in Netlify → Project configuration → Environment variables. **Not yet configured.** |
-| `netlify.toml` | Netlify config pointing functions to `netlify/functions/`. |
 | `push.bat` | Double-click to commit and push to GitHub. |
 | `data.js` | **Canonical guild data — single source of truth for the site AND the Discord bot.** Sets `window.GUILD_DATA = { guildName, rosterMembers, matches, extendedStats }`. Every HTML page loads it via `<script src="data.js"></script>` and reads `MATCHES` / `EXTENDED_STATS` / `ROSTER_MEMBERS` from it. Edit this file to add wars or members. |
 | `profiles.js` | **Canonical per-player profiles — class, gear/crystals/skill-addons screenshot paths, and gear stats.** Sets `window.GUILD_PROFILES = { "<FamilyName>": { class, gearImg, crystalsImg, addonsImg, ap, aap, dp, updatedAt } }`. `ap`/`aap`/`dp` drive the roster Gear Score = `round((ap+aap)/2 + dp)`. Read by `players.html` / `player.html`; written by the Discord bot's `/profile` commands. **Contains NO Discord IDs** — the name↔Discord link is kept privately in `bot/data/links.json` (git-ignored), never published. |
 | `assets/profiles/` | Uploaded gear/crystals/addon screenshots, committed to the repo. Filenames are `<slug>-<slot>.<ext>` (e.g. `haterapproved-gear.webp`). Written by the bot's `/profile upload`. |
-| `bot/` | **Discord bot** (Node.js / discord.js v14). `/mvp` (weighted single-MVP per war), `/stats` (player extended stats), `/signup` (admin sign-up sheet with self-serve buttons), `/profile` (self-serve family-name registration + class/gear-screenshot upload), `/addwar` (admin-only — upload war result screenshots, Claude vision extracts the table, Confirm/Cancel review, then writes the war into `data.js` and auto-pushes). Reads the same `data.js` / `profiles.js`. Setup in `bot/README.md`. Runs on the user's PC (`npm start`). |
+| `bot/` | **Discord bot** (Node.js / discord.js v14). `/mvp` (weighted single-MVP per war), `/stats` (player extended stats), `/signup` (admin sign-up sheet with self-serve buttons), `/profile` (self-serve family-name registration + class/gear-screenshot upload), `/addwar` (admin-only — upload war result screenshots, Claude vision extracts the table, Confirm/Cancel review, then writes the war into `data.js` and auto-pushes), `/balance` (Balanced War Builder — add guilds with a 1–10 skill seed via a modal, bot splits them into two skill-even teams with a re-rollable randomizer). Reads the same `data.js` / `profiles.js`. Setup in `bot/README.md`. Runs on the user's PC (`npm start`). |
 
 ---
 
@@ -81,7 +79,7 @@ Players self-serve their own profile in Discord; the bot writes `profiles.js` + 
 
 - `profiles.js` — read/write the repo-root `profiles.js` (`window.GUILD_PROFILES`); `knownNames()` / `canonicalName()` resolve typed names against roster + war participants. `SLOT_KEYS` maps slot → `gearImg`/`crystalsImg`/`addonsImg`.
 - `images.js` — downloads & saves attachments under `assets/profiles/`; `slug()`, type/size validation, stale-file cleanup. Returns the image `buffer` + `mediaType` so the gear reader can run without re-reading from disk.
-- `gear.js` — `readGearStats(base64, mediaType)` calls the Anthropic Messages API (`claude-sonnet-4-6`, vision) to OCR AP/AwkAP/DP — same prompt the website uses; `gearScore()` computes `round((ap+aap)/2 + dp)`. Needs `ANTHROPIC_API_KEY` in the bot's `.env` (**optional** — without it, gear images still upload, the Gear Score read is just skipped). This runs on the bot host, so it does **not** require the Netlify `ANTHROPIC_API_KEY`.
+- `gear.js` — `readGearStats(base64, mediaType)` calls the Anthropic Messages API (`claude-sonnet-4-6`, vision) to OCR AP/AwkAP/DP — same prompt the website uses; `gearScore()` computes `round((ap+aap)/2 + dp)`. Needs `ANTHROPIC_API_KEY` in the bot's `.env` (**optional** — without it, gear images still upload, the Gear Score read is just skipped). This runs on the bot host — the key lives only in `bot/.env` (git-ignored), never in the site or the repo.
 - `links.js` — private Discord-ID ↔ family-name map at `bot/data/links.json` (**git-ignored** — never published; `data/` is in `bot/.gitignore`).
 - `git.js` — `publish(paths, message)`: stages **only** the given paths (never `git add -A`), commits, pushes `HEAD:main`, and auto-rebases (`pull --rebase --autostash`) on a rejected push so concurrent pushes and unrelated working-tree files are left untouched.
 
@@ -129,7 +127,7 @@ Three ways, in rough order of convenience:
 
 *(Both the site and the bot pick up new wars automatically — the bot reads `data.js` fresh on every command, no restart needed.)*
 
-> The site's old **📸 Screenshot** mode used the Netlify function and is **inactive on GitHub Pages** (see Hosting note above) — it now shows a fallback message pointing to `/addwar` / Manual JSON.
+> The site's old **📸 Screenshot** mode ran on a Netlify serverless function that has since been **removed** (see Hosting note above). On GitHub Pages it now just shows a fallback message pointing to `/addwar` / Manual JSON.
 
 ---
 

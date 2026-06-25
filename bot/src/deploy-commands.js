@@ -5,10 +5,11 @@ import * as stats from "./commands/stats.js";
 import * as signup from "./commands/signup.js";
 import * as profile from "./commands/profile.js";
 import * as addwar from "./commands/addwar.js";
+import * as balance from "./commands/balance.js";
 
 assertConfig();
 
-const body = [mvp, stats, signup, profile, addwar].map((c) => c.data.toJSON());
+const body = [mvp, stats, signup, profile, addwar, balance].map((c) => c.data.toJSON());
 const rest = new REST().setToken(TOKEN);
 
 try {
