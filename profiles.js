@@ -6,6 +6,7 @@
 window.GUILD_PROFILES = {
   "HaterApproved": {
     "gearImg": "assets/profiles/haterapproved-gear.webp",
-    "updatedAt": "2026-06-25T00:12:59.482Z"
+    "updatedAt": "2026-06-25T00:23:16.617Z",
+    "crystalsImg": "assets/profiles/haterapproved-crystals.png"
   }
 };
