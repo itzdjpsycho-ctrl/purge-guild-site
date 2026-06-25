@@ -160,10 +160,23 @@
 
   .card-body{ padding:14px 16px 16px; }
 
+  .card-name-row{
+    display:flex; align-items:baseline; justify-content:space-between; gap:8px;
+    margin-bottom:2px;
+  }
   .card-name{
     font-family:var(--font-display); font-size:17px; font-weight:620;
-    color:var(--text); margin-bottom:2px;
+    color:var(--text); flex:1; min-width:0;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .card-gs{
+    flex:none; white-space:nowrap;
+    font-family:var(--font-mono); font-size:13px; font-weight:700;
+    color:var(--gold-bright);
+  }
+  .card-gs-label{
+    font-size:9px; font-weight:600; letter-spacing:0.06em;
+    color:var(--text-faint);
   }
   .card-class{
     font-family:var(--font-mono); font-size:10px; letter-spacing:0.1em;
@@ -425,6 +438,9 @@ function render(){
       ? `<img src="${p.gearImg}" alt="Gear" loading="lazy">`
       : `<span class="card-gear-placeholder">🛡</span><span class="no-img-label">No gear screenshot</span>`;
     const classStr = p.class || "";
+    const gs = (p.ap!=null && p.aap!=null && p.dp!=null)
+      ? Math.round((Number(p.ap) + Number(p.aap)) / 2 + Number(p.dp))
+      : null;
 
     const roleClass = role ? `role-${role}` : "";
     return `
@@ -433,7 +449,10 @@ function render(){
         ${role ? `<div class="card-role role-${role}" id="badge-${r.name}">${ROLE_LABELS[role]||role}</div>` : `<div class="card-role role-none" id="badge-${r.name}"></div>`}
         <div class="card-gear-thumb">${gearThumb}</div>
         <div class="card-body">
-          <div class="card-name" title="${r.name}">${r.name}</div>
+          <div class="card-name-row">
+            <span class="card-name" title="${r.name}">${r.name}</span>
+            ${gs!=null ? `<span class="card-gs" title="Gear Score">${gs} <span class="card-gs-label">GS</span></span>` : ""}
+          </div>
           <div class="card-class ${classStr?'set':''}">${classStr || "Unknown Class"}</div>
           <div class="card-stats">
             <div class="card-stat">

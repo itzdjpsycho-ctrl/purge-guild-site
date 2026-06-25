@@ -3,11 +3,12 @@ import { TOKEN, assertConfig } from "./config.js";
 import * as mvp from "./commands/mvp.js";
 import * as stats from "./commands/stats.js";
 import * as signup from "./commands/signup.js";
+import * as profile from "./commands/profile.js";
 
 assertConfig();
 
 const commands = new Collection();
-for (const cmd of [mvp, stats, signup]) commands.set(cmd.data.name, cmd);
+for (const cmd of [mvp, stats, signup, profile]) commands.set(cmd.data.name, cmd);
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 

@@ -29,6 +29,18 @@ export const MVP_WEIGHTS = {
   deaths: -0.3, // penalty (more deaths lowers score)
 };
 
+/** Public site base URL — used to link/preview uploaded screenshots. */
+export const SITE_URL = process.env.SITE_URL || "https://cheery-puppy-6057d8.netlify.app";
+
+/** 31 BDO classes (verified NA/EU), used for /profile class autocomplete. */
+export const BDO_CLASSES = [
+  "Warrior", "Ranger", "Sorceress", "Berserker", "Tamer", "Musa", "Maehwa",
+  "Valkyrie", "Kunoichi", "Ninja", "Wizard", "Witch", "Dark Knight", "Striker",
+  "Mystic", "Lahn", "Archer", "Shai", "Guardian", "Nova", "Sage", "Corsair",
+  "Hashashin", "Drakania", "Woosa", "Maegu", "Scholar", "Dosa", "Deadeye",
+  "Wukong", "Seraph",
+];
+
 /** BDO squad roles offered on the sign-up sheet. */
 export const SIGNUP_ROLES = [
   { id: "mainball", label: "Mainball", emoji: "⚔️" },

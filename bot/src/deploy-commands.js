@@ -3,10 +3,11 @@ import { TOKEN, CLIENT_ID, GUILD_ID, assertConfig } from "./config.js";
 import * as mvp from "./commands/mvp.js";
 import * as stats from "./commands/stats.js";
 import * as signup from "./commands/signup.js";
+import * as profile from "./commands/profile.js";
 
 assertConfig();
 
-const body = [mvp, stats, signup].map((c) => c.data.toJSON());
+const body = [mvp, stats, signup, profile].map((c) => c.data.toJSON());
 const rest = new REST().setToken(TOKEN);
 
 try {
