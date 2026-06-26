@@ -604,7 +604,7 @@ function refreshTray(){
   list.querySelectorAll(".tray-bubble").forEach(b => {
     b.addEventListener("dragstart", e => {
       e.dataTransfer.setData("text/plain", "new:" + b.dataset.roster);
-      e.dataTransfer.effectAllowed = "copy";
+      e.dataTransfer.effectAllowed = "move";
       b.classList.add("dragging");
     });
     b.addEventListener("dragend", () => b.classList.remove("dragging"));
