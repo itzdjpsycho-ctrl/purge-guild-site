@@ -13,6 +13,20 @@ Use whole numbers. If a value is genuinely not visible, use null for it.`;
 
 const toInt = (v) => (v == null || isNaN(Number(v)) ? null : Math.round(Number(v)));
 
+// Detect the real image type from the magic bytes, so a wrong/missing label
+// (e.g. a PNG saved with a .webp name) can't trip Anthropic's type check.
+function sniffMediaType(base64, fallback) {
+  try {
+    const b = Buffer.from(base64.slice(0, 24), "base64");
+    if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "image/png";
+    if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+    if (b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) return "image/gif";
+    if (b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 &&
+        b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return "image/webp";
+  } catch {}
+  return fallback || "image/png";
+}
+
 /**
  * Read AP / Awakening AP / DP from a gear screenshot using Claude vision.
  * @param {string} base64 - raw base64 image data (no data: prefix)
@@ -22,6 +36,7 @@ const toInt = (v) => (v == null || isNaN(Number(v)) ? null : Math.round(Number(v
  */
 export async function readGearStats(base64, mediaType) {
   if (!ANTHROPIC_API_KEY) return { ok: false, error: "no-key" };
+  mediaType = sniffMediaType(base64, mediaType);
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
