@@ -1,0 +1,165 @@
+// Cloudflare Worker relay for the website's "Sign Ups" page.
+//
+//   Website  ──POST /post,/edit (x-admin-password)──►  posts to Discord as the bot
+//   Website  ──GET  /state (public, sanitized)──────►  live view
+//   Bot      ──POST /state,/config (x-bot-secret)──►   live state + channel
+//   Bot      ──GET  /posted (x-bot-secret)─────────►   hydrate offline-posted sheets
+//
+// Secrets (wrangler secret put): DISCORD_BOT_TOKEN, ADMIN_POST_PASSWORD, BOT_PUSH_SECRET.
+// KV binding: SIGNUPS_KV.  Keys: "config", "state", "posted".
+
+import { postMessage, patchMessage } from "./discord.js";
+
+const PAGES_ORIGIN = "https://itzdjpsycho-ctrl.github.io";
+const MAX_POSTED = 25;
+
+function corsHeaders(request) {
+  const origin = request.headers.get("Origin") || "";
+  const allow =
+    origin === PAGES_ORIGIN || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+      ? origin
+      : PAGES_ORIGIN;
+  return {
+    "Access-Control-Allow-Origin": allow,
+    "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+    "Access-Control-Allow-Headers": "content-type, x-admin-password",
+    Vary: "Origin",
+  };
+}
+
+function json(data, status, request) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+  });
+}
+
+/** Normalize an inbound sheet payload into the canonical state shape. */
+function normalize(payload) {
+  let seq = Number(payload.seq) || 0;
+  const entries = (payload.entries || []).map((e, i) => {
+    const num = Number(e.num) || ++seq;
+    if (num > seq) seq = num;
+    return {
+      num,
+      name: String(e.name || "Unknown"),
+      status: e.status || "in",
+      role: e.role ?? null,
+      cls: e.cls ?? null,
+    };
+  });
+  return {
+    messageId: payload.messageId || null,
+    channelId: payload.channelId || null,
+    status: payload.status === "closed" ? "closed" : "open",
+    date: payload.date || "",
+    time: payload.time || "",
+    location: payload.location || "",
+    notes: payload.notes || "",
+    seq,
+    updatedAt: new Date().toISOString(),
+    entries,
+  };
+}
+
+async function readJson(request) {
+  try { return await request.json(); } catch { return null; }
+}
+
+async function getPosted(env) {
+  const raw = await env.SIGNUPS_KV.get("posted");
+  try { return raw ? JSON.parse(raw) : []; } catch { return []; }
+}
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    const path = url.pathname.replace(/\/+$/, "") || "/";
+    const method = request.method.toUpperCase();
+
+    if (method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: corsHeaders(request) });
+    }
+
+    // ---- public live view ----
+    if (path === "/state" && method === "GET") {
+      const raw = await env.SIGNUPS_KV.get("state");
+      return json(raw ? JSON.parse(raw) : {}, 200, request);
+    }
+
+    // ---- website → post / edit (admin-password gated) ----
+    if ((path === "/post" || path === "/edit") && method === "POST") {
+      if (request.headers.get("x-admin-password") !== env.ADMIN_POST_PASSWORD) {
+        return json({ error: "Bad password." }, 401, request);
+      }
+      const body = await readJson(request);
+      if (!body) return json({ error: "Invalid JSON." }, 400, request);
+
+      const cfgRaw = await env.SIGNUPS_KV.get("config");
+      const cfg = cfgRaw ? JSON.parse(cfgRaw) : {};
+      if (!cfg.channelId) {
+        return json({ error: "No channel set. An admin must run /signup channel set." }, 428, request);
+      }
+
+      const state = normalize(body);
+      state.channelId = cfg.channelId;
+
+      let result;
+      if (path === "/edit") {
+        if (!state.messageId) return json({ error: "messageId required to edit." }, 400, request);
+        result = await patchMessage(env.DISCORD_BOT_TOKEN, cfg.channelId, state.messageId, state);
+      } else {
+        result = await postMessage(env.DISCORD_BOT_TOKEN, cfg.channelId, state);
+        if (result.ok) state.messageId = result.data.id;
+      }
+      if (!result.ok) {
+        return json({ error: "Discord rejected the message.", status: result.status, detail: result.data }, 502, request);
+      }
+
+      // Seed live state + the posted list (so the bot can hydrate it).
+      await env.SIGNUPS_KV.put("state", JSON.stringify(state));
+      const posted = await getPosted(env);
+      const idx = posted.findIndex((p) => p.messageId === state.messageId);
+      const item = { messageId: state.messageId, channelId: cfg.channelId, postedAt: new Date().toISOString(), signup: state };
+      if (idx >= 0) posted[idx] = item;
+      else posted.unshift(item);
+      await env.SIGNUPS_KV.put("posted", JSON.stringify(posted.slice(0, MAX_POSTED)));
+
+      return json({ messageId: state.messageId, channelId: cfg.channelId }, 200, request);
+    }
+
+    // ---- bot → state / config / posted (bot-secret gated) ----
+    const botAuthed = request.headers.get("x-bot-secret") === env.BOT_PUSH_SECRET;
+
+    if (path === "/state" && method === "POST") {
+      if (!botAuthed) return json({ error: "Bad secret." }, 401, request);
+      const body = await readJson(request);
+      if (!body) return json({ error: "Invalid JSON." }, 400, request);
+      const state = normalize(body);
+      state.messageId = body.messageId || null;
+      await env.SIGNUPS_KV.put("state", JSON.stringify(state));
+      // Keep the posted mirror in step so hydration reflects live edits.
+      if (state.messageId) {
+        const posted = await getPosted(env);
+        const idx = posted.findIndex((p) => p.messageId === state.messageId);
+        if (idx >= 0) { posted[idx].signup = state; await env.SIGNUPS_KV.put("posted", JSON.stringify(posted)); }
+      }
+      return json({ ok: true }, 200, request);
+    }
+
+    if (path === "/config" && method === "POST") {
+      if (!botAuthed) return json({ error: "Bad secret." }, 401, request);
+      const body = await readJson(request);
+      if (!body?.channelId) return json({ error: "channelId required." }, 400, request);
+      await env.SIGNUPS_KV.put("config", JSON.stringify({ channelId: body.channelId, updatedAt: new Date().toISOString() }));
+      return json({ ok: true }, 200, request);
+    }
+
+    if (path === "/posted" && method === "GET") {
+      if (!botAuthed) return json({ error: "Bad secret." }, 401, request);
+      return json({ posted: await getPosted(env) }, 200, request);
+    }
+
+    return json({ error: "Not found." }, 404, request);
+  },
+};

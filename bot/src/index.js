@@ -6,6 +6,8 @@ import * as signup from "./commands/signup.js";
 import * as profile from "./commands/profile.js";
 import * as addwar from "./commands/addwar.js";
 import * as balance from "./commands/balance.js";
+import { syncFromWorker } from "./lib/worker-sync.js";
+import { workerEnabled } from "./lib/worker.js";
 
 assertConfig();
 
@@ -14,8 +16,15 @@ for (const cmd of [mvp, stats, signup, profile, addwar, balance]) commands.set(c
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-client.once(Events.ClientReady, (c) => {
+client.once(Events.ClientReady, async (c) => {
   console.log(`✅ Logged in as ${c.user.tag}. Serving ${commands.size} commands.`);
+  if (workerEnabled()) {
+    // Adopt any sheets the website posted via the Worker (e.g. while we were
+    // offline) so their buttons work, then keep checking on an interval.
+    const n = await syncFromWorker(c);
+    if (n) console.log(`🔗 Hydrated ${n} sign-up(s) from the Worker relay.`);
+    setInterval(() => syncFromWorker(c), 60_000);
+  }
 });
 
 client.on(Events.InteractionCreate, async (interaction) => {

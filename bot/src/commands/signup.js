@@ -13,6 +13,9 @@ import {
 import { signupEmbed, signupComponents, ROLE_BY_ID, STATUS_BY_ID } from "../lib/embeds.js";
 import { isAdmin, refreshSignupMessage } from "../lib/signup-message.js";
 import { SIGNUP_ROLES, SIGNUP_STATUSES, BDO_CLASSES } from "../config.js";
+import { getSignupChannelId, setSignupChannelId } from "../lib/bot-config.js";
+import { pushConfig, workerEnabled } from "../lib/worker.js";
+import { hydrateSignup } from "../lib/worker-sync.js";
 
 const ROLE_CHOICES = SIGNUP_ROLES.map((r) => ({ name: r.label, value: r.id }));
 const STATUS_CHOICES = SIGNUP_STATUSES.map((s) => ({ name: s.label, value: s.id }));
@@ -68,7 +71,23 @@ export const data = new SlashCommandBuilder()
       .addStringOption((o) => o.setName("notes").setDescription("New notes"))
   )
   .addSubcommand((s) => s.setName("close").setDescription("Close the sign-up (locks buttons)."))
-  .addSubcommand((s) => s.setName("reopen").setDescription("Reopen a closed sign-up."));
+  .addSubcommand((s) => s.setName("reopen").setDescription("Reopen a closed sign-up."))
+  .addSubcommandGroup((g) =>
+    g
+      .setName("channel")
+      .setDescription("Where the website's Sign Ups page posts sheets.")
+      .addSubcommand((s) =>
+        s
+          .setName("set")
+          .setDescription("Set the channel website-posted sign-up sheets go to.")
+          .addChannelOption((o) =>
+            o.setName("channel").setDescription("Target channel").setRequired(true)
+          )
+      )
+      .addSubcommand((s) =>
+        s.setName("show").setDescription("Show the currently designated sign-up channel.")
+      )
+  );
 
 export async function autocomplete(interaction) {
   const focused = interaction.options.getFocused().toLowerCase();
@@ -98,7 +117,30 @@ export async function execute(interaction) {
     });
   }
 
+  const group = interaction.options.getSubcommandGroup(false);
   const sub = interaction.options.getSubcommand();
+
+  if (group === "channel") {
+    if (sub === "set") {
+      const channel = interaction.options.getChannel("channel");
+      setSignupChannelId(channel.id);
+      let note = `✅ Sign-up sheets from the website will post to <#${channel.id}>.`;
+      if (workerEnabled()) {
+        const r = await pushConfig(channel.id);
+        if (!r.ok) note += `\n⚠️ Couldn't reach the Worker to save it remotely (${r.error || r.status || "no response"}). It's stored locally; try again when the relay is up.`;
+      } else {
+        note += `\n⚠️ \`WORKER_URL\` isn't set, so website posting is off until the relay is configured.`;
+      }
+      return interaction.reply({ content: note, ephemeral: true });
+    }
+    if (sub === "show") {
+      const id = getSignupChannelId();
+      return interaction.reply({
+        content: id ? `Current sign-up channel: <#${id}>.` : "No sign-up channel set yet. Use `/signup channel set`.",
+        ephemeral: true,
+      });
+    }
+  }
 
   if (sub === "create") {
     const date = interaction.options.getString("date");
@@ -181,7 +223,9 @@ export async function execute(interaction) {
 // ---- component handlers (self-service for any member) ----
 
 export async function handleComponent(interaction) {
-  const signup = getSignup(interaction.message.id);
+  // The sheet may have been posted by the website via the Worker since our last
+  // sync — try a one-shot hydrate before giving up on it.
+  let signup = getSignup(interaction.message.id) || (await hydrateSignup(interaction.message.id));
   if (!signup) {
     return interaction.reply({ content: "This sign-up is no longer tracked.", ephemeral: true });
   }

@@ -1,6 +1,7 @@
 import { PermissionFlagsBits } from "discord.js";
 import { ADMIN_ROLE_IDS } from "../config.js";
 import { signupEmbed, signupComponents } from "./embeds.js";
+import { pushState } from "./worker.js";
 
 /** True if the member may run admin sign-up actions. */
 export function isAdmin(interaction) {
@@ -24,6 +25,9 @@ export async function refreshSignupMessage(client, signup) {
       embeds: [signupEmbed(signup)],
       components: signupComponents(signup),
     });
+    // Mirror the new state to the Worker for the website's live view — never let
+    // a Worker hiccup affect the Discord update, so this is fire-and-forget.
+    pushState(signup).catch(() => {});
     return true;
   } catch (err) {
     console.error("Failed to refresh sign-up message:", err.message);

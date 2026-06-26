@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign Ups — Node War Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:            #08060C;
+    --bg2:           #0C0A12;
+    --panel:         #110D18;
+    --panel-raised:  #181222;
+    --hairline:      #2A1F3A;
+    --hairline-soft: #1A1426;
+    --text:          #EDE8E0;
+    --text-muted:    #8A8088;
+    --text-faint:    #4E454A;
+    --crimson:       #6E1FB8;
+    --crimson-mid:   #8B2FD9;
+    --crimson-bright:#AB4DFF;
+    --crimson-glow:  #C77DFF;
+    --gold:          #C49A30;
+    --gold-bright:   #E8BC55;
+    --red:           #B2402F;
+    --red-bright:    #D65A45;
+    --green:         #4A9F5D;
+    --green-bright:  #5BC976;
+    --bronze:        #8C6A3F;
+    --orange:        #E0793C;
+    --font-display:  'Fraunces', serif;
+    --font-mono:     'IBM Plex Mono', monospace;
+    --font-ui:       'Inter', sans-serif;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; }
+  body{
+    background:var(--bg); color:var(--text); font-family:var(--font-ui);
+    min-height:100vh; position:relative; overflow-x:hidden;
+  }
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(110,31,184,0.18), transparent 65%),
+      radial-gradient(ellipse 40% 60% at 0% 100%, rgba(100,10,10,0.12), transparent 60%),
+      radial-gradient(ellipse 40% 60% at 100% 80%, rgba(100,10,10,0.08), transparent 60%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
+  }
+  main, header, footer, nav{ position:relative; z-index:1; }
+
+  .btn{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:0.04em;
+    padding:8px 16px; border-radius:999px; cursor:pointer;
+    border:1px solid var(--hairline); background:var(--panel);
+    color:var(--text-muted); transition:all 0.16s ease;
+  }
+  .btn:hover{ color:var(--text); border-color:rgba(255,255,255,0.18); }
+  .btn:disabled{ opacity:0.4; cursor:not-allowed; }
+  .btn.gold{ color:var(--gold-bright); border-color:var(--gold); background:rgba(217,164,65,0.1); }
+  .btn.gold:hover{ background:rgba(217,164,65,0.18); box-shadow:0 0 16px rgba(217,164,65,0.12); }
+  .btn.purple{ color:var(--crimson-glow); border-color:var(--crimson); background:rgba(110,31,184,0.16); }
+  .btn.purple:hover:not(:disabled){ background:rgba(110,31,184,0.28); box-shadow:0 0 16px rgba(110,31,184,0.2); }
+
+  /* Details inputs */
+  .details{
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:14px;
+    background:var(--panel); border:1px solid var(--hairline);
+    border-radius:14px; padding:18px;
+  }
+  .field{ display:flex; flex-direction:column; gap:6px; }
+  .field.wide{ grid-column:1 / -1; }
+  .field label{
+    font-family:var(--font-mono); font-size:9.5px; letter-spacing:0.16em;
+    text-transform:uppercase; color:var(--text-faint);
+  }
+  .field input, .field textarea{
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    color:var(--text); font-family:var(--font-ui); font-size:13px;
+    padding:9px 11px; border-radius:8px; outline:none;
+    transition:border-color 0.16s;
+  }
+  .field input:focus, .field textarea:focus{ border-color:var(--crimson); }
+  .field textarea{ resize:vertical; min-height:46px; }
+
+  /* Toolbar */
+  .signup-toolbar{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    margin:22px 0 18px;
+  }
+  .conn{
+    display:flex; align-items:center; gap:8px;
+    font-family:var(--font-mono); font-size:11px; color:var(--text-muted);
+  }
+  .conn .dot{ width:9px; height:9px; border-radius:50%; background:var(--text-faint); box-shadow:0 0 0 3px rgba(255,255,255,0.03); }
+  .conn .dot.on{ background:var(--green-bright); box-shadow:0 0 10px rgba(91,201,118,0.6); }
+  .conn .dot.off{ background:var(--red-bright); box-shadow:0 0 10px rgba(214,90,69,0.5); }
+  .toolbar-spacer{ flex:1; }
+
+  /* Add-member row */
+  .add-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
+  .add-row select, .add-row input{
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    color:var(--text); font-family:var(--font-ui); font-size:13px;
+    padding:8px 10px; border-radius:8px; outline:none;
+  }
+  .add-row .hint{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint); }
+
+  /* Board */
+  .board{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(210px, 1fr));
+    gap:14px;
+  }
+  .col{
+    background:var(--panel); border:1px solid var(--hairline);
+    border-radius:12px; padding:11px; display:flex; flex-direction:column; gap:8px;
+    min-height:120px;
+  }
+  .col.special{ background:rgba(110,31,184,0.05); }
+  .col-head{
+    display:flex; align-items:center; justify-content:space-between; gap:6px;
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.03em;
+    color:var(--text); padding-bottom:7px; border-bottom:1px solid var(--hairline-soft);
+  }
+  .col-head .cap{ font-size:10px; color:var(--text-faint); }
+  .col-head .cap.full{ color:var(--red-bright); }
+  .zone{ display:flex; flex-direction:column; gap:7px; flex:1; border-radius:8px; padding:3px; min-height:60px; transition:background 0.15s, box-shadow 0.15s; }
+  .zone.drag-over{ background:rgba(110,31,184,0.1); box-shadow:inset 0 0 0 2px var(--crimson); }
+  .zone-empty{ font-family:var(--font-mono); font-size:10px; color:var(--text-faint); text-align:center; padding:10px 0; opacity:0.6; }
+
+  .chip{
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    border-radius:9px; padding:8px 9px; cursor:grab;
+    display:flex; flex-direction:column; gap:7px; user-select:none;
+    transition:opacity 0.15s, border-color 0.15s;
+  }
+  .chip:hover{ border-color:rgba(255,255,255,0.2); }
+  .chip.dragging{ opacity:0.35; }
+  .chip-top{ display:flex; align-items:center; gap:7px; }
+  .chip-num{ font-family:var(--font-mono); font-size:10px; color:var(--crimson-glow); background:rgba(110,31,184,0.16); padding:1px 6px; border-radius:5px; flex:none; }
+  .chip-name{ font-size:13px; font-weight:600; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .chip-name.bench{ text-decoration:line-through; color:var(--text-muted); }
+  .chip-x{ background:none; border:none; color:var(--text-faint); cursor:pointer; font-size:14px; line-height:1; padding:0 2px; }
+  .chip-x:hover{ color:var(--red-bright); }
+  .chip-ctrls{ display:flex; gap:6px; }
+  .chip-ctrls select{
+    flex:1; min-width:0; background:var(--panel); border:1px solid var(--hairline);
+    color:var(--text-muted); font-family:var(--font-mono); font-size:10px;
+    padding:4px 5px; border-radius:6px; cursor:pointer; appearance:none; -webkit-appearance:none; outline:none;
+  }
+  .chip-ctrls select:hover{ border-color:rgba(255,255,255,0.2); }
+
+  /* Live view */
+  .live{
+    background:var(--panel); border:1px solid var(--hairline);
+    border-radius:14px; padding:18px; margin-top:30px;
+  }
+  .live-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; }
+  .live-title{ font-family:var(--font-mono); font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--crimson-bright); }
+  .live-stamp{ font-family:var(--font-mono); font-size:10px; color:var(--text-faint); }
+  .live-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:12px; }
+  .live-col{ background:var(--panel-raised); border:1px solid var(--hairline-soft); border-radius:9px; padding:10px; }
+  .live-col h4{ font-family:var(--font-mono); font-size:10.5px; color:var(--text); margin-bottom:6px; }
+  .live-col .ln{ font-family:var(--font-mono); font-size:11px; color:var(--text-muted); line-height:1.7; }
+  .live-col .ln.bench{ text-decoration:line-through; opacity:0.7; }
+  .live-empty{ font-family:var(--font-mono); font-size:12px; color:var(--text-faint); padding:14px 0; }
+
+  /* Toast */
+  .toast{
+    position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    border-radius:10px; padding:11px 20px;
+    font-family:var(--font-mono); font-size:12px; color:var(--text-muted);
+    box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    opacity:0; transition:opacity 0.22s ease, transform 0.22s ease;
+    pointer-events:none; z-index:200; max-width:80vw;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .toast.success{ color:var(--green-bright); border-color:rgba(91,201,118,0.3); }
+  .toast.error{ color:var(--red-bright); border-color:rgba(214,90,69,0.4); }
+
+  footer{
+    text-align:center; padding:36px 24px 56px;
+    font-size:12px; color:var(--text-faint); font-family:var(--font-mono);
+  }
+</style>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<div class="app-shell">
+<aside class="app-sidebar">
+  <a class="app-brand" href="home.html">
+    <span class="app-brand-logo">⚔</span>
+    <span class="app-brand-text">
+      <span class="app-brand-name">Purge</span>
+      <span class="app-brand-sub">Node War</span>
+    </span>
+  </a>
+  <div class="side-nav-label">Menu</div>
+  <nav class="side-nav">
+    <a href="home.html"><span class="ico">🏠</span> Home</a>
+    <a href="index.html"><span class="ico">⚔️</span> War Scores</a>
+    <a href="players.html"><span class="ico">👥</span> Roster</a>
+    <a href="dashboard.html"><span class="ico">📊</span> Dashboard</a>
+    <a href="signups.html" class="current"><span class="ico">📝</span> Sign Ups</a>
+  </nav>
+  <div class="app-sidebar-foot">
+    <b>Purge</b> · BDO Guild<br>
+    Node War Log
+  </div>
+</aside>
+
+<main class="app-content">
+
+<div class="page-head">
+  <div class="page-head-row">
+    <div>
+      <div class="page-eyebrow">Node War</div>
+      <h1>Sign <span>Ups</span></h1>
+      <div class="page-sub">Build the sheet, drag members into roles, then post it to Discord.</div>
+    </div>
+  </div>
+</div>
+
+<!-- War details -->
+<div class="details">
+  <div class="field"><label>Date</label><input type="date" id="fDate"></div>
+  <div class="field"><label>Time</label><input type="text" id="fTime" placeholder="11:00 PM EST"></div>
+  <div class="field"><label>Node / Location</label><input type="text" id="fLocation" placeholder="Mediah"></div>
+  <div class="field"><label>Status</label>
+    <select id="fStatus" style="background:var(--panel-raised);border:1px solid var(--hairline);color:var(--text);font-family:var(--font-ui);font-size:13px;padding:9px 11px;border-radius:8px;outline:none;">
+      <option value="open">Open</option>
+      <option value="closed">Closed</option>
+    </select>
+  </div>
+  <div class="field wide"><label>Notes (rules / requirements)</label><textarea id="fNotes" placeholder="Bring pots, be on time…"></textarea></div>
+</div>
+
+<!-- Toolbar -->
+<div class="signup-toolbar">
+  <div class="conn"><span class="dot" id="connDot"></span><span id="connText">Checking relay…</span></div>
+  <div class="toolbar-spacer"></div>
+  <button class="btn" id="refreshBtn" type="button">↻ Refresh live view</button>
+  <button class="btn" id="clearBtn" type="button">Clear draft</button>
+  <button class="btn purple" id="repostBtn" type="button" disabled>Re-post edits</button>
+  <button class="btn gold" id="postBtn" type="button">Post to Discord</button>
+</div>
+
+<!-- Add member -->
+<div class="add-row">
+  <select id="addSelect"><option value="">+ Add roster member…</option></select>
+  <button class="btn" id="addBtn" type="button">Add</button>
+  <input type="text" id="guestInput" placeholder="…or type a guest name" style="min-width:180px;">
+  <button class="btn" id="guestBtn" type="button">Add guest</button>
+  <span class="hint">Drag chips between columns · use each chip's selectors to set status &amp; class</span>
+</div>
+
+<!-- Editable board -->
+<div class="board" id="board"></div>
+
+<!-- Live Discord state -->
+<div class="live">
+  <div class="live-head">
+    <div class="live-title">What Discord shows right now</div>
+    <div class="live-stamp" id="liveStamp">—</div>
+  </div>
+  <div id="liveBody"><div class="live-empty">Loading live sign-up state…</div></div>
+</div>
+
+</main>
+</div><!-- /app-shell -->
+
+<footer>Node War Log · Sign Ups</footer>
+<div class="toast" id="toast"></div>
+
+<!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
+<script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script>document.write('<scr'+'ipt src="profiles.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script>
+/* ============================================================================
+   Sign Ups — editable Node War sheet that posts to Discord via the Cloudflare
+   Worker relay (worker/). See worker/README.md for setup.
+   ========================================================================== */
+
+// ---- Worker URL --------------------------------------------------------------
+// Set this to your deployed Worker. For local testing you can instead run
+//   localStorage.signupWorkerUrl = "http://localhost:8787"
+// in the browser console (it overrides the constant below).
+const WORKER_URL = (localStorage.getItem("signupWorkerUrl")
+  || "https://purge-signups.itzdjpsycho.workers.dev").replace(/\/+$/, "");
+
+// ---- MIRROR of bot/src/config.js — keep in sync -----------------------------
+const SIGNUP_ROLES = [
+  { id:"frontliner", label:"Frontliner", emoji:"⚔️", cap:5 },
+  { id:"ranged",     label:"Ranged",     emoji:"🏹", cap:4 },
+  { id:"skirmisher", label:"Skirmisher", emoji:"🗡️", cap:6 },
+  { id:"caster",     label:"Caster",     emoji:"🔮", cap:3 },
+  { id:"shai",       label:"Shai",       emoji:"🎶", cap:2 },
+  { id:"trooper",    label:"Trooper",    emoji:"🐎", cap:3 },
+  { id:"defense",    label:"Defense",    emoji:"🛡️", cap:3 },
+  { id:"flex",       label:"Flex",       emoji:"🔀", cap:1 },
+  { id:"scout",      label:"Scout",      emoji:"🔭", cap:1 },
+  { id:"elephant",   label:"Elephant",   emoji:"🐘", cap:1 },
+  { id:"shotcaller", label:"Shotcaller", emoji:"📣", cap:1 },
+];
+const SIGNUP_STATUSES = [
+  { id:"in",        label:"In-game" },
+  { id:"bench",     label:"Bench" },
+  { id:"late",      label:"Late" },
+  { id:"tentative", label:"Tentative" },
+  { id:"absence",   label:"Absence" },
+];
+const BDO_CLASSES = [
+  "Warrior","Ranger","Sorceress","Berserker","Tamer","Musa","Maehwa",
+  "Valkyrie","Kunoichi","Ninja","Wizard","Witch","Dark Knight","Striker",
+  "Mystic","Lahn","Archer","Shai","Guardian","Nova","Sage","Corsair",
+  "Hashashin","Drakania","Woosa","Maegu","Scholar","Dosa","Deadeye",
+  "Wukong","Seraph",
+];
+const ROLE_BY_ID = Object.fromEntries(SIGNUP_ROLES.map(r => [r.id, r]));
+
+// ---- State ------------------------------------------------------------------
+const STORE_KEY = "nodeWarSignups";
+let model = load();
+
+function load(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw) return normalizeModel(JSON.parse(raw));
+  }catch(e){}
+  return normalizeModel({});
+}
+function normalizeModel(m){
+  return {
+    date: m.date || "", time: m.time || "", location: m.location || "",
+    notes: m.notes || "", status: m.status === "closed" ? "closed" : "open",
+    messageId: m.messageId || null, channelId: m.channelId || null,
+    seq: m.seq || 0, entries: m.entries || {},
+  };
+}
+function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(model)); }catch(e){ toast("Could not save locally","error"); } }
+
+const slug = (s) => String(s||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"") || "guest";
+
+function roster(){
+  try{ return (window.GUILD_DATA && window.GUILD_DATA.rosterMembers) || []; }catch(e){ return []; }
+}
+function classHint(name){
+  try{ return (window.GUILD_PROFILES && window.GUILD_PROFILES[name] && window.GUILD_PROFILES[name].class) || null; }catch(e){ return null; }
+}
+
+// ---- Entry helpers ----------------------------------------------------------
+function addEntry(name){
+  name = (name||"").trim();
+  if(!name) return;
+  // avoid duplicates by name (case-insensitive)
+  const exists = Object.values(model.entries).some(e => e.name.toLowerCase() === name.toLowerCase());
+  if(exists){ toast(`${name} is already on the sheet`); return; }
+  const key = "k:" + slug(name) + ":" + (++model.seq);
+  model.entries[key] = { num: model.seq, name, status:"in", role:null, cls: classHint(name) };
+  save(); render(); refreshAddSelect();
+}
+function removeEntry(key){ delete model.entries[key]; save(); render(); refreshAddSelect(); }
+
+function roleFill(roleId, exceptKey){
+  return Object.entries(model.entries).filter(([k,e]) =>
+    k !== exceptKey && e.role === roleId && (e.status === "in" || e.status === "late")
+  ).length;
+}
+
+// Drop an entry into a zone. zoneRole: role id, or "" unassigned, or special status zones.
+function dropInto(key, zone){
+  const e = model.entries[key];
+  if(!e) return;
+  if(zone === "bench"){ e.status = "bench"; e.role = null; }
+  else if(zone === "tentative"){ e.status = "tentative"; }
+  else if(zone === "absence"){ e.status = "absence"; }
+  else if(zone === ""){ // unassigned
+    e.role = null;
+    if(e.status === "tentative" || e.status === "absence") e.status = "in";
+  } else { // a role column
+    let newStatus = e.status;
+    if(newStatus === "tentative" || newStatus === "absence") newStatus = "in";
+    const active = (newStatus === "in" || newStatus === "late");
+    const cap = ROLE_BY_ID[zone] ? ROLE_BY_ID[zone].cap : 99;
+    if(active && e.role !== zone && roleFill(zone, key) >= cap){
+      toast(`${ROLE_BY_ID[zone].label} is full (${cap}/${cap})`, "error");
+      return;
+    }
+    e.role = zone; e.status = newStatus;
+  }
+  save(); render();
+}
+
+// ---- Bucketing (mirrors the bot's arrange()) --------------------------------
+function arrange(){
+  const byRole = Object.fromEntries(SIGNUP_ROLES.map(r => [r.id, []]));
+  const unassigned = [], benchNoRole = [], tentative = [], absence = [];
+  const list = Object.entries(model.entries).map(([k,e]) => ({ key:k, ...e })).sort((a,b)=>a.num-b.num);
+  for(const e of list){
+    if(e.status === "tentative") tentative.push(e);
+    else if(e.status === "absence") absence.push(e);
+    else if(e.role && byRole[e.role]) byRole[e.role].push(e);
+    else if(e.status === "bench") benchNoRole.push(e);
+    else unassigned.push(e);
+  }
+  return { byRole, unassigned, benchNoRole, tentative, absence };
+}
+
+// ---- Render -----------------------------------------------------------------
+function chipHTML(e){
+  const benchCls = e.status === "bench" ? " bench" : "";
+  const late = e.status === "late" ? " ⏰" : "";
+  const statusOpts = SIGNUP_STATUSES.map(s => `<option value="${s.id}"${e.status===s.id?" selected":""}>${s.label}</option>`).join("");
+  const classOpts = `<option value="">— class —</option>` + BDO_CLASSES.map(c => `<option value="${c}"${e.cls===c?" selected":""}>${c}</option>`).join("");
+  return `<div class="chip" draggable="true" data-key="${e.key}">
+    <div class="chip-top">
+      <span class="chip-num">${String(e.num).padStart(2," ")}</span>
+      <span class="chip-name${benchCls}">${escapeHtml(e.name)}${late}</span>
+      <button class="chip-x" data-remove="${e.key}" title="Remove">×</button>
+    </div>
+    <div class="chip-ctrls">
+      <select data-status="${e.key}">${statusOpts}</select>
+      <select data-class="${e.key}">${classOpts}</select>
+    </div>
+  </div>`;
+}
+function colHTML(title, capText, zone, chips, special){
+  const inner = chips.length ? chips.map(chipHTML).join("") : `<div class="zone-empty">drop here</div>`;
+  const capHtml = capText ? `<span class="cap${capText.full?" full":""}">${capText.text}</span>` : "";
+  return `<div class="col${special?" special":""}">
+    <div class="col-head"><span>${title}</span>${capHtml}</div>
+    <div class="zone" data-zone="${zone}">${inner}</div>
+  </div>`;
+}
+function render(){
+  // details inputs
+  byId("fDate").value = model.date;
+  byId("fTime").value = model.time;
+  byId("fLocation").value = model.location;
+  byId("fNotes").value = model.notes;
+  byId("fStatus").value = model.status;
+  byId("repostBtn").disabled = !model.messageId;
+  byId("postBtn").textContent = model.messageId ? "Post as new" : "Post to Discord";
+
+  const g = arrange();
+  let html = "";
+  html += colHTML("🎯 Unassigned", null, "", g.unassigned, true);
+  for(const r of SIGNUP_ROLES){
+    const fill = roleFill(r.id);
+    html += colHTML(`${r.emoji} ${r.label}`, { text:`${fill}/${r.cap}`, full: fill>=r.cap }, r.id, g.byRole[r.id], false);
+  }
+  html += colHTML("🪑 Bench", null, "bench", g.benchNoRole, true);
+  html += colHTML("⚖️ Tentative", null, "tentative", g.tentative, true);
+  html += colHTML("🚫 Absence", null, "absence", g.absence, true);
+  byId("board").innerHTML = html;
+  wireBoard();
+}
+
+function wireBoard(){
+  const board = byId("board");
+  board.querySelectorAll(".chip").forEach(chip => {
+    chip.addEventListener("dragstart", e => {
+      if(e.target.closest("select,button")){ e.preventDefault(); return; }
+      e.dataTransfer.setData("text/plain", chip.dataset.key);
+      e.dataTransfer.effectAllowed = "move";
+      chip.classList.add("dragging");
+    });
+    chip.addEventListener("dragend", () => chip.classList.remove("dragging"));
+  });
+  board.querySelectorAll(".zone").forEach(zone => {
+    zone.addEventListener("dragover", e => { e.preventDefault(); e.dataTransfer.dropEffect="move"; zone.classList.add("drag-over"); });
+    zone.addEventListener("dragleave", () => zone.classList.remove("drag-over"));
+    zone.addEventListener("drop", e => {
+      e.preventDefault(); zone.classList.remove("drag-over");
+      const key = e.dataTransfer.getData("text/plain");
+      if(key) dropInto(key, zone.dataset.zone);
+    });
+  });
+  board.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => removeEntry(b.dataset.remove)));
+  board.querySelectorAll("[data-status]").forEach(sel => sel.addEventListener("change", () => {
+    const e = model.entries[sel.dataset.status]; if(!e) return;
+    e.status = sel.value;
+    if((e.status==="tentative"||e.status==="absence")) { /* stays, role kept for memory */ }
+    save(); render();
+  }));
+  board.querySelectorAll("[data-class]").forEach(sel => sel.addEventListener("change", () => {
+    const e = model.entries[sel.dataset.class]; if(!e) return;
+    e.cls = sel.value || null; save();
+  }));
+}
+
+function refreshAddSelect(){
+  const sel = byId("addSelect");
+  const onSheet = new Set(Object.values(model.entries).map(e => e.name.toLowerCase()));
+  const names = roster().filter(n => !onSheet.has(n.toLowerCase())).sort((a,b)=>a.localeCompare(b));
+  sel.innerHTML = `<option value="">+ Add roster member…</option>` + names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join("");
+}
+
+// ---- Payloads ---------------------------------------------------------------
+function toPayload(){
+  const entries = Object.values(model.entries)
+    .map(e => ({ num:e.num, name:e.name, status:e.status, role:e.role||null, cls:e.cls||null }))
+    .sort((a,b)=>a.num-b.num);
+  return {
+    messageId: model.messageId, date: model.date, time: model.time,
+    location: model.location, notes: model.notes, status: model.status,
+    seq: model.seq, entries,
+  };
+}
+
+// ---- Worker calls -----------------------------------------------------------
+function adminPassword(){
+  let pw = localStorage.getItem("signupAdminPassword");
+  if(!pw){
+    pw = prompt("Admin password (set on the Worker) — needed to post to Discord:");
+    if(pw) localStorage.setItem("signupAdminPassword", pw);
+  }
+  return pw;
+}
+
+async function postSheet(isEdit){
+  const pw = adminPassword();
+  if(!pw){ toast("Posting cancelled — no password", "error"); return; }
+  const payload = toPayload();
+  if(isEdit && !payload.messageId){ toast("Nothing posted yet to edit", "error"); return; }
+
+  const btn = isEdit ? byId("repostBtn") : byId("postBtn");
+  const label = btn.textContent; btn.disabled = true; btn.textContent = "Posting…";
+  try{
+    const res = await fetch(`${WORKER_URL}/${isEdit ? "edit" : "post"}`, {
+      method:"POST",
+      headers:{ "content-type":"application/json", "x-admin-password": pw },
+      body: JSON.stringify(payload),
+    });
+    if(res.status === 401){
+      localStorage.removeItem("signupAdminPassword");
+      toast("Wrong password — try again", "error"); return;
+    }
+    if(res.status === 428){ toast("An admin must run /signup channel set #channel in Discord first", "error"); return; }
+    if(!res.ok){ const t = await res.text().catch(()=> ""); toast(`Post failed (${res.status})`, "error"); console.error(t); return; }
+    const data = await res.json();
+    model.messageId = data.messageId; model.channelId = data.channelId; save();
+    toast(isEdit ? "Sheet updated in Discord" : "Posted to Discord ✓", "success");
+    render(); loadLive();
+  }catch(err){
+    toast("Couldn't reach the relay", "error"); console.error(err);
+  }finally{
+    btn.disabled = (btn === byId("repostBtn")) ? !model.messageId : false;
+    btn.textContent = label;
+  }
+}
+
+async function repostMerged(){
+  // Pull live state first so member edits made in Discord aren't clobbered:
+  // the draft is authoritative for entries it contains; live-only names are kept.
+  try{
+    const live = await fetchLive();
+    if(live && Array.isArray(live.entries)){
+      const have = new Set(Object.values(model.entries).map(e => e.name.toLowerCase()));
+      for(const le of live.entries){
+        if(!have.has((le.name||"").toLowerCase())){
+          const key = "k:" + slug(le.name) + ":" + (++model.seq);
+          model.entries[key] = { num: le.num || model.seq, name: le.name, status: le.status||"in", role: le.role||null, cls: le.cls||null };
+        }
+      }
+      save(); render();
+    }
+  }catch(e){}
+  postSheet(true);
+}
+
+// ---- Live view --------------------------------------------------------------
+async function fetchLive(){
+  const res = await fetch(`${WORKER_URL}/state`, { cache:"no-store" });
+  setConn(res.ok);
+  if(!res.ok) return null;
+  return res.json();
+}
+function nameLine(e){ const late = e.status==="late"?" ⏰":""; const cls = e.cls?` · ${e.cls}`:""; return `<div class="ln${e.status==="bench"?" bench":""}">\`${String(e.num).padStart(2," ")}\` ${escapeHtml(e.name)}${late}${cls}</div>`; }
+async function loadLive(){
+  let state;
+  try{ state = await fetchLive(); }catch(e){ setConn(false); byId("liveBody").innerHTML = `<div class="live-empty">Relay not reachable. Posting won't work until it's up.</div>`; return; }
+  if(!state || !state.entries || !state.entries.length){
+    byId("liveStamp").textContent = "—";
+    byId("liveBody").innerHTML = `<div class="live-empty">No sign-up posted to Discord yet.</div>`;
+    return;
+  }
+  byId("liveStamp").textContent = "updated " + (state.updatedAt ? new Date(state.updatedAt).toLocaleTimeString() : "—");
+  const entries = state.entries.slice().sort((a,b)=>a.num-b.num);
+  const byRole = Object.fromEntries(SIGNUP_ROLES.map(r=>[r.id,[]]));
+  const extra = { Unassigned:[], Bench:[], Tentative:[], Absence:[] };
+  for(const e of entries){
+    if(e.status==="tentative") extra.Tentative.push(e);
+    else if(e.status==="absence") extra.Absence.push(e);
+    else if(e.role && byRole[e.role]) byRole[e.role].push(e);
+    else if(e.status==="bench") extra.Bench.push(e);
+    else extra.Unassigned.push(e);
+  }
+  let html = "";
+  const head = `<div class="live-col" style="grid-column:1/-1;background:transparent;border:none;padding:0;">
+    <div class="ln">📍 ${escapeHtml(state.location||"TBD")} · 📅 ${escapeHtml(state.date||"TBD")} · 🕐 ${escapeHtml(state.time||"TBD")}${state.status==="closed"?" · <b style='color:var(--red-bright)'>CLOSED</b>":""}</div>
+  </div>`;
+  for(const r of SIGNUP_ROLES){
+    const list = byRole[r.id];
+    const fill = list.filter(e=>e.status==="in"||e.status==="late").length;
+    html += `<div class="live-col"><h4>${r.emoji} ${r.label} (${fill}/${r.cap})</h4>${list.length?list.map(nameLine).join(""):'<div class="ln" style="opacity:.5">—</div>'}</div>`;
+  }
+  for(const [title, list] of Object.entries(extra)){
+    if(!list.length) continue;
+    html += `<div class="live-col"><h4>${title} (${list.length})</h4>${list.map(nameLine).join("")}</div>`;
+  }
+  byId("liveBody").innerHTML = head + html;
+}
+
+function setConn(ok){
+  const dot = byId("connDot"), txt = byId("connText");
+  dot.className = "dot " + (ok ? "on" : "off");
+  txt.textContent = ok ? "Relay connected" : "Relay offline";
+}
+
+// ---- Misc -------------------------------------------------------------------
+function byId(id){ return document.getElementById(id); }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+let toastTimer;
+function toast(msg, kind){
+  const t = byId("toast"); t.textContent = msg;
+  t.className = "toast show" + (kind ? " " + kind : "");
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=> t.className = "toast", 2600);
+}
+
+// ---- Wire-up ----------------------------------------------------------------
+function bindDetail(id, field){
+  byId(id).addEventListener("input", () => { model[field] = byId(id).value; save(); });
+}
+bindDetail("fDate","date"); bindDetail("fTime","time"); bindDetail("fLocation","location"); bindDetail("fNotes","notes");
+byId("fStatus").addEventListener("change", () => { model.status = byId("fStatus").value; save(); render(); });
+
+byId("addBtn").addEventListener("click", () => { const v = byId("addSelect").value; if(v){ addEntry(v); byId("addSelect").value=""; } });
+byId("guestBtn").addEventListener("click", () => { const v = byId("guestInput").value; if(v){ addEntry(v); byId("guestInput").value=""; } });
+byId("guestInput").addEventListener("keydown", e => { if(e.key==="Enter"){ const v=byId("guestInput").value; if(v){ addEntry(v); byId("guestInput").value=""; } } });
+byId("postBtn").addEventListener("click", () => postSheet(false));
+byId("repostBtn").addEventListener("click", repostMerged);
+byId("refreshBtn").addEventListener("click", loadLive);
+byId("clearBtn").addEventListener("click", () => {
+  if(!confirm("Clear the draft sheet? (This only clears your local draft, not anything already posted to Discord.)")) return;
+  model = normalizeModel({ date: model.date, time: model.time, location: model.location, status: model.status });
+  save(); render(); refreshAddSelect(); toast("Draft cleared");
+});
+
+// data.js / profiles.js load async via document.write; give them a tick.
+function init(){ refreshAddSelect(); render(); loadLive(); setInterval(loadLive, 15000); }
+if(window.GUILD_DATA) init(); else window.addEventListener("load", init);
+</script>
+</body>
+</html>

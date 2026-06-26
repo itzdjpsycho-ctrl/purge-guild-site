@@ -70,6 +70,20 @@ export function getSignup(messageId) {
   return readAll()[messageId] || null;
 }
 
+/**
+ * Insert a fully-formed sign-up record (e.g. hydrated from the Worker relay for
+ * a sheet posted while the bot was offline). No-op if the message id is already
+ * tracked, so the locally-maintained copy always wins. Preserves the record's
+ * own `num`/`seq` (the Worker is the slot-number allocator at post time).
+ */
+export function importSignup(record) {
+  const store = readAll();
+  if (store[record.messageId]) return store[record.messageId];
+  store[record.messageId] = record;
+  writeAll(store);
+  return record;
+}
+
 /** Most recently created OPEN sign-up, used as the default target for admin edits. */
 export function latestOpenSignup() {
   const all = Object.values(readAll());

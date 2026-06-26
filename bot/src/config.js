@@ -33,6 +33,16 @@ export const MVP_WEIGHTS = {
 export const SITE_URL = process.env.SITE_URL || "https://itzdjpsycho-ctrl.github.io/purge-guild-site";
 
 /**
+ * Cloudflare Worker relay that bridges the website's "Sign Ups" page to Discord.
+ * OPTIONAL — if `WORKER_URL` is unset, all Worker calls become no-ops, so the
+ * bot runs fine standalone. `BOT_PUSH_SECRET` must match the Worker's secret of
+ * the same name; it gates the bot-only endpoints (/state, /config, /posted).
+ * The Worker reuses the value of DISCORD_TOKEN as its own DISCORD_BOT_TOKEN.
+ */
+export const WORKER_URL = (process.env.WORKER_URL || "").replace(/\/+$/, "");
+export const BOT_PUSH_SECRET = process.env.BOT_PUSH_SECRET || "";
+
+/**
  * Anthropic API key for screenshot OCR — reading Gear Score off a gear shot
  * (`/profile upload slot:Gear`) and extracting war results (`/addwar`).
  * OPTIONAL — if unset, gear uploads still save the image (just no auto score)

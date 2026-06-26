@@ -1,0 +1,15 @@
+name = "purge-signups"
+main = "src/worker.js"
+compatibility_date = "2026-01-01"
+
+# Create the namespace once with:  wrangler kv namespace create SIGNUPS_KV
+# then paste the printed id below.
+kv_namespaces = [
+  { binding = "SIGNUPS_KV", id = "080b0d66de544ebe9c5ac9f6f55bf9da" }
+]
+
+# Secrets are NOT stored here — set them with:
+#   wrangler secret put DISCORD_BOT_TOKEN     (same value as the bot's DISCORD_TOKEN)
+#   wrangler secret put ADMIN_POST_PASSWORD   (shared password admins type on the site)
+#   wrangler secret put BOT_PUSH_SECRET       (must match the bot's BOT_PUSH_SECRET)
+# For local `wrangler dev`, put the same three in worker/.dev.vars (git-ignored).
