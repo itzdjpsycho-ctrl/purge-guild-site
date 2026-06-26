@@ -71,6 +71,11 @@ async function getPosted(env) {
   try { return raw ? JSON.parse(raw) : []; } catch { return []; }
 }
 
+async function getOps(env) {
+  const raw = await env.SIGNUPS_KV.get("ops");
+  try { return raw ? JSON.parse(raw) : []; } catch { return []; }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -128,7 +133,25 @@ export default {
       return json({ messageId: state.messageId, channelId: cfg.channelId }, 200, request);
     }
 
-    // ---- bot → state / config / posted (bot-secret gated) ----
+    // ---- website → granular edit op for an already-posted sheet ----
+    // Each board change (add/remove/move/status/class) on a posted sheet queues
+    // one op; the bot drains + applies them to signups.json so Discord-side
+    // self-sign-ups are never overwritten.
+    if (path === "/op" && method === "POST") {
+      if (request.headers.get("x-admin-password") !== env.ADMIN_POST_PASSWORD) {
+        return json({ error: "Bad password." }, 401, request);
+      }
+      const body = await readJson(request);
+      if (!body?.messageId || !body?.op?.type || !body?.op?.name) {
+        return json({ error: "messageId + op{type,name} required." }, 400, request);
+      }
+      const ops = await getOps(env);
+      ops.push({ messageId: body.messageId, op: body.op, at: new Date().toISOString() });
+      await env.SIGNUPS_KV.put("ops", JSON.stringify(ops.slice(-200)));
+      return json({ ok: true }, 200, request);
+    }
+
+    // ---- bot → state / config / posted / ops (bot-secret gated) ----
     const botAuthed = request.headers.get("x-bot-secret") === env.BOT_PUSH_SECRET;
 
     if (path === "/state" && method === "POST") {
@@ -158,6 +181,14 @@ export default {
     if (path === "/posted" && method === "GET") {
       if (!botAuthed) return json({ error: "Bad secret." }, 401, request);
       return json({ posted: await getPosted(env) }, 200, request);
+    }
+
+    // Drain the pending op queue (read + clear) for the bot to apply.
+    if (path === "/ops" && method === "GET") {
+      if (!botAuthed) return json({ error: "Bad secret." }, 401, request);
+      const ops = await getOps(env);
+      if (ops.length) await env.SIGNUPS_KV.put("ops", "[]");
+      return json({ ops }, 200, request);
     }
 
     return json({ error: "Not found." }, 404, request);

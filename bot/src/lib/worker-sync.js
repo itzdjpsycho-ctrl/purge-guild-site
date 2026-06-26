@@ -1,7 +1,7 @@
-import { getSignup, importSignup } from "./signups.js";
+import { getSignup, importSignup, setEntry, removeEntry } from "./signups.js";
 import { userForName } from "./links.js";
 import { refreshSignupMessage } from "./signup-message.js";
-import { fetchPosted, workerEnabled } from "./worker.js";
+import { fetchPosted, fetchOps, workerEnabled } from "./worker.js";
 
 const slug = (s) =>
   String(s || "")
@@ -66,6 +66,69 @@ export async function syncFromWorker(client) {
     console.error("syncFromWorker failed:", err.message);
   }
   return added;
+}
+
+/** Find an entry's store key (userId or synthetic) by display name. */
+function keyForName(signup, name) {
+  const lc = String(name || "").toLowerCase();
+  for (const [k, e] of Object.entries(signup.entries || {})) {
+    if (String(e.name || "").toLowerCase() === lc) return k;
+  }
+  return null;
+}
+
+/**
+ * Drain and apply the website's pending edit-ops (add / remove / update) for
+ * already-posted sheets. Because each op is applied to signups.json (the bot's
+ * source of truth), website edits coexist with Discord-side self-sign-ups and
+ * are never clobbered. Returns how many ops were applied.
+ */
+export async function applyOps(client) {
+  if (!workerEnabled()) return 0;
+  let applied = 0;
+  try {
+    const ops = await fetchOps();
+    if (!ops.length) return 0;
+    const touched = new Set();
+    for (const item of ops) {
+      const { messageId, op } = item;
+      if (!messageId || !op?.name) continue;
+      let signup = getSignup(messageId) || (await hydrateSignup(messageId));
+      if (!signup) continue;
+      const existingKey = keyForName(signup, op.name);
+      const key = existingKey || userForName(op.name) || `name:${slug(op.name)}`;
+
+      if (op.type === "remove") {
+        if (existingKey) removeEntry(messageId, existingKey);
+      } else if (op.type === "add") {
+        setEntry(messageId, key, {
+          status: op.status || "in",
+          role: op.role ?? null,
+          cls: op.cls ?? null,
+          name: op.name,
+        });
+      } else if (op.type === "update") {
+        const fields = { name: op.name };
+        if (op.role !== undefined) fields.role = op.role;
+        if (op.status !== undefined) fields.status = op.status;
+        if (op.cls !== undefined) fields.cls = op.cls;
+        // Updating someone not on the sheet yet = treat as an add.
+        if (!existingKey && fields.status === undefined) fields.status = "in";
+        setEntry(messageId, key, fields);
+      } else {
+        continue;
+      }
+      touched.add(messageId);
+      applied++;
+    }
+    for (const messageId of touched) {
+      const signup = getSignup(messageId);
+      if (signup && client) await refreshSignupMessage(client, signup).catch(() => {});
+    }
+  } catch (err) {
+    console.error("applyOps failed:", err.message);
+  }
+  return applied;
 }
 
 /**

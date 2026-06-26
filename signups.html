@@ -360,10 +360,17 @@ function addEntry(name){
   const exists = Object.values(model.entries).some(e => e.name.toLowerCase() === name.toLowerCase());
   if(exists){ toast(`${name} is already on the sheet`); return; }
   const key = "k:" + slug(name) + ":" + (++model.seq);
-  model.entries[key] = { num: model.seq, name, status:"in", role:null, cls: classHint(name) };
+  const cls = classHint(name);
+  model.entries[key] = { num: model.seq, name, status:"in", role:null, cls };
   save(); render(); refreshAddSelect();
+  enqueueOp({ type:"add", name, status:"in", role:null, cls });
 }
-function removeEntry(key){ delete model.entries[key]; save(); render(); refreshAddSelect(); }
+function removeEntry(key){
+  const e = model.entries[key];
+  const name = e && e.name;
+  delete model.entries[key]; save(); render(); refreshAddSelect();
+  if(name) enqueueOp({ type:"remove", name });
+}
 
 function roleFill(roleId, exceptKey){
   return Object.entries(model.entries).filter(([k,e]) =>
@@ -393,6 +400,7 @@ function dropInto(key, zone){
     e.role = zone; e.status = newStatus;
   }
   save(); render();
+  enqueueOp({ type:"update", name:e.name, role:e.role, status:e.status });
 }
 
 // ---- Bucketing (mirrors the bot's arrange()) --------------------------------
@@ -484,12 +492,13 @@ function wireBoard(){
   board.querySelectorAll("[data-status]").forEach(sel => sel.addEventListener("change", () => {
     const e = model.entries[sel.dataset.status]; if(!e) return;
     e.status = sel.value;
-    if((e.status==="tentative"||e.status==="absence")) { /* stays, role kept for memory */ }
     save(); render();
+    enqueueOp({ type:"update", name:e.name, status:e.status });
   }));
   board.querySelectorAll("[data-class]").forEach(sel => sel.addEventListener("change", () => {
     const e = model.entries[sel.dataset.class]; if(!e) return;
     e.cls = sel.value || null; save();
+    enqueueOp({ type:"update", name:e.name, cls:e.cls });
   }));
 }
 
@@ -513,6 +522,31 @@ function toPayload(){
 }
 
 // ---- Worker calls -----------------------------------------------------------
+// Once a sheet is posted, mirror each board edit to Discord as a small op the
+// bot applies (so it never wipes people who signed up in Discord). No-op before
+// the first post, or if no admin password is stored yet.
+async function enqueueOp(op){
+  if(!model.messageId) return;
+  const pw = localStorage.getItem("signupAdminPassword");
+  if(!pw){ toast("Tip: use Re-post edits to sync this to Discord"); return; }
+  try{
+    const res = await fetch(`${WORKER_URL}/op`, {
+      method:"POST",
+      headers:{ "content-type":"application/json", "x-admin-password": pw },
+      body: JSON.stringify({ messageId: model.messageId, op }),
+    });
+    if(res.ok){ flashSync(); }
+    else if(res.status === 401){ localStorage.removeItem("signupAdminPassword"); }
+  }catch(e){}
+}
+let syncTimer;
+function flashSync(){
+  const txt = byId("connText");
+  txt.textContent = "Synced to Discord ✓";
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(() => loadLive(), 1200);
+}
+
 function adminPassword(){
   let pw = localStorage.getItem("signupAdminPassword");
   if(!pw){

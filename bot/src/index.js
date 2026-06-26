@@ -6,7 +6,7 @@ import * as signup from "./commands/signup.js";
 import * as profile from "./commands/profile.js";
 import * as addwar from "./commands/addwar.js";
 import * as balance from "./commands/balance.js";
-import { syncFromWorker } from "./lib/worker-sync.js";
+import { syncFromWorker, applyOps } from "./lib/worker-sync.js";
 import { workerEnabled } from "./lib/worker.js";
 
 assertConfig();
@@ -24,6 +24,8 @@ client.once(Events.ClientReady, async (c) => {
     const n = await syncFromWorker(c);
     if (n) console.log(`🔗 Hydrated ${n} sign-up(s) from the Worker relay.`);
     setInterval(() => syncFromWorker(c), 60_000);
+    // Apply website board edits (add/move/remove) to posted sheets promptly.
+    setInterval(() => applyOps(c), 5_000);
   }
 });
 

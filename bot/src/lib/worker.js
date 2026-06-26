@@ -71,3 +71,10 @@ export async function fetchPosted() {
   if (!r.ok) return [];
   return Array.isArray(r.data?.posted) ? r.data.posted : [];
 }
+
+/** Drain pending website edit-ops (add/remove/update) for posted sheets. */
+export async function fetchOps() {
+  const r = await send("/ops", "GET");
+  if (!r.ok) return [];
+  return Array.isArray(r.data?.ops) ? r.data.ops : [];
+}
