@@ -98,19 +98,42 @@
   .conn .dot.off{ background:var(--red-bright); box-shadow:0 0 10px rgba(214,90,69,0.5); }
   .toolbar-spacer{ flex:1; }
 
-  /* Add-member row */
-  .add-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
-  .add-row select, .add-row input{
-    background:var(--panel-raised); border:1px solid var(--hairline);
-    color:var(--text); font-family:var(--font-ui); font-size:13px;
-    padding:8px 10px; border-radius:8px; outline:none;
+  /* Hint + board/tray layout */
+  .board-hint{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint); margin-bottom:14px; line-height:1.6; }
+  .board-wrap{ display:flex; gap:16px; align-items:flex-start; }
+
+  .roster-tray{
+    width:210px; flex:none; position:sticky; top:16px;
+    background:var(--panel); border:1px solid var(--hairline); border-radius:12px;
+    padding:12px; max-height:calc(100vh - 32px); overflow-y:auto;
   }
-  .add-row .hint{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint); }
+  .tray-head{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--crimson-bright); margin-bottom:10px;
+  }
+  .tray-guest{
+    width:100%; background:var(--panel-raised); border:1px solid var(--hairline);
+    color:var(--text); font-family:var(--font-ui); font-size:12px;
+    padding:7px 9px; border-radius:8px; outline:none; margin-bottom:12px;
+  }
+  .tray-guest:focus{ border-color:var(--crimson); }
+  .tray-list{ display:flex; flex-wrap:wrap; gap:6px; }
+  .tray-bubble{
+    font-family:var(--font-ui); font-size:12px; padding:5px 11px; border-radius:999px;
+    background:var(--panel-raised); border:1px solid var(--hairline); color:var(--text);
+    cursor:grab; user-select:none; white-space:nowrap;
+    transition:opacity 0.14s, border-color 0.14s, transform 0.14s;
+  }
+  .tray-bubble:hover{ border-color:var(--crimson); color:var(--crimson-glow); transform:translateY(-1px); }
+  .tray-bubble:active{ cursor:grabbing; }
+  .tray-bubble.dragging{ opacity:0.35; }
+  .tray-empty{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint); }
 
   /* Board */
   .board{
+    flex:1; min-width:0;
     display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(210px, 1fr));
+    grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));
     gap:14px;
   }
   .col{
@@ -264,17 +287,17 @@
   <button class="btn gold" id="postBtn" type="button">Post to Discord</button>
 </div>
 
-<!-- Add member -->
-<div class="add-row">
-  <select id="addSelect"><option value="">+ Add roster member…</option></select>
-  <button class="btn" id="addBtn" type="button">Add</button>
-  <input type="text" id="guestInput" placeholder="…or type a guest name" style="min-width:180px;">
-  <button class="btn" id="guestBtn" type="button">Add guest</button>
-  <span class="hint">Drag chips between columns · use each chip's selectors to set status &amp; class</span>
-</div>
+<div class="board-hint">Drag a name from the roster on the right straight into a role column. Move chips between columns to re-assign · use each chip's selectors for status &amp; class.</div>
 
-<!-- Editable board -->
-<div class="board" id="board"></div>
+<!-- Editable board + roster tray -->
+<div class="board-wrap">
+  <div class="board" id="board"></div>
+  <aside class="roster-tray">
+    <div class="tray-head">Roster — drag in</div>
+    <input type="text" id="guestInput" class="tray-guest" placeholder="+ add a guest name">
+    <div class="tray-list" id="trayList"></div>
+  </aside>
+</div>
 
 <!-- Live Discord state -->
 <div class="live">
@@ -387,13 +410,13 @@ function addEntry(name){
   const key = "k:" + slug(name) + ":" + (++model.seq);
   const cls = classHint(name);
   model.entries[key] = { num: model.seq, name, status:"in", role:null, cls };
-  save(); render(); refreshAddSelect();
+  save(); render(); refreshTray();
   enqueueOp({ type:"add", name, status:"in", role:null, cls });
 }
 function removeEntry(key){
   const e = model.entries[key];
   const name = e && e.name;
-  delete model.entries[key]; save(); render(); refreshAddSelect();
+  delete model.entries[key]; save(); render(); refreshTray();
   if(name) enqueueOp({ type:"remove", name });
 }
 
@@ -403,10 +426,9 @@ function roleFill(roleId, exceptKey){
   ).length;
 }
 
-// Drop an entry into a zone. zoneRole: role id, or "" unassigned, or special status zones.
-function dropInto(key, zone){
-  const e = model.entries[key];
-  if(!e) return;
+// Apply a drop zone to an entry (role + status). Returns false if a role was
+// full. zone: a role id, "" (unassigned), or "bench"/"tentative"/"absence".
+function applyZone(e, zone, exceptKey){
   if(zone === "bench"){ e.status = "bench"; e.role = null; }
   else if(zone === "tentative"){ e.status = "tentative"; }
   else if(zone === "absence"){ e.status = "absence"; }
@@ -418,16 +440,38 @@ function dropInto(key, zone){
     if(newStatus === "tentative" || newStatus === "absence") newStatus = "in";
     const active = (newStatus === "in" || newStatus === "late");
     const cap = ROLE_BY_ID[zone] ? ROLE_BY_ID[zone].cap : 99;
-    if(active && e.role !== zone && roleFill(zone, key) >= cap){
+    if(active && e.role !== zone && roleFill(zone, exceptKey) >= cap){
       toast(`${ROLE_BY_ID[zone].label} is full (${cap}/${cap})`, "error");
-      return;
+      return false;
     }
     e.role = zone; e.status = newStatus;
   }
   // Strict: drop a class that no longer fits the new role.
   if(e.cls && !roleAllowsClass(e.role, e.cls)) e.cls = null;
+  return true;
+}
+
+// Move an existing chip into a zone.
+function dropInto(key, zone){
+  const e = model.entries[key];
+  if(!e) return;
+  if(!applyZone(e, zone, key)) return;
   save(); render();
   enqueueOp({ type:"update", name:e.name, role:e.role, status:e.status, cls:e.cls });
+}
+
+// Add a roster/guest name straight into a zone (drag from the tray).
+function addMemberToZone(name, zone){
+  name = (name||"").trim();
+  if(!name) return;
+  const exists = Object.values(model.entries).some(e => e.name.toLowerCase() === name.toLowerCase());
+  if(exists){ toast(`${name} is already on the sheet`); return; }
+  const key = "k:" + slug(name) + ":" + (++model.seq);
+  const e = { num: model.seq, name, status:"in", role:null, cls: classHint(name) };
+  model.entries[key] = e;
+  if(!applyZone(e, zone, key)){ delete model.entries[key]; model.seq--; return; }
+  save(); render(); refreshTray();
+  enqueueOp({ type:"add", name:e.name, role:e.role, status:e.status, cls:e.cls });
 }
 
 // ---- Bucketing (mirrors the bot's arrange()) --------------------------------
@@ -520,8 +564,10 @@ function wireBoard(){
     zone.addEventListener("dragleave", () => zone.classList.remove("drag-over"));
     zone.addEventListener("drop", e => {
       e.preventDefault(); zone.classList.remove("drag-over");
-      const key = e.dataTransfer.getData("text/plain");
-      if(key) dropInto(key, zone.dataset.zone);
+      const data = e.dataTransfer.getData("text/plain");
+      if(!data) return;
+      if(data.startsWith("new:")) addMemberToZone(data.slice(4), zone.dataset.zone);
+      else dropInto(data, zone.dataset.zone);
     });
   });
   board.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => removeEntry(b.dataset.remove)));
@@ -545,11 +591,24 @@ function wireBoard(){
   }));
 }
 
-function refreshAddSelect(){
-  const sel = byId("addSelect");
+// Roster tray: every roster member not yet on the sheet, as draggable bubbles.
+function refreshTray(){
+  const list = byId("trayList");
   const onSheet = new Set(Object.values(model.entries).map(e => e.name.toLowerCase()));
   const names = roster().filter(n => !onSheet.has(n.toLowerCase())).sort((a,b)=>a.localeCompare(b));
-  sel.innerHTML = `<option value="">+ Add roster member…</option>` + names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join("");
+  if(!names.length){
+    list.innerHTML = `<div class="tray-empty">Everyone's on the sheet.</div>`;
+    return;
+  }
+  list.innerHTML = names.map(n => `<div class="tray-bubble" draggable="true" data-roster="${escapeHtml(n)}">${escapeHtml(n)}</div>`).join("");
+  list.querySelectorAll(".tray-bubble").forEach(b => {
+    b.addEventListener("dragstart", e => {
+      e.dataTransfer.setData("text/plain", "new:" + b.dataset.roster);
+      e.dataTransfer.effectAllowed = "copy";
+      b.classList.add("dragging");
+    });
+    b.addEventListener("dragend", () => b.classList.remove("dragging"));
+  });
 }
 
 // ---- Payloads ---------------------------------------------------------------
@@ -716,8 +775,6 @@ function bindDetail(id, field){
 bindDetail("fDate","date"); bindDetail("fTime","time"); bindDetail("fLocation","location"); bindDetail("fNotes","notes");
 byId("fStatus").addEventListener("change", () => { model.status = byId("fStatus").value; save(); render(); });
 
-byId("addBtn").addEventListener("click", () => { const v = byId("addSelect").value; if(v){ addEntry(v); byId("addSelect").value=""; } });
-byId("guestBtn").addEventListener("click", () => { const v = byId("guestInput").value; if(v){ addEntry(v); byId("guestInput").value=""; } });
 byId("guestInput").addEventListener("keydown", e => { if(e.key==="Enter"){ const v=byId("guestInput").value; if(v){ addEntry(v); byId("guestInput").value=""; } } });
 byId("postBtn").addEventListener("click", () => postSheet(false));
 byId("repostBtn").addEventListener("click", repostMerged);
@@ -725,11 +782,11 @@ byId("refreshBtn").addEventListener("click", loadLive);
 byId("clearBtn").addEventListener("click", () => {
   if(!confirm("Clear the draft sheet? (This only clears your local draft, not anything already posted to Discord.)")) return;
   model = normalizeModel({ date: model.date, time: model.time, location: model.location, status: model.status });
-  save(); render(); refreshAddSelect(); toast("Draft cleared");
+  save(); render(); refreshTray(); toast("Draft cleared");
 });
 
 // data.js / profiles.js load async via document.write; give them a tick.
-function init(){ refreshAddSelect(); render(); loadLive(); setInterval(loadLive, 15000); }
+function init(){ refreshTray(); render(); loadLive(); setInterval(loadLive, 15000); }
 if(window.GUILD_DATA) init(); else window.addEventListener("load", init);
 </script>
 </body>
