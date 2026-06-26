@@ -14,7 +14,7 @@ import { signupEmbed, signupComponents, ROLE_BY_ID, STATUS_BY_ID } from "../lib/
 import { isAdmin, refreshSignupMessage } from "../lib/signup-message.js";
 import { SIGNUP_ROLES, SIGNUP_STATUSES, BDO_CLASSES } from "../config.js";
 import { getSignupChannelId, setSignupChannelId } from "../lib/bot-config.js";
-import { pushConfig, workerEnabled } from "../lib/worker.js";
+import { pushConfig, pushState, workerEnabled } from "../lib/worker.js";
 import { hydrateSignup } from "../lib/worker-sync.js";
 
 const ROLE_CHOICES = SIGNUP_ROLES.map((r) => ({ name: r.label, value: r.id }));
@@ -276,5 +276,7 @@ export async function handleComponent(interaction) {
     embeds: [signupEmbed(updated)],
     components: signupComponents(updated),
   });
+  // Mirror the change to the website's live view (fire-and-forget).
+  pushState(updated).catch(() => {});
   await interaction.followUp({ content: `✅ ${ack}`, ephemeral: true });
 }
