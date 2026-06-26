@@ -656,6 +656,7 @@ function toPayload(){
 // bot applies (so it never wipes people who signed up in Discord). No-op before
 // the first post, or if no admin password is stored yet.
 async function enqueueOp(op){
+  lastLocalEdit = Date.now(); // pause board↔Discord reconcile while ops are in flight
   if(!model.messageId) return;
   const pw = localStorage.getItem("signupAdminPassword");
   if(!pw){ toast("Tip: use Re-post edits to sync this to Discord"); return; }
@@ -780,6 +781,32 @@ async function loadLive(){
     html += `<div class="live-col"><h4>${title} (${list.length})</h4>${list.map(nameLine).join("")}</div>`;
   }
   byId("liveBody").innerHTML = head + html;
+  reconcileBoard(state);
+}
+
+// Once a sheet is posted, pull Discord-side changes (withdrawals, sign-ups,
+// role/status changes) back into the editable board so it mirrors reality.
+// Skipped right after a local edit so in-flight ops (~5s) settle first.
+let lastLocalEdit = 0;
+function reconcileBoard(state){
+  if(!model.messageId || !state || state.messageId !== model.messageId) return;
+  if(Date.now() - lastLocalEdit < 7000) return;
+  const byName = {};
+  for(const [k,e] of Object.entries(model.entries)) byName[e.name.toLowerCase()] = { k, e };
+  const next = {};
+  for(const le of (state.entries || [])){
+    const lc = (le.name||"").toLowerCase();
+    const prev = byName[lc];
+    const key = prev ? prev.k : ("k:" + slug(le.name) + ":" + (++model.seq));
+    next[key] = { num: le.num || (prev ? prev.e.num : ++model.seq), name: le.name,
+                  status: le.status || "in", role: le.role || null, cls: le.cls || null };
+  }
+  const sig = o => JSON.stringify(Object.values(o).map(e => [e.name, e.role, e.status, e.cls]).sort());
+  const capsChanged = JSON.stringify(model.caps||{}) !== JSON.stringify(state.caps||{});
+  if(sig(model.entries) === sig(next) && !capsChanged) return; // nothing new
+  model.entries = next;
+  model.caps = state.caps || {};
+  save(); render(); refreshTray();
 }
 
 function setConn(ok){
@@ -816,7 +843,7 @@ byId("clearBtn").addEventListener("click", () => {
 });
 
 // data.js / profiles.js load async via document.write; give them a tick.
-function init(){ refreshTray(); render(); loadLive(); setInterval(loadLive, 15000); }
+function init(){ refreshTray(); render(); loadLive(); setInterval(loadLive, 6000); }
 if(window.GUILD_DATA) init(); else window.addEventListener("load", init);
 </script>
 </body>
