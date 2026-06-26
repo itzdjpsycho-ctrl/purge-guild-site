@@ -643,8 +643,8 @@ function renderHero(profile, role, totalKills, totalDeaths, kdVal, profiles){
             <input type="number" id="gearDP" inputmode="numeric" placeholder="0" value="${profile.dp!=null?profile.dp:""}">
           </label>
         </div>
-        <button class="gear-read-btn" id="gearReadBtn" type="button">📷 Read from gear screenshot</button>
-        <div class="gear-read-status" id="gearReadStatus"></div>
+        <button class="gear-read-btn" id="gearReadBtn" type="button">📷 Re-read gear screenshot</button>
+        <div class="gear-read-status" id="gearReadStatus">Upload a Gear screenshot above and AP/Awk-AP/DP fill in automatically.</div>
       </div>
       <div class="hero-stats">
         <div class="hero-stat">
@@ -779,6 +779,8 @@ function renderHero(profile, role, totalKills, totalDeaths, kdVal, profiles){
         const tK = apps.reduce((s,a)=>s+a.kills,0);
         const tD = apps.reduce((s,a)=>s+a.deaths,0);
         renderHero(p, roles[playerName]||"", tK, tD, kd(tK,tD), profiles);
+        // Uploading a Gear screenshot auto-reads AP/Awk-AP/DP — no button needed.
+        if(slot === "gearImg"){ document.getElementById("gearReadBtn")?.click(); }
       };
       reader.readAsDataURL(file);
     });
