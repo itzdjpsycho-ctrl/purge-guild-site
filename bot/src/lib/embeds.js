@@ -5,7 +5,7 @@ import {
   ButtonStyle,
   StringSelectMenuBuilder,
 } from "discord.js";
-import { SIGNUP_ROLES, SIGNUP_STATUSES, BDO_CLASSES } from "../config.js";
+import { SIGNUP_ROLES, SIGNUP_STATUSES, BDO_CLASSES, ROLE_CLASSES } from "../config.js";
 import { fmtNum, fmtKD, fmtTime, fmtDate } from "./data.js";
 import { topReasons } from "./mvp.js";
 import { roleFill } from "./signups.js";
@@ -266,17 +266,6 @@ export function signupComponents(signup) {
       )
   );
 
-  const classRows = CLASS_GROUPS.map(
-    (group, i) =>
-      new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId(`signup:class:${i}`)
-          .setPlaceholder(`Select your class · ${group[0]}–${group[group.length - 1]}`)
-          .setDisabled(disabled)
-          .addOptions(group.map((c) => ({ label: c, value: c })))
-      )
-  );
-
   const statusRow = new ActionRowBuilder().addComponents(
     SIGNUP_STATUSES.map((s) =>
       new ButtonBuilder()
@@ -297,7 +286,45 @@ export function signupComponents(signup) {
       .setDisabled(disabled)
   );
 
-  return [roleRow, ...classRows, statusRow, withdrawRow];
+  // Class is no longer picked on the sheet — picking a role pops up an ephemeral
+  // class picker (see classPickerComponents), so each member only sees their
+  // own role's classes.
+  return [roleRow, statusRow, withdrawRow];
+}
+
+/**
+ * Ephemeral "Pick your class" components shown after a member selects a role.
+ * Restricted roles get class BUTTONS (≤5 per row); "any class" roles fall back
+ * to the two A–N / O–Z dropdowns. Every customId carries the sheet's messageId
+ * so the click (which arrives on the ephemeral message) can find its sheet.
+ */
+export function classPickerComponents(roleId, messageId) {
+  const list = ROLE_CLASSES[roleId];
+  if (list && list.length) {
+    const rows = [];
+    for (let i = 0; i < list.length; i += 5) {
+      rows.push(
+        new ActionRowBuilder().addComponents(
+          list.slice(i, i + 5).map((c) =>
+            new ButtonBuilder()
+              .setCustomId(`signup:setcls:${messageId}:${c}`)
+              .setLabel(c)
+              .setStyle(ButtonStyle.Secondary)
+          )
+        )
+      );
+    }
+    return rows;
+  }
+  return CLASS_GROUPS.map(
+    (group, i) =>
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`signup:setclsdd:${messageId}:${i}`)
+          .setPlaceholder(`Select your class · ${group[0]}–${group[group.length - 1]}`)
+          .addOptions(group.map((c) => ({ label: c, value: c })))
+      )
+  );
 }
 
 export { ROLE_BY_ID, STATUS_BY_ID };

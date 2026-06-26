@@ -10,9 +10,9 @@ import {
   reopenSignup,
   updateDetails,
 } from "../lib/signups.js";
-import { signupEmbed, signupComponents, ROLE_BY_ID, STATUS_BY_ID } from "../lib/embeds.js";
+import { signupEmbed, signupComponents, classPickerComponents, ROLE_BY_ID, STATUS_BY_ID } from "../lib/embeds.js";
 import { isAdmin, refreshSignupMessage } from "../lib/signup-message.js";
-import { SIGNUP_ROLES, SIGNUP_STATUSES, BDO_CLASSES } from "../config.js";
+import { SIGNUP_ROLES, SIGNUP_STATUSES, BDO_CLASSES, roleAllowsClass } from "../config.js";
 import { getSignupChannelId, setSignupChannelId } from "../lib/bot-config.js";
 import { pushConfig, pushState, workerEnabled } from "../lib/worker.js";
 import { hydrateSignup } from "../lib/worker-sync.js";
@@ -223,6 +223,15 @@ export async function execute(interaction) {
 // ---- component handlers (self-service for any member) ----
 
 export async function handleComponent(interaction) {
+  // A class chosen from the ephemeral "Pick your class" picker — the click
+  // arrives on the ephemeral message, so the sheet id is carried in the customId.
+  if (
+    interaction.customId.startsWith("signup:setcls:") ||
+    interaction.customId.startsWith("signup:setclsdd:")
+  ) {
+    return handleClassPick(interaction);
+  }
+
   // The sheet may have been posted by the website via the Worker since our last
   // sync — try a one-shot hydrate before giving up on it.
   let signup = getSignup(interaction.message.id) || (await hydrateSignup(interaction.message.id));
@@ -237,6 +246,7 @@ export async function handleComponent(interaction) {
   const name = interaction.member?.displayName || interaction.user.globalName || interaction.user.username;
   const existing = signup.entries[userId];
   let ack = "";
+  let pickClassFor = null; // role id → show the class picker after updating
 
   if (interaction.isButton()) {
     const [, kind, statusId] = interaction.customId.split(":"); // signup:withdraw | signup:st:<id>
@@ -248,7 +258,7 @@ export async function handleComponent(interaction) {
       ack = `Marked you **${STATUS_BY_ID[statusId]?.label || statusId}**.`;
     }
   } else if (interaction.isStringSelectMenu()) {
-    const [, kind] = interaction.customId.split(":"); // signup:role | signup:class:<n>
+    const [, kind] = interaction.customId.split(":"); // signup:role
     if (kind === "role") {
       const role = interaction.values[0];
       const cap = ROLE_BY_ID[role]?.cap;
@@ -261,13 +271,12 @@ export async function handleComponent(interaction) {
       }
       // Picking a role signs you in if you hadn't set an active status.
       const status = existing && existing.status !== "absence" ? existing.status : "in";
-      setEntry(signup.messageId, userId, { role, status, name });
+      const opts = { role, status, name };
+      // Strict: drop a previously-set class that doesn't fit the new role.
+      if (existing?.cls && !roleAllowsClass(role, existing.cls)) opts.cls = null;
+      setEntry(signup.messageId, userId, opts);
       ack = `Role set to **${ROLE_BY_ID[role]?.label || role}**.`;
-    } else if (kind === "class") {
-      const cls = interaction.values[0];
-      const status = existing?.status ?? "in";
-      setEntry(signup.messageId, userId, { cls, status, name });
-      ack = `Class set to **${cls}**.`;
+      pickClassFor = role;
     }
   }
 
@@ -278,5 +287,47 @@ export async function handleComponent(interaction) {
   });
   // Mirror the change to the website's live view (fire-and-forget).
   pushState(updated).catch(() => {});
-  await interaction.followUp({ content: `✅ ${ack}`, ephemeral: true });
+
+  if (pickClassFor) {
+    await interaction.followUp({
+      ephemeral: true,
+      content: `Now pick your class for **${ROLE_BY_ID[pickClassFor]?.label || pickClassFor}**:`,
+      components: classPickerComponents(pickClassFor, signup.messageId),
+    });
+  } else {
+    await interaction.followUp({ content: `✅ ${ack}`, ephemeral: true });
+  }
+}
+
+/** Handle a class chosen from the ephemeral picker (button or any-class dropdown). */
+async function handleClassPick(interaction) {
+  const parts = interaction.customId.split(":");
+  // signup:setcls:<messageId>:<class>   (button) | signup:setclsdd:<messageId>:<group> (select)
+  const messageId = parts[2];
+  const signup = getSignup(messageId) || (await hydrateSignup(messageId));
+  if (!signup) {
+    return interaction.update({ content: "This sign-up is no longer tracked.", components: [] });
+  }
+  if (signup.status === "closed") {
+    return interaction.update({ content: "Sign-ups are closed.", components: [] });
+  }
+
+  const userId = interaction.user.id;
+  const name = interaction.member?.displayName || interaction.user.globalName || interaction.user.username;
+  const existing = signup.entries[userId];
+  const cls = interaction.isButton() ? parts.slice(3).join(":") : interaction.values[0];
+
+  // Strict: the class must belong to the member's current role.
+  const role = existing?.role ?? null;
+  if (role && !roleAllowsClass(role, cls)) {
+    return interaction.update({
+      content: `🚫 **${cls}** isn't a valid class for **${ROLE_BY_ID[role]?.label || role}**. Pick a role first, then a class.`,
+      components: [],
+    });
+  }
+
+  setEntry(messageId, userId, { cls, status: existing?.status ?? "in", name });
+  const updated = getSignup(messageId);
+  await refreshSignupMessage(interaction.client, updated); // edits the sheet + pushes live state
+  await interaction.update({ content: `✅ Class set to **${cls}**.`, components: [] });
 }

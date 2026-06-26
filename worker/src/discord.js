@@ -4,7 +4,7 @@
 // customId.startsWith("signup:")); the embed content only needs to be close
 // because the bot re-renders the message after the first interaction.
 
-import { SIGNUP_ROLES, SIGNUP_STATUSES, BDO_CLASSES } from "./constants.js";
+import { SIGNUP_ROLES, SIGNUP_STATUSES } from "./constants.js";
 
 const PURPLE = 0x8b2fd9;
 const CLOSED_COLOR = 0x555160;
@@ -98,11 +98,6 @@ export function buildSignupEmbed(state) {
   return embed;
 }
 
-// Split the 31 classes into two selects exactly like embeds.js:248-254.
-const SORTED_CLASSES = [...BDO_CLASSES].sort((a, b) => a.localeCompare(b));
-const CLASS_SPLIT = Math.ceil(SORTED_CLASSES.length / 2);
-const CLASS_GROUPS = [SORTED_CLASSES.slice(0, CLASS_SPLIT), SORTED_CLASSES.slice(CLASS_SPLIT)];
-
 export function buildSignupComponents(state) {
   const disabled = state.status === "closed";
 
@@ -118,19 +113,6 @@ export function buildSignupComponents(state) {
       },
     ],
   };
-
-  const classRows = CLASS_GROUPS.map((group, i) => ({
-    type: 1,
-    components: [
-      {
-        type: 3,
-        custom_id: `signup:class:${i}`,
-        placeholder: `Select your class · ${group[0]}–${group[group.length - 1]}`,
-        disabled,
-        options: group.map((c) => ({ label: c, value: c })),
-      },
-    ],
-  }));
 
   const statusRow = {
     type: 1,
@@ -151,7 +133,8 @@ export function buildSignupComponents(state) {
     ],
   };
 
-  return [roleRow, ...classRows, statusRow, withdrawRow];
+  // Class is picked via the bot's ephemeral role-class picker, not on the sheet.
+  return [roleRow, statusRow, withdrawRow];
 }
 
 export function buildMessagePayload(state) {

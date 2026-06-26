@@ -95,6 +95,33 @@ export const SIGNUP_STATUSES = [
   { id: "absence", label: "Absence", emoji: "🚫", style: "Danger" },
 ];
 
+/**
+ * Which BDO classes belong to each sign-up role. Picking a role offers exactly
+ * these classes (as buttons), and — strict — only these classes can be set for
+ * that role. A role NOT listed here (Defense, Scout, Trooper, Flex, Elephant,
+ * Shotcaller) is "any class": it keeps the full class dropdown and accepts any
+ * class. Edit freely; a class may appear in more than one role.
+ */
+export const ROLE_CLASSES = {
+  frontliner: ["Warrior", "Berserker", "Valkyrie", "Guardian", "Drakania", "Nova", "Striker", "Mystic", "Wukong", "Seraph", "Corsair"],
+  ranged: ["Ranger", "Archer"],
+  skirmisher: ["Sorceress", "Ninja", "Kunoichi", "Musa", "Maehwa", "Lahn", "Hashashin", "Dosa", "Maegu", "Corsair", "Tamer", "Dark Knight", "Deadeye", "Sage", "Woosa", "Scholar"],
+  caster: ["Wizard", "Witch"],
+  shai: ["Shai"],
+};
+
+/** The class list for a role, or null when the role is "any class". */
+export function classesForRole(roleId) {
+  const list = ROLE_CLASSES[roleId];
+  return list && list.length ? list : null;
+}
+
+/** Strict check: may this class be set for this role? "Any class" roles allow all. */
+export function roleAllowsClass(roleId, cls) {
+  const list = classesForRole(roleId);
+  return !list || list.includes(cls);
+}
+
 export function assertConfig() {
   const missing = [];
   if (!TOKEN) missing.push("DISCORD_TOKEN");
