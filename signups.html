@@ -584,13 +584,13 @@ function nameLine(e){ const late = e.status==="late"?" ⏰":""; const cls = e.cl
 async function loadLive(){
   let state;
   try{ state = await fetchLive(); }catch(e){ setConn(false); byId("liveBody").innerHTML = `<div class="live-empty">Relay not reachable. Posting won't work until it's up.</div>`; return; }
-  if(!state || !state.entries || !state.entries.length){
+  if(!state || !state.messageId){
     byId("liveStamp").textContent = "—";
     byId("liveBody").innerHTML = `<div class="live-empty">No sign-up posted to Discord yet.</div>`;
     return;
   }
   byId("liveStamp").textContent = "updated " + (state.updatedAt ? new Date(state.updatedAt).toLocaleTimeString() : "—");
-  const entries = state.entries.slice().sort((a,b)=>a.num-b.num);
+  const entries = (state.entries || []).slice().sort((a,b)=>a.num-b.num);
   const byRole = Object.fromEntries(SIGNUP_ROLES.map(r=>[r.id,[]]));
   const extra = { Unassigned:[], Bench:[], Tentative:[], Absence:[] };
   for(const e of entries){
