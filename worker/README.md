@@ -22,11 +22,12 @@ Website signups.html ◄─GET /state──  Worker ◄── Bot pushes live st
    ```
    npx wrangler kv namespace create SIGNUPS_KV
    ```
-4. **Set the three secrets** (it prompts you to paste each value):
+4. **Set the secrets** (it prompts you to paste each value):
    ```
    npx wrangler secret put DISCORD_BOT_TOKEN     # same value as the bot's DISCORD_TOKEN
    npx wrangler secret put ADMIN_POST_PASSWORD   # a shared password admins type on the site
    npx wrangler secret put BOT_PUSH_SECRET        # any long random string
+   npx wrangler secret put ANTHROPIC_API_KEY      # optional — enables the website's "Read from gear screenshot" (same key as bot/.env)
    ```
 5. **Deploy:**
    ```
