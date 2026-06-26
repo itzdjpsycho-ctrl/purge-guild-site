@@ -261,7 +261,7 @@ export async function handleComponent(interaction) {
     const [, kind] = interaction.customId.split(":"); // signup:role
     if (kind === "role") {
       const role = interaction.values[0];
-      const cap = ROLE_BY_ID[role]?.cap;
+      const cap = signup.caps?.[role] ?? ROLE_BY_ID[role]?.cap;
       const alreadyHere = existing?.role === role;
       if (!alreadyHere && cap && roleFill(signup, role) >= cap) {
         return interaction.reply({

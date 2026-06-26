@@ -60,6 +60,7 @@ export function createSignup({ messageId, channelId, date, time, location, notes
     createdBy,
     createdAt: new Date().toISOString(),
     seq: 0,
+    caps: {},
     entries: {},
   };
   writeAll(store);
@@ -156,6 +157,13 @@ export function closeSignup(messageId) {
 export function reopenSignup(messageId) {
   return mutate(messageId, (s) => {
     s.status = "open";
+  });
+}
+
+/** Replace the per-sheet role capacity overrides ({ roleId: number }). */
+export function setCaps(messageId, caps) {
+  return mutate(messageId, (s) => {
+    s.caps = caps && typeof caps === "object" ? caps : {};
   });
 }
 

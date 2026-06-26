@@ -57,6 +57,8 @@ export function buildSignupEmbed(state) {
   const entries = state.entries || [];
   const closed = state.status === "closed";
   const g = arrange(entries);
+  const caps = state.caps || {};
+  const capOf = (r) => (caps[r.id] != null ? caps[r.id] : r.cap);
   const attending =
     SIGNUP_ROLES.reduce((n, r) => n + roleFill(entries, r.id), 0) + g.unassigned.length;
   const wd = weekday(state.date);
@@ -70,7 +72,7 @@ export function buildSignupEmbed(state) {
   for (const r of SIGNUP_ROLES) {
     const list = g.byRole[r.id];
     fields.push({
-      name: `${r.emoji} ${r.label} (${roleFill(entries, r.id)}/${r.cap})`,
+      name: `${r.emoji} ${r.label} (${roleFill(entries, r.id)}/${capOf(r)})`,
       value: list.length ? clip(list.map(memberLine).join("\n")) : "—",
       inline: true,
     });

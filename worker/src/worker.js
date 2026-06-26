@@ -57,6 +57,7 @@ function normalize(payload) {
     location: payload.location || "",
     notes: payload.notes || "",
     seq,
+    caps: payload.caps && typeof payload.caps === "object" ? payload.caps : {},
     updatedAt: new Date().toISOString(),
     entries,
   };
@@ -142,7 +143,7 @@ export default {
         return json({ error: "Bad password." }, 401, request);
       }
       const body = await readJson(request);
-      if (!body?.messageId || !body?.op?.type || !body?.op?.name) {
+      if (!body?.messageId || !body?.op?.type || (body.op.type !== "caps" && !body.op.name)) {
         return json({ error: "messageId + op{type,name} required." }, 400, request);
       }
       const ops = await getOps(env);

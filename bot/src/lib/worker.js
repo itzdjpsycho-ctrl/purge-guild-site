@@ -30,6 +30,7 @@ export function sanitizeSignup(signup) {
     location: signup.location || "",
     notes: signup.notes || "",
     seq: signup.seq || 0,
+    caps: signup.caps || {},
     updatedAt: new Date().toISOString(),
     entries,
   };

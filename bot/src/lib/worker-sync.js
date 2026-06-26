@@ -1,4 +1,4 @@
-import { getSignup, importSignup, setEntry, removeEntry } from "./signups.js";
+import { getSignup, importSignup, setEntry, removeEntry, setCaps } from "./signups.js";
 import { userForName } from "./links.js";
 import { refreshSignupMessage } from "./signup-message.js";
 import { fetchPosted, fetchOps, workerEnabled } from "./worker.js";
@@ -40,6 +40,7 @@ function toRecord(item) {
     createdBy: "website",
     createdAt: item.postedAt || new Date().toISOString(),
     seq: Math.max(s.seq || 0, maxNum),
+    caps: s.caps || {},
     entries,
   };
 }
@@ -92,9 +93,18 @@ export async function applyOps(client) {
     const touched = new Set();
     for (const item of ops) {
       const { messageId, op } = item;
-      if (!messageId || !op?.name) continue;
+      if (!messageId || !op?.type) continue;
       let signup = getSignup(messageId) || (await hydrateSignup(messageId));
       if (!signup) continue;
+
+      // Sheet-level op: per-role capacity overrides.
+      if (op.type === "caps") {
+        setCaps(messageId, op.caps || {});
+        touched.add(messageId);
+        applied++;
+        continue;
+      }
+      if (!op.name) continue;
       const existingKey = keyForName(signup, op.name);
       const key = existingKey || userForName(op.name) || `name:${slug(op.name)}`;
 

@@ -149,6 +149,14 @@
   }
   .col-head .cap{ font-size:10px; color:var(--text-faint); }
   .col-head .cap.full{ color:var(--red-bright); }
+  .cap-wrap{ display:flex; align-items:center; gap:1px; }
+  .cap-input{
+    width:30px; background:var(--panel-raised); border:1px solid var(--hairline);
+    color:var(--text-muted); font-family:var(--font-mono); font-size:10px;
+    padding:2px 3px; border-radius:5px; text-align:center; outline:none; -moz-appearance:textfield;
+  }
+  .cap-input:hover, .cap-input:focus{ border-color:var(--crimson); color:var(--text); }
+  .cap-input::-webkit-outer-spin-button, .cap-input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
   .zone{ display:flex; flex-direction:column; gap:7px; flex:1; border-radius:8px; padding:3px; min-height:60px; transition:background 0.15s, box-shadow 0.15s; }
   .zone.drag-over{ background:rgba(110,31,184,0.1); box-shadow:inset 0 0 0 2px var(--crimson); }
   .zone-empty{ font-family:var(--font-mono); font-size:10px; color:var(--text-faint); text-align:center; padding:10px 0; opacity:0.6; }
@@ -386,8 +394,13 @@ function normalizeModel(m){
     date: m.date || "", time: m.time || "", location: m.location || "",
     notes: m.notes || "", status: m.status === "closed" ? "closed" : "open",
     messageId: m.messageId || null, channelId: m.channelId || null,
-    seq: m.seq || 0, entries: m.entries || {},
+    seq: m.seq || 0, caps: m.caps || {}, entries: m.entries || {},
   };
+}
+// Per-sheet capacity for a role (override, else the default).
+function capFor(roleId){
+  const c = model.caps && model.caps[roleId];
+  return (c != null) ? c : (ROLE_BY_ID[roleId] ? ROLE_BY_ID[roleId].cap : 99);
 }
 function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(model)); }catch(e){ toast("Could not save locally","error"); } }
 
@@ -439,7 +452,7 @@ function applyZone(e, zone, exceptKey){
     let newStatus = e.status;
     if(newStatus === "tentative" || newStatus === "absence") newStatus = "in";
     const active = (newStatus === "in" || newStatus === "late");
-    const cap = ROLE_BY_ID[zone] ? ROLE_BY_ID[zone].cap : 99;
+    const cap = capFor(zone);
     if(active && e.role !== zone && roleFill(zone, exceptKey) >= cap){
       toast(`${ROLE_BY_ID[zone].label} is full (${cap}/${cap})`, "error");
       return false;
@@ -516,11 +529,16 @@ function chipHTML(e){
     ${classCtrl}
   </div>`;
 }
-function colHTML(title, capText, zone, chips, special){
+function colHTML(title, capObj, zone, chips, special){
   const inner = chips.length ? chips.map(chipHTML).join("") : `<div class="zone-empty">drop here</div>`;
-  const capHtml = capText ? `<span class="cap${capText.full?" full":""}">${capText.text}</span>` : "";
+  let capHtml = "";
+  if(capObj){
+    const full = capObj.fill >= capObj.cap;
+    capHtml = `<span class="cap${full?" full":""}">${capObj.fill}/</span>` +
+      `<input class="cap-input" type="number" min="0" max="99" data-cap="${capObj.role}" value="${capObj.cap}" title="People per platoon">`;
+  }
   return `<div class="col${special?" special":""}">
-    <div class="col-head"><span>${title}</span>${capHtml}</div>
+    <div class="col-head"><span>${title}</span><span class="cap-wrap">${capHtml}</span></div>
     <div class="zone" data-zone="${zone}">${inner}</div>
   </div>`;
 }
@@ -539,7 +557,7 @@ function render(){
   html += colHTML("🎯 Unassigned", null, "", g.unassigned, true);
   for(const r of SIGNUP_ROLES){
     const fill = roleFill(r.id);
-    html += colHTML(`${r.emoji} ${r.label}`, { text:`${fill}/${r.cap}`, full: fill>=r.cap }, r.id, g.byRole[r.id], false);
+    html += colHTML(`${r.emoji} ${r.label}`, { fill, cap: capFor(r.id), role: r.id }, r.id, g.byRole[r.id], false);
   }
   html += colHTML("🪑 Bench", null, "bench", g.benchNoRole, true);
   html += colHTML("⚖️ Tentative", null, "tentative", g.tentative, true);
@@ -589,6 +607,16 @@ function wireBoard(){
     save(); render();
     enqueueOp({ type:"update", name:e.name, cls:e.cls });
   }));
+  board.querySelectorAll("[data-cap]").forEach(inp => inp.addEventListener("change", () => {
+    const roleId = inp.dataset.cap;
+    let v = parseInt(inp.value, 10);
+    if(isNaN(v) || v < 0) v = 0; else if(v > 99) v = 99;
+    model.caps = model.caps || {};
+    if(v === (ROLE_BY_ID[roleId] ? ROLE_BY_ID[roleId].cap : null)) delete model.caps[roleId];
+    else model.caps[roleId] = v;
+    save(); render();
+    enqueueOp({ type:"caps", caps: model.caps });
+  }));
 }
 
 // Roster tray: every roster member not yet on the sheet, as draggable bubbles.
@@ -619,7 +647,7 @@ function toPayload(){
   return {
     messageId: model.messageId, date: model.date, time: model.time,
     location: model.location, notes: model.notes, status: model.status,
-    seq: model.seq, entries,
+    seq: model.seq, caps: model.caps || {}, entries,
   };
 }
 
@@ -740,10 +768,12 @@ async function loadLive(){
   const head = `<div class="live-col" style="grid-column:1/-1;background:transparent;border:none;padding:0;">
     <div class="ln">📍 ${escapeHtml(state.location||"TBD")} · 📅 ${escapeHtml(state.date||"TBD")} · 🕐 ${escapeHtml(state.time||"TBD")}${state.status==="closed"?" · <b style='color:var(--red-bright)'>CLOSED</b>":""}</div>
   </div>`;
+  const lcaps = state.caps || {};
   for(const r of SIGNUP_ROLES){
     const list = byRole[r.id];
     const fill = list.filter(e=>e.status==="in"||e.status==="late").length;
-    html += `<div class="live-col"><h4>${r.emoji} ${r.label} (${fill}/${r.cap})</h4>${list.length?list.map(nameLine).join(""):'<div class="ln" style="opacity:.5">—</div>'}</div>`;
+    const cap = (lcaps[r.id] != null) ? lcaps[r.id] : r.cap;
+    html += `<div class="live-col"><h4>${r.emoji} ${r.label} (${fill}/${cap})</h4>${list.length?list.map(nameLine).join(""):'<div class="ln" style="opacity:.5">—</div>'}</div>`;
   }
   for(const [title, list] of Object.entries(extra)){
     if(!list.length) continue;

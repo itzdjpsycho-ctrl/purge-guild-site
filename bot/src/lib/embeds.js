@@ -177,6 +177,8 @@ const clip = (s) => (s.length > 1024 ? s.slice(0, 1021) + "…" : s);
 export function signupEmbed(signup) {
   const closed = signup.status === "closed";
   const g = arrange(signup);
+  const caps = signup.caps || {};
+  const capOf = (r) => (caps[r.id] != null ? caps[r.id] : r.cap);
 
   const attending = SIGNUP_ROLES.reduce((n, r) => n + roleFill(signup, r.id), 0) + g.unassigned.length;
 
@@ -205,7 +207,7 @@ export function signupEmbed(signup) {
     const list = g.byRole[r.id];
     const fill = roleFill(signup, r.id);
     embed.addFields({
-      name: `${r.emoji} ${r.label} (${fill}/${r.cap})`,
+      name: `${r.emoji} ${r.label} (${fill}/${capOf(r)})`,
       value: list.length ? clip(list.map(memberLine).join("\n")) : "—",
       inline: true,
     });
