@@ -78,6 +78,11 @@ async function getOps(env) {
   try { return raw ? JSON.parse(raw) : []; } catch { return []; }
 }
 
+async function getProfileOps(env) {
+  const raw = await env.SIGNUPS_KV.get("profileops");
+  try { return raw ? JSON.parse(raw) : []; } catch { return []; }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -174,6 +179,21 @@ export default {
       return json({ ok: true }, 200, request);
     }
 
+    // ---- website → profile op (e.g. remove a published screenshot), admin-gated ----
+    if (path === "/profile-op" && method === "POST") {
+      if (request.headers.get("x-admin-password") !== env.ADMIN_POST_PASSWORD) {
+        return json({ error: "Bad password." }, 401, request);
+      }
+      const body = await readJson(request);
+      if (!body?.player || !body?.field) {
+        return json({ error: "player + field required." }, 400, request);
+      }
+      const ops = await getProfileOps(env);
+      ops.push({ op: { type: "removeShot", player: body.player, field: body.field }, at: new Date().toISOString() });
+      await env.SIGNUPS_KV.put("profileops", JSON.stringify(ops.slice(-200)));
+      return json({ ok: true }, 200, request);
+    }
+
     // ---- bot → state / config / posted / ops (bot-secret gated) ----
     const botAuthed = request.headers.get("x-bot-secret") === env.BOT_PUSH_SECRET;
 
@@ -211,6 +231,14 @@ export default {
       if (!botAuthed) return json({ error: "Bad secret." }, 401, request);
       const ops = await getOps(env);
       if (ops.length) await env.SIGNUPS_KV.put("ops", "[]");
+      return json({ ops }, 200, request);
+    }
+
+    // Drain the pending profile-op queue for the bot to apply.
+    if (path === "/profile-ops" && method === "GET") {
+      if (!botAuthed) return json({ error: "Bad secret." }, 401, request);
+      const ops = await getProfileOps(env);
+      if (ops.length) await env.SIGNUPS_KV.put("profileops", "[]");
       return json({ ops }, 200, request);
     }
 

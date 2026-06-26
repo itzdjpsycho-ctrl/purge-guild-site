@@ -9,6 +9,17 @@ export const ASSETS_DIR = join(__dirname, "..", "..", "..", "assets", "profiles"
 const ALLOWED = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 
+/** Delete a committed asset by its repo-relative path (assets/profiles/...).
+ *  Returns true if a file was removed. Path is constrained to assets/profiles/. */
+export function deleteAsset(relativePath) {
+  if (!relativePath || !/^assets\/profiles\/[^/]+$/.test(relativePath)) return false;
+  const abs = join(ASSETS_DIR, "..", "..", relativePath);
+  try {
+    if (existsSync(abs)) { rmSync(abs); return true; }
+  } catch {}
+  return false;
+}
+
 /** Filesystem-safe slug from a family name. */
 export function slug(name) {
   return name.toLowerCase().replace(/[^a-z0-9_-]/g, "");

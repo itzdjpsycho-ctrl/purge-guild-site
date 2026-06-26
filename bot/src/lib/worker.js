@@ -79,3 +79,10 @@ export async function fetchOps() {
   if (!r.ok) return [];
   return Array.isArray(r.data?.ops) ? r.data.ops : [];
 }
+
+/** Drain pending website profile-ops (e.g. remove a published screenshot). */
+export async function fetchProfileOps() {
+  const r = await send("/profile-ops", "GET");
+  if (!r.ok) return [];
+  return Array.isArray(r.data?.ops) ? r.data.ops : [];
+}

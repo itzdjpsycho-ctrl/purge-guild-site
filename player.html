@@ -472,6 +472,25 @@ function saveProfiles(p){
   try{ localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(p)); }
   catch(e){ showToast("Could not save — localStorage unavailable","error"); }
 }
+// Ask the bot (via the Worker) to remove a PUBLISHED screenshot for everyone.
+// Admin-gated: needs the shared admin password. Without it, the Remove still
+// hid the screenshot locally (tombstone) — this just won't propagate to others.
+async function requestGlobalRemove(player, field){
+  let pw = localStorage.getItem("signupAdminPassword");
+  if(!pw){
+    pw = prompt("Admin password to remove this for EVERYONE.\n(Cancel = just hide it on this device.)");
+    if(pw) localStorage.setItem("signupAdminPassword", pw); else return;
+  }
+  try{
+    const res = await fetch(`${WORKER_URL}/profile-op`, {
+      method:"POST",
+      headers:{ "content-type":"application/json", "x-admin-password": pw },
+      body: JSON.stringify({ player, field }),
+    });
+    if(res.status === 401){ localStorage.removeItem("signupAdminPassword"); showToast("Wrong admin password — removed only on this device", "error"); return; }
+    if(res.ok) showToast("Removing for everyone — live in ~1–2 min", "success");
+  }catch(e){ /* offline: local tombstone still applied */ }
+}
 function loadRoles(){
   try{ const r=localStorage.getItem(ROLES_STORAGE_KEY); return r?JSON.parse(r):{}; }
   catch(e){ return {}; }
@@ -804,8 +823,9 @@ function renderHero(profile, role, totalKills, totalDeaths, kdVal, profiles){
       const slot = btn.dataset.slot;
       const profiles = loadProfiles();
       if(!profiles[playerName]) profiles[playerName] = {};
-      profiles[playerName][slot] = null;   // tombstone — stays removed even if published in profiles.js
+      profiles[playerName][slot] = null;   // tombstone — hide it locally right away
       saveProfiles(profiles);
+      requestGlobalRemove(playerName, slot);   // admin-gated: remove for everyone
       showToast("Screenshot removed", "");
       const p = profiles[playerName]||{};
       const roles = loadRoles();

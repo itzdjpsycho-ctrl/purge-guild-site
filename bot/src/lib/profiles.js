@@ -92,6 +92,18 @@ export function setGear(name, { ap, aap, dp } = {}) {
   return profiles[name];
 }
 
+/** Remove a screenshot slot from a player. Returns the prior relative path (so
+ *  the caller can delete the asset file), or null if there was nothing set. */
+export function removeImage(name, slotKey) {
+  const profiles = loadProfiles();
+  if (!profiles[name] || profiles[name][slotKey] == null) return null;
+  const prev = profiles[name][slotKey];
+  delete profiles[name][slotKey];
+  profiles[name].updatedAt = new Date().toISOString();
+  writeProfiles(profiles);
+  return prev;
+}
+
 export function unlink(userId) {
   const owned = findByDiscord(userId);
   if (!owned) return null;

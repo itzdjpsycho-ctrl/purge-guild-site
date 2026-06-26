@@ -7,6 +7,7 @@ import * as profile from "./commands/profile.js";
 import * as addwar from "./commands/addwar.js";
 import * as balance from "./commands/balance.js";
 import { syncFromWorker, applyOps } from "./lib/worker-sync.js";
+import { applyProfileOps } from "./lib/profile-sync.js";
 import { workerEnabled } from "./lib/worker.js";
 
 assertConfig();
@@ -26,6 +27,8 @@ client.once(Events.ClientReady, async (c) => {
     setInterval(() => syncFromWorker(c), 60_000);
     // Apply website board edits (add/move/remove) to posted sheets promptly.
     setInterval(() => applyOps(c), 5_000);
+    // Apply website profile-ops (e.g. remove a published screenshot for everyone).
+    setInterval(() => applyProfileOps(), 10_000);
   }
 });
 
