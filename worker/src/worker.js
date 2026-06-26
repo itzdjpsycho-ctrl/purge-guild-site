@@ -9,6 +9,7 @@
 // KV binding: SIGNUPS_KV.  Keys: "config", "state", "posted".
 
 import { postMessage, patchMessage } from "./discord.js";
+import { readGearStats } from "./gear.js";
 
 const PAGES_ORIGIN = "https://itzdjpsycho-ctrl.github.io";
 const MAX_POSTED = 25;
@@ -85,6 +86,27 @@ export default {
 
     if (method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(request) });
+    }
+
+    // ---- public gear-screenshot OCR (no auth, per the guild's choice) ----
+    // Reads AP / Awk AP / DP off a gear screenshot via Claude vision. CORS is
+    // locked to the site origin and the image is size-capped to limit misuse.
+    if (path === "/gear" && method === "POST") {
+      if (!env.ANTHROPIC_API_KEY) {
+        return json({ error: "Gear reading isn't configured (no ANTHROPIC_API_KEY)." }, 503, request);
+      }
+      const body = await readJson(request);
+      const image = body?.image;
+      const mediaType = body?.mediaType || "image/png";
+      if (!image || typeof image !== "string") {
+        return json({ error: "image (base64) required." }, 400, request);
+      }
+      if (image.length > 9_000_000) { // ~6.7MB decoded
+        return json({ error: "Image too large (max ~6MB)." }, 413, request);
+      }
+      const r = await readGearStats(image, mediaType, env.ANTHROPIC_API_KEY, env.VISION_MODEL);
+      if (!r.ok) return json({ error: r.error || "Couldn't read the screenshot." }, 502, request);
+      return json({ ap: r.ap, aap: r.aap, dp: r.dp }, 200, request);
     }
 
     // ---- public live view ----

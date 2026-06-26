@@ -435,6 +435,10 @@ const ROLES_STORAGE_KEY    = "nodeWarSquadRoles";
 const PROFILES_STORAGE_KEY = "nodeWarPlayerProfiles";
 const DYNAMIC_MATCHES_KEY  = "nodeWarDynamicMatches";
 
+// Cloudflare Worker relay — holds the Anthropic key for gear-screenshot OCR.
+const WORKER_URL = (localStorage.getItem("signupWorkerUrl")
+  || "https://purge-signups.itzdjpsycho.workers.dev").replace(/\/+$/, "");
+
 const BDO_CLASSES = [
   "Warrior","Ranger","Sorceress","Berserker","Tamer","Musa","Maehwa","Valkyrie",
   "Kunoichi","Ninja","Wizard","Witch","Dark Knight","Striker","Mystic","Lahn",
@@ -710,11 +714,48 @@ function renderHero(profile, role, totalKills, totalDeaths, kdVal, profiles){
   const gearReadBtn    = document.getElementById("gearReadBtn");
   const gearReadStatus = document.getElementById("gearReadStatus");
   function setGearStatus(msg, cls){ gearReadStatus.innerHTML = msg; gearReadStatus.className = "gear-read-status" + (cls ? " " + cls : ""); }
-  gearReadBtn.addEventListener("click", ()=>{
-    // Auto gear-reading needed a server to hold the API key — it ran on the old
-    // Netlify function, gone now the site is on GitHub Pages. The Discord bot's
-    // /profile upload reads Gear Score automatically, or type the values in below.
-    setGearStatus("Auto-reading isn't available on this site — use the Discord bot's <b>/profile upload</b>, or type the values in below.", "err");
+  async function gearImgToBase64(src){
+    const m = /^data:([^;]+);base64,(.*)$/.exec(src);
+    if(m) return { mediaType: m[1], base64: m[2] };
+    // bot-published asset path → fetch + encode
+    const blob = await (await fetch(src)).blob();
+    const base64 = await new Promise((resolve, reject)=>{
+      const r = new FileReader();
+      r.onload = ()=> resolve(String(r.result).split(",")[1]);
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+    return { mediaType: blob.type || "image/png", base64 };
+  }
+  gearReadBtn.addEventListener("click", async ()=>{
+    const src = (profiles[playerName] && profiles[playerName].gearImg) || "";
+    if(!src){ setGearStatus("Upload a <b>Gear</b> screenshot first, then read.", "err"); return; }
+    setGearStatus("Reading screenshot…");
+    gearReadBtn.disabled = true;
+    try{
+      const { base64, mediaType } = await gearImgToBase64(src);
+      const res = await fetch(`${WORKER_URL}/gear`, {
+        method:"POST",
+        headers:{ "content-type":"application/json" },
+        body: JSON.stringify({ image: base64, mediaType }),
+      });
+      if(!res.ok){
+        const e = await res.json().catch(()=>({}));
+        setGearStatus("Couldn't read it — " + (e.error || ("error " + res.status)) + ". Type the values in below.", "err");
+        return;
+      }
+      const d = await res.json();
+      if(d.ap  != null) apInput.value  = d.ap;
+      if(d.aap != null) aapInput.value = d.aap;
+      if(d.dp  != null) dpInput.value  = d.dp;
+      refreshGearScore(); saveGear();
+      const got = [d.ap!=null?`AP ${d.ap}`:null, d.aap!=null?`Awk ${d.aap}`:null, d.dp!=null?`DP ${d.dp}`:null].filter(Boolean).join(" · ");
+      setGearStatus(got ? `Read ${got} — adjust if needed.` : "Couldn't find the stats in that image — type them in below.", got ? "ok" : "err");
+    }catch(err){
+      setGearStatus("Couldn't reach the gear reader. Try again, or type the values in below.", "err");
+    }finally{
+      gearReadBtn.disabled = false;
+    }
   });
 
   /* ---- Wire screenshot uploads ---- */
