@@ -463,6 +463,9 @@ function loadProfiles(){
   // Local browser edits override the shared layer, per player.
   const out = {...base};
   for(const k in local){ out[k] = {...(out[k]||{}), ...local[k]}; }
+  // A null override is a "deleted" tombstone — drop it so a published value
+  // (profiles.js) doesn't bleed back through after a Remove.
+  for(const k in out){ for(const f in out[k]){ if(out[k][f] === null) delete out[k][f]; } }
   return out;
 }
 function saveProfiles(p){
@@ -800,7 +803,8 @@ function renderHero(profile, role, totalKills, totalDeaths, kdVal, profiles){
       e.stopPropagation();
       const slot = btn.dataset.slot;
       const profiles = loadProfiles();
-      if(profiles[playerName]) delete profiles[playerName][slot];
+      if(!profiles[playerName]) profiles[playerName] = {};
+      profiles[playerName][slot] = null;   // tombstone — stays removed even if published in profiles.js
       saveProfiles(profiles);
       showToast("Screenshot removed", "");
       const p = profiles[playerName]||{};
