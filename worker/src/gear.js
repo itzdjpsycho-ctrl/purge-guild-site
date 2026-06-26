@@ -14,8 +14,24 @@ Use whole numbers. If a value is genuinely not visible, use null for it.`;
 
 const toInt = (v) => (v == null || isNaN(Number(v)) ? null : Math.round(Number(v)));
 
+// Detect the real image type from the magic bytes, so a wrong/missing label
+// (e.g. a PNG saved with a .webp name) can't trip Anthropic's type check.
+function sniffMediaType(base64, fallback) {
+  try {
+    const bin = atob(base64.slice(0, 24));
+    const c = (i) => bin.charCodeAt(i);
+    if (c(0) === 0x89 && c(1) === 0x50 && c(2) === 0x4e && c(3) === 0x47) return "image/png";
+    if (c(0) === 0xff && c(1) === 0xd8 && c(2) === 0xff) return "image/jpeg";
+    if (c(0) === 0x47 && c(1) === 0x49 && c(2) === 0x46) return "image/gif";
+    if (c(0) === 0x52 && c(1) === 0x49 && c(2) === 0x46 &&
+        c(8) === 0x57 && c(9) === 0x45 && c(10) === 0x42 && c(11) === 0x50) return "image/webp";
+  } catch {}
+  return fallback || "image/png";
+}
+
 export async function readGearStats(base64, mediaType, apiKey, model) {
   if (!apiKey) return { ok: false, error: "no-key" };
+  mediaType = sniffMediaType(base64, mediaType);
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
