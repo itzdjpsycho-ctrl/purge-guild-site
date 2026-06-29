@@ -335,13 +335,18 @@ window.GUILD_DATA = {
     {
       "date": "2026-06-24",
       "day": "Wednesday",
-      "location": "Calpheon",
+      "location": "Defeat",
       "result": "Defeat",
       "players": [
         [
           "LulzCaptain",
           7,
           25
+        ],
+        [
+          "Rozuns",
+          11,
+          27
         ],
         [
           "Beastylirious",
@@ -352,11 +357,6 @@ window.GUILD_DATA = {
           "KillShotz",
           21,
           28
-        ],
-        [
-          "Rozuns",
-          11,
-          27
         ],
         [
           "Dreamxx",
@@ -1649,6 +1649,24 @@ window.GUILD_DATA = {
         2771
       ],
       [
+        "Rozuns",
+        11,
+        27,
+        3,
+        384400,
+        656800,
+        21,
+        361900,
+        232700,
+        1800000,
+        0,
+        0,
+        0,
+        0,
+        873,
+        2632
+      ],
+      [
         "Beastylirious",
         8,
         24,
@@ -1683,24 +1701,6 @@ window.GUILD_DATA = {
         0,
         792,
         2713
-      ],
-      [
-        "Rozuns",
-        11,
-        27,
-        3,
-        384400,
-        656800,
-        21,
-        361900,
-        232700,
-        1800000,
-        0,
-        0,
-        0,
-        0,
-        873,
-        2632
       ],
       [
         "Dreamxx",
@@ -1880,7 +1880,7 @@ window.GUILD_DATA = {
         0,
         0,
         683,
-        2822
+        2820
       ],
       [
         "Alancar",
