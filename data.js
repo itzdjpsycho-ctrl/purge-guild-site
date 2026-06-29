@@ -206,8 +206,8 @@ window.GUILD_DATA = {
     },
     {
       "date": "2026-06-23",
-      "day": "Monday",
-      "location": "Node War",
+      "day": "Tuesday",
+      "location": "Victory",
       "result": "Victory",
       "players": [
         [
