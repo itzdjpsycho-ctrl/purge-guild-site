@@ -5,9 +5,7 @@
 // bot host (bot/data/links.json), never published here.
 window.GUILD_PROFILES = {
   "HaterApproved": {
-    "gearImg": "assets/profiles/haterapproved-gear.webp",
-    "updatedAt": "2026-06-26T08:26:11.498Z",
-    "crystalsImg": "assets/profiles/haterapproved-crystals.png",
+    "updatedAt": "2026-06-29T00:19:44.797Z",
     "ap": 381,
     "aap": 387,
     "dp": 453
