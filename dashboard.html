@@ -238,6 +238,15 @@
   .flag-row .kd{ font-family:var(--font-mono); font-size:12px; color:var(--text-faint); }
   .flag-empty{ padding:14px 16px; font-size:12px; color:var(--text-faint); font-family:var(--font-mono); }
 
+  /* ATTENDANCE SECTION */
+  .attend-grid{
+    display:grid; grid-template-columns:repeat(2,1fr); gap:14px;
+  }
+  .flag-col.reliable{ }
+  .flag-col.reliable .flag-col-head{ color:var(--green-bright); }
+  .flag-col.noshow   .flag-col-head{ color:var(--red-bright); }
+  .flag-row .rate{ font-family:var(--font-mono); font-size:12px; color:var(--text-faint); }
+
   /* TREND SECTION */
   .trend-controls{
     display:flex; align-items:center; gap:12px;
@@ -381,6 +390,21 @@
     </div>
   </div>
 
+  <!-- ATTENDANCE -->
+  <div class="section">
+    <div class="section-label">Attendance</div>
+    <div class="attend-grid">
+      <div class="flag-col reliable">
+        <div class="flag-col-head"><span class="icon">✅</span> Most Reliable</div>
+        <div class="flag-list" id="attendReliableList"></div>
+      </div>
+      <div class="flag-col noshow">
+        <div class="flag-col-head"><span class="icon">🚫</span> Frequent No-Shows</div>
+        <div class="flag-list" id="attendNoShowList"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- PLAYER TRENDS -->
   <div class="section">
     <div class="section-label">Per-Player Trends</div>
@@ -415,6 +439,7 @@
 <script src="flags.js"></script>
 <!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
 <script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script>document.write('<scr'+'ipt src="attendance.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>
 /* ================================================================
    MATCH DATA — keep in sync with index.html
@@ -641,6 +666,28 @@ function renderFlags(){
   fill("flagWatchList", watch.join(""), "Nobody flagged this war.");
 }
 renderFlags();
+
+/* ---- Attendance ---- */
+function renderAttendance(){
+  const MIN_SIGNUPS = 3; // enough sign-ups on record before a rate means anything
+  const attendance = typeof window.GUILD_ATTENDANCE === "object" ? window.GUILD_ATTENDANCE : {};
+  const qualified = Object.entries(attendance)
+    .map(([name,a])=>({name, ...a}))
+    .filter(a=>a.signups >= MIN_SIGNUPS);
+
+  const pctRow = (a) =>
+    `<div class="flag-row"><span class="name">${a.name}</span><span class="rate">${Math.round(a.rate*100)}% (${a.attended}/${a.signups})</span></div>`;
+  const fill = (id, rows, emptyMsg) => {
+    document.getElementById(id).innerHTML = rows.join("") || `<div class="flag-empty">${emptyMsg}</div>`;
+  };
+
+  const reliable = [...qualified].sort((a,b)=>b.rate-a.rate || b.signups-a.signups).slice(0,5);
+  fill("attendReliableList", reliable.map(pctRow), "Not enough sign-up history yet.");
+
+  const noShows = [...qualified].sort((a,b)=>a.rate-b.rate || b.signups-a.signups).slice(0,5);
+  fill("attendNoShowList", noShows.map(pctRow), "Not enough sign-up history yet.");
+}
+renderAttendance();
 
 /* ================================================================
    TREND CHARTS — pure canvas, no library needed

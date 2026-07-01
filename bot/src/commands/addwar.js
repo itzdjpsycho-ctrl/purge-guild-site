@@ -10,6 +10,7 @@ import { SITE_URL } from "../config.js";
 import { readWar } from "../lib/war.js";
 import { addWar, getWar, fmtDate } from "../lib/data.js";
 import { isAdmin } from "../lib/signup-message.js";
+import { computeAttendance, writeAttendance } from "../lib/attendance.js";
 import { publish } from "../lib/git.js";
 import { PURPLE } from "../lib/embeds.js";
 
@@ -186,12 +187,13 @@ export async function handleComponent(interaction) {
   let saved;
   try {
     saved = addWar(entry.war);
+    writeAttendance(computeAttendance());
   } catch (e) {
     return interaction.editReply(`🚫 Failed to write the war: ${e.message}`);
   }
 
   const pub = await publish(
-    ["data.js"],
+    ["data.js", "attendance.js"],
     `war: ${entry.war.location} ${entry.war.date} (${entry.war.result})`
   );
 

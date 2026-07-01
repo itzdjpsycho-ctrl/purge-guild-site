@@ -71,6 +71,11 @@ export function getSignup(messageId) {
   return readAll()[messageId] || null;
 }
 
+/** Every sign-up sheet ever created, oldest and newest alike. */
+export function listAll() {
+  return Object.values(readAll());
+}
+
 /**
  * Insert a fully-formed sign-up record (e.g. hydrated from the Worker relay for
  * a sheet posted while the bot was offline). No-op if the message id is already
