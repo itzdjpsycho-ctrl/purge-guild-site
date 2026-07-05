@@ -29,8 +29,8 @@
 }
 
 .app-sidebar{
-  position:sticky; top:0;
-  align-self:start;
+  position:fixed; top:0; left:0;
+  width:var(--sidebar-w);
   height:100vh;
   display:flex; flex-direction:column;
   background:linear-gradient(180deg, #0D0A14 0%, #0A0810 100%);
@@ -109,6 +109,10 @@
 
 /* ---- Content column ----------------------------------------------------- */
 .app-content{
+  /* Explicit placement: the sidebar is position:fixed (removed from grid
+     flow) so it no longer occupies column 1 as a grid item — pin content
+     to column 2 rather than relying on auto-placement. */
+  grid-column:2;
   max-width:1280px;
   margin:0 auto;
   padding:34px 44px 90px;
