@@ -15,14 +15,21 @@
     || "https://purge-signups.itzdjpsycho.workers.dev").replace(/\/+$/, "");
   const SESSION_KEY = "purgeSessionId";
 
-  // Pick up ?/#purgeSession=<id> left by /auth/callback's redirect, then
-  // scrub it from the URL so it doesn't linger in history/bookmarks.
+  let loginError = null;
+
+  // Pick up ?/#purgeSession=<id> (or purgeError=<code>) left by /auth/callback's
+  // redirect, then scrub it from the URL so it doesn't linger in history/bookmarks.
   (function adoptSessionFromRedirect() {
     const hash = window.location.hash || "";
-    const m = hash.match(/(?:^#|&)purgeSession=([^&]+)/);
-    if (!m) return;
-    localStorage.setItem(SESSION_KEY, decodeURIComponent(m[1]));
-    const cleaned = hash.replace(/[#&]purgeSession=[^&]+/, "").replace(/^&/, "#");
+    const sessionMatch = hash.match(/(?:^#|&)purgeSession=([^&]+)/);
+    const errorMatch = hash.match(/(?:^#|&)purgeError=([^&]+)/);
+    if (!sessionMatch && !errorMatch) return;
+    if (sessionMatch) localStorage.setItem(SESSION_KEY, decodeURIComponent(sessionMatch[1]));
+    if (errorMatch) loginError = decodeURIComponent(errorMatch[1]);
+    const cleaned = hash
+      .replace(/[#&]purgeSession=[^&]+/, "")
+      .replace(/[#&]purgeError=[^&]+/, "")
+      .replace(/^&/, "#");
     history.replaceState(null, "", window.location.pathname + window.location.search + (cleaned === "#" ? "" : cleaned));
   })();
 
@@ -35,7 +42,15 @@
       cursor:pointer; border:1px solid var(--hairline,#2A1F3A); background:var(--panel,#110D18);
       color:var(--crimson-glow,#C77DFF); flex:none; }
     .auth-widget button:hover{ border-color:var(--crimson,#6E1FB8); }
+    .auth-widget-error{
+      font-family:var(--font-mono,monospace); font-size:10.5px; color:var(--red-bright,#E27C6B);
+      padding:0 18px 10px; line-height:1.5;
+    }
   `;
+
+  const LOGIN_ERROR_MESSAGES = {
+    not_member: "That Discord account isn't in the Purge server — sign in with the account you use in our Discord.",
+  };
 
   function ensureStyle() {
     if (document.getElementById("authWidgetStyle")) return;
@@ -64,6 +79,16 @@
     } else {
       container.innerHTML = `<button type="button" data-auth-action="login">Sign in with Discord</button>`;
     }
+    if (loginError) {
+      let errBox = container.nextElementSibling;
+      if (!errBox || !errBox.classList.contains("auth-widget-error")) {
+        errBox = document.createElement("div");
+        errBox.className = "auth-widget-error";
+        container.insertAdjacentElement("afterend", errBox);
+      }
+      errBox.textContent = LOGIN_ERROR_MESSAGES[loginError] || "Sign-in failed. Please try again.";
+    }
+
     const btn = container.querySelector("[data-auth-action]");
     if (!btn) return;
     btn.addEventListener("click", () => {
@@ -80,6 +105,27 @@
   // Mirrors worker/src/auth.js ROLE_RANK — client-side only for deciding what
   // UI to show; the Worker re-checks every permission server-side regardless.
   const ROLE_RANK = { officer: 1, second: 2, guildmaster: 3 };
+
+  // The nav's "current page" link is already marked class="current" on every
+  // page (existing site convention) — reuse it instead of adding a new one.
+  function currentPageHref() {
+    return document.querySelector(".side-nav a.current")?.getAttribute("href") || null;
+  }
+
+  // Signed-out visitors can only browse home.html: every other nav link is
+  // hidden, and landing on a gated page directly bounces you to home.html.
+  // This is a UX guard, not real access control — the underlying pages are
+  // still public static files GitHub Pages will serve to anyone who fetches
+  // them directly (curl, view-source, etc.); there's no server in front of
+  // this site that could enforce a real login wall.
+  function guardPage(state) {
+    document.querySelectorAll('.side-nav a:not([href="home.html"])').forEach((a) => {
+      a.style.display = state.loggedIn ? "" : "none";
+    });
+    if (!state.loggedIn && currentPageHref() !== "home.html") {
+      window.location.replace("home.html");
+    }
+  }
 
   window.PurgeAuth = {
     WORKER_URL,
@@ -106,6 +152,7 @@
         .catch(() => ({ loggedIn: false }))
         .then((state) => {
           window.PurgeAuth.state = state;
+          guardPage(state);
           if (container) render(container, state);
           return state;
         });

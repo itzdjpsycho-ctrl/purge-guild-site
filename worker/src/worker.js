@@ -14,7 +14,7 @@
 //
 // Secrets (wrangler secret put): DISCORD_BOT_TOKEN, ADMIN_POST_PASSWORD, BOT_PUSH_SECRET,
 //   DISCORD_CLIENT_SECRET, SESSION_SECRET (signs the login token — any long random string).
-// Vars: DISCORD_CLIENT_ID.
+// Vars: DISCORD_CLIENT_ID, GUILD_ID (checked at login — see auth.js isGuildMember; NOT a secret).
 // Officers aren't Discord roles — they're a plain list of Discord ids in KV ("officers"),
 // managed from the website itself (bootstrap the first one with ADMIN_POST_PASSWORD).
 // KV binding: SIGNUPS_KV.  Keys: "config", "state", "posted", "links", "officers".
@@ -25,6 +25,7 @@ import {
   buildAuthorizeUrl,
   exchangeCode,
   fetchDiscordUser,
+  isGuildMember,
   createOAuthState,
   verifyOAuthState,
   createSessionToken,
@@ -177,6 +178,14 @@ export default {
 
       const user = await fetchDiscordUser(exch.accessToken);
       if (!user) return new Response("Login failed: could not fetch Discord identity.", { status: 502 });
+
+      if (!(await isGuildMember(exch.accessToken, env.GUILD_ID))) {
+        // Any Discord account can complete the OAuth screen — only members of
+        // the Purge server get a session out of it. Tell the site why via the
+        // same fragment channel the token normally rides back on.
+        const separator = next.includes("#") ? "&" : "#";
+        return Response.redirect(`${next}${separator}purgeError=not_member`, 302);
+      }
 
       const token = await createSessionToken(env, {
         discordId: user.id,

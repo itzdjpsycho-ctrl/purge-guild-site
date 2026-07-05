@@ -21,6 +21,11 @@
 // looked up fresh from KV on every request instead of being baked into the
 // token, so promoting/demoting an officer or linking an account takes effect
 // immediately — no re-login needed.
+//
+// Only current members of the Purge Discord server (env.GUILD_ID) can sign in
+// at all — /auth/callback checks isGuildMember() before issuing a token, so a
+// stranger's Discord account can complete the OAuth screen but won't get a
+// session out of it.
 
 const API = "https://discord.com/api/v10";
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days — "stay signed in until I sign out"
@@ -31,7 +36,9 @@ export function buildAuthorizeUrl(env, state, redirectUri) {
     client_id: env.DISCORD_CLIENT_ID,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "identify",
+    // guilds.members.read lets /auth/callback confirm the person signing in
+    // is actually in the Purge Discord server, not just any Discord account.
+    scope: "identify guilds.members.read",
     state,
   });
   return `https://discord.com/oauth2/authorize?${params}`;
@@ -61,6 +68,17 @@ export async function fetchDiscordUser(accessToken) {
   });
   if (!res.ok) return null;
   return res.json();
+}
+
+/** True if this Discord account is currently a member of env.GUILD_ID. Only
+ *  checked once, at login — membership isn't re-verified for the life of the
+ *  30-day session token (we don't retain a refresh token to re-check later),
+ *  so someone who leaves the guild keeps access until their next sign-in. */
+export async function isGuildMember(accessToken, guildId) {
+  const res = await fetch(`${API}/users/@me/guilds/${guildId}/member`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  return res.ok;
 }
 
 // ---- signed, stateless tokens (used for both the session and the OAuth `state`) ----
