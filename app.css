@@ -107,15 +107,31 @@
 /* ---- Content column ----------------------------------------------------- */
 .app-content{
   max-width:1280px;
+  margin:0 auto;
   padding:34px 44px 90px;
   width:100%;
 }
 
 /* Page header (replaces the old centered rounded header card) */
 .page-head{
+  position:relative;
   display:flex; flex-direction:column; gap:6px;
   padding-bottom:22px; margin-bottom:26px;
   border-bottom:1px solid var(--hairline-soft, #1A1426);
+}
+/* HUD sweep — a glowing accent that drifts along the header rule */
+.page-head::after{
+  content:"";
+  position:absolute; left:0; right:0; bottom:-1px; height:2px;
+  background:linear-gradient(90deg, transparent, var(--crimson-bright, #AB4DFF) 15%, var(--crimson-glow, #C77DFF) 25%, transparent 45%);
+  background-size:220% 100%;
+  animation:hud-sweep 7s linear infinite;
+  opacity:0.75;
+  pointer-events:none;
+}
+@keyframes hud-sweep{
+  0%{ background-position:220% 0; }
+  100%{ background-position:-100% 0; }
 }
 .page-eyebrow{
   font-family:var(--font-mono, monospace); font-size:10px; letter-spacing:0.22em;
@@ -131,10 +147,36 @@
 .page-head-row{ display:flex; align-items:flex-end; justify-content:space-between; gap:18px; flex-wrap:wrap; }
 
 /* ---- Scoped polish (wins over inline .panel via specificity) ------------ */
-.app-content .panel{
+/* HUD panel frame — sharp notched corners (top-left / bottom-right) with
+   glowing bracket accents on the remaining two corners, replacing the old
+   plain rounded card look. */
+.app-content .panel,
+.app-content .player-card,
+.app-content .col{
   border:1px solid var(--hairline, #2A1F3A);
-  border-radius:14px;
+  border-radius:3px;
+  position:relative;
+  clip-path:polygon(
+    14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px
+  );
 }
+.app-content .panel::before,
+.app-content .player-card::before,
+.app-content .col::before{
+  content:"";
+  position:absolute; inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(to left, var(--crimson-bright, #AB4DFF) 0 12px, transparent 0) right top / 12px 2px no-repeat,
+    linear-gradient(to bottom, var(--crimson-bright, #AB4DFF) 0 12px, transparent 0) right top / 2px 12px no-repeat,
+    linear-gradient(to right, var(--crimson-bright, #AB4DFF) 0 12px, transparent 0) left bottom / 12px 2px no-repeat,
+    linear-gradient(to top, var(--crimson-bright, #AB4DFF) 0 12px, transparent 0) left bottom / 2px 12px no-repeat;
+  opacity:0.55;
+  transition:opacity 0.2s ease;
+}
+.app-content .panel:hover::before,
+.app-content .player-card:hover::before,
+.app-content .col:hover::before{ opacity:1; }
 .app-content .section{ margin-bottom:30px; }
 .app-content .section-label,
 .app-content .section-heading{
@@ -158,6 +200,21 @@
   margin-right:0;
   padding-left:0;
   padding-right:0;
+}
+
+/* ---- HUD scanline overlay (sits above each page's own atmosphere, below
+   the app shell — subtle, non-interactive) ---------------------------------- */
+body::after{
+  content:"";
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:repeating-linear-gradient(
+    to bottom,
+    rgba(199,125,255,0.05) 0px,
+    rgba(199,125,255,0.05) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode:overlay;
 }
 
 /* ---- Custom scrollbars (purple-tinted) ---------------------------------- */
