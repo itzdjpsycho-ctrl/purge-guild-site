@@ -119,6 +119,16 @@
   width:100%;
 }
 
+/* Back link — for drill-down pages (e.g. a player profile) that don't sit
+   directly on the sidebar nav */
+.back-link{
+  display:inline-flex; align-items:center; gap:6px;
+  font-family:var(--font-mono, monospace); font-size:11.5px; letter-spacing:0.05em;
+  color:var(--text-muted, #8A8088); text-decoration:none;
+  margin-bottom:18px; transition:color 0.15s ease, gap 0.15s ease;
+}
+.back-link:hover{ color:var(--crimson-glow, #C77DFF); gap:9px; }
+
 /* Page header (replaces the old centered rounded header card) */
 .page-head{
   position:relative;
