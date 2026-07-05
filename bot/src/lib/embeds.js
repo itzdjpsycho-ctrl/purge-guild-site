@@ -186,6 +186,7 @@ export function signupEmbed(signup) {
   const capOf = (r) => (caps[r.id] != null ? caps[r.id] : r.cap);
 
   const attending = SIGNUP_ROLES.reduce((n, r) => n + roleFill(signup, r.id), 0) + g.unassigned.length;
+  const totalCap = SIGNUP_ROLES.reduce((n, r) => n + capOf(r), 0);
 
   const weekday = (() => {
     const d = new Date(`${signup.date}T00:00:00`);
@@ -196,7 +197,12 @@ export function signupEmbed(signup) {
 
   const embed = new EmbedBuilder()
     .setColor(closed ? 0x555160 : PURPLE)
-    .setTitle(`⚔️ NODE WAR${weekday ? ` · ${weekday}` : ""}${closed ? " (CLOSED)" : ""}`);
+    .setTitle(
+      `⚔️ NODE WAR${weekday ? ` · ${weekday}` : ""} · ${attending}/${totalCap}${closed ? " (CLOSED)" : ""}`
+    )
+    // Native Discord timestamp — this only regenerates when refreshSignupMessage
+    // fires (i.e. on every real change), so it doubles as a "last updated" mark.
+    .setTimestamp();
 
   if (signup.notes) embed.setDescription(signup.notes);
 
@@ -207,17 +213,23 @@ export function signupEmbed(signup) {
     ? `<t:${Math.floor(start.getTime() / 1000)}:F>  ·  <t:${Math.floor(start.getTime() / 1000)}:R>`
     : `${signup.date ? fmtDate(signup.date) : "TBD"}${signup.time ? ` · ${signup.time}` : ""}`;
 
-  // Header info row (inline → sits in columns like the reference sheet).
+  // Header info row (inline → sits in columns like the reference sheet). The
+  // blank spacer closes out the row so the first role column below doesn't
+  // get pulled up next to these two short fields — Discord wraps inline
+  // fields 3-per-row purely by position, so without this a tall role list
+  // ends up sharing a row with Node/Starts instead of starting its own.
   embed.addFields(
     { name: "📍 Node", value: signup.location || "TBD", inline: true },
-    { name: "🕐 Starts", value: startsValue, inline: true }
+    { name: "🕐 Starts", value: startsValue, inline: true },
+    { name: "​", value: "​", inline: true }
   );
 
   // Role columns. Beyond capacity, "in"/"late" members are still added (never
   // turned away) but rendered struck-through as waitlisted — first-signed-up,
   // first-slotted. Purely computed from sign-up order at render time, so a
   // withdrawal elsewhere instantly un-strikes the next person in line.
-  for (const r of SIGNUP_ROLES) {
+  for (let i = 0; i < SIGNUP_ROLES.length; i++) {
+    const r = SIGNUP_ROLES[i];
     const list = g.byRole[r.id];
     const fill = roleFill(signup, r.id);
     const cap = capOf(r);
@@ -235,6 +247,14 @@ export function signupEmbed(signup) {
       value: lines.length ? clip(lines.join("\n")) : "—",
       inline: true,
     });
+
+    // Thin full-width divider where the role list transitions groups (e.g.
+    // core damage roles → support roles) — forces a fresh row on either side,
+    // same trick as the Node/Starts spacer above.
+    const next = SIGNUP_ROLES[i + 1];
+    if (next && r.group && next.group && r.group !== next.group) {
+      embed.addFields({ name: "​", value: "─".repeat(40), inline: false });
+    }
   }
 
   // Unassigned / bench / tentative / absence (full-width lists).
@@ -266,7 +286,7 @@ export function signupEmbed(signup) {
   embed.setFooter({
     text: closed
       ? "Sign-ups are closed."
-      : `${attending} in · Pick a role + class below, then set your availability.`,
+      : "Pick a role + class below, then set your availability.",
   });
   return embed;
 }

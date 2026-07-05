@@ -65,20 +65,22 @@ export const BDO_CLASSES = [
  * Node War role groups shown on the sign-up sheet, in display order.
  * `cap` is the capacity (filled/cap shown on the sheet); members can't
  * self-pick a role that's full, but admins can override via `/signup add`.
+ * `group` ("core" damage roles vs "support") only drives the divider line
+ * the embed draws between groups — purely cosmetic, safe to omit.
  * Tune names / caps / emoji freely.
  */
 export const SIGNUP_ROLES = [
-  { id: "frontliner", label: "Frontliner", emoji: "⚔️", cap: 5 },
-  { id: "ranged", label: "Ranged", emoji: "🏹", cap: 4 },
-  { id: "skirmisher", label: "Skirmisher", emoji: "🗡️", cap: 6 },
-  { id: "caster", label: "Caster", emoji: "🔮", cap: 3 },
-  { id: "shai", label: "Shai", emoji: "🎶", cap: 2 },
-  { id: "trooper", label: "Trooper", emoji: "🐎", cap: 3 },
-  { id: "defense", label: "Defense", emoji: "🛡️", cap: 3 },
-  { id: "flex", label: "Flex", emoji: "🔀", cap: 1 },
-  { id: "scout", label: "Scout", emoji: "🔭", cap: 1 },
-  { id: "elephant", label: "Elephant", emoji: "🐘", cap: 1 },
-  { id: "shotcaller", label: "Shotcaller", emoji: "📣", cap: 1 },
+  { id: "frontliner", label: "Frontliner", emoji: "⚔️", cap: 5, group: "core" },
+  { id: "ranged", label: "Ranged", emoji: "🏹", cap: 4, group: "core" },
+  { id: "skirmisher", label: "Skirmisher", emoji: "🗡️", cap: 6, group: "core" },
+  { id: "caster", label: "Caster", emoji: "🔮", cap: 3, group: "core" },
+  { id: "shai", label: "Shai", emoji: "🎶", cap: 2, group: "support" },
+  { id: "trooper", label: "Trooper", emoji: "🐎", cap: 3, group: "support" },
+  { id: "defense", label: "Defense", emoji: "🛡️", cap: 3, group: "support" },
+  { id: "flex", label: "Flex", emoji: "🔀", cap: 1, group: "support" },
+  { id: "scout", label: "Scout", emoji: "🔭", cap: 1, group: "support" },
+  { id: "elephant", label: "Elephant", emoji: "🐘", cap: 1, group: "support" },
+  { id: "shotcaller", label: "Shotcaller", emoji: "📣", cap: 1, group: "support" },
 ];
 
 /**
