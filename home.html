@@ -73,95 +73,47 @@
   .hero{
     max-width:1000px; margin:32px auto 0;
     padding:0 24px;
-    display:grid;
-    grid-template-columns:280px 1fr;
-    gap:40px;
-    align-items:center;
-    min-height:320px;
-  }
-
-  /* Logo placeholder */
-  .logo-wrap{
-    position:relative;
-  }
-  .logo-placeholder{
-    width:100%; aspect-ratio:1;
-    max-width:260px;
-    border:1px solid var(--crimson);
-    border-radius:12px;
-    background:var(--panel);
     display:flex; flex-direction:column;
-    align-items:center; justify-content:center;
-    gap:10px;
-    position:relative;
-    overflow:hidden;
-    box-shadow:0 0 60px rgba(110,31,184,0.25), inset 0 0 40px rgba(110,31,184,0.08);
+    align-items:center;
+    gap:28px;
   }
-  /* Corner brackets — Purge aesthetic */
-  .logo-placeholder::before,
-  .logo-placeholder::after{
-    content:"";
-    position:absolute;
-    width:20px; height:20px;
-    border-color:var(--crimson-bright);
-    border-style:solid;
-  }
-  .logo-placeholder::before{
-    top:10px; left:10px;
-    border-width:2px 0 0 2px;
-  }
-  .logo-placeholder::after{
-    bottom:10px; right:10px;
-    border-width:0 2px 2px 0;
-  }
-  .logo-icon{ font-size:52px; opacity:0.25; }
-  .logo-swap-hint{
-    font-family:var(--font-mono); font-size:9px; letter-spacing:0.12em;
-    text-transform:uppercase; color:var(--text-faint); text-align:center;
-    line-height:1.6; padding:0 16px;
-  }
-  /* To swap the logo: replace .logo-placeholder contents with:
-     <img src="logo.png" alt="Purge" style="width:100%;height:100%;object-fit:contain;border-radius:12px;">
-     and remove the placeholder CSS above. */
 
-  .logo-glow{
+  /* Guild banner */
+  .hero-banner-wrap{
+    position:relative;
+    width:100%;
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow:0 0 80px rgba(110,31,184,0.3), 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .hero-banner-img{
+    display:block;
+    width:100%; height:auto;
+  }
+  .hero-banner-glow{
     position:absolute; inset:-20px;
-    background:radial-gradient(ellipse at center, rgba(110,31,184,0.2), transparent 70%);
-    pointer-events:none;
+    background:radial-gradient(ellipse at center, rgba(110,31,184,0.25), transparent 70%);
+    pointer-events:none; z-index:-1;
   }
 
   /* Hero copy */
-  .hero-copy{}
+  .hero-copy{ text-align:center; }
   .hero-eyebrow{
     font-family:var(--font-mono); font-size:10px; letter-spacing:0.32em;
     text-transform:uppercase; color:var(--crimson-mid); margin-bottom:14px;
-    display:flex; align-items:center; gap:10px;
+    display:flex; align-items:center; justify-content:center; gap:10px;
   }
-  .hero-eyebrow::before{
+  .hero-eyebrow::before,
+  .hero-eyebrow::after{
     content:""; display:inline-block; width:28px; height:1px;
     background:var(--crimson-mid);
   }
-  .hero-title{
-    font-family:var(--font-display);
-    font-size:clamp(52px, 9vw, 96px);
-    font-weight:800;
-    letter-spacing:-0.02em;
-    line-height:0.92;
-    color:var(--text);
-    text-shadow:0 0 80px rgba(171,77,255,0.35), 0 2px 0 rgba(0,0,0,0.8);
-  }
-  .hero-title span{
-    color:var(--crimson-bright);
-    font-style:italic;
-  }
   .hero-tagline{
-    margin-top:18px;
     font-size:15px;
     color:var(--text-muted);
     line-height:1.65;
-    max-width:400px;
-    border-left:2px solid var(--crimson);
-    padding-left:14px;
+    max-width:440px;
+    margin:0 auto;
   }
 
   /* Divider */
@@ -339,8 +291,6 @@
   footer span{ color:var(--crimson); }
 
   @media(max-width:760px){
-    .hero{ grid-template-columns:1fr; gap:24px; }
-    .logo-placeholder{ max-width:160px; }
     .stats-grid{ grid-template-columns:repeat(3,1fr); }
     .links-grid{ grid-template-columns:repeat(2,1fr); }
     .recent-body{ grid-template-columns:1fr; }
@@ -377,23 +327,13 @@
 
 <!-- HERO -->
 <div class="hero">
-  <div class="logo-wrap">
-    <div class="logo-glow"></div>
-    <!-- LOGO PLACEHOLDER
-         To swap in your guild logo:
-         1. Place your image file (e.g. logo.png) next to this HTML file
-         2. Replace the entire .logo-placeholder div below with:
-            <img src="logo.png" alt="Purge" style="width:100%;max-width:260px;border-radius:12px;">
-    -->
-    <div class="logo-placeholder">
-      <span class="logo-icon">⚔️</span>
-      <span class="logo-swap-hint">Drop logo.png here<br>to replace this placeholder</span>
-    </div>
+  <div class="hero-banner-wrap">
+    <div class="hero-banner-glow"></div>
+    <img src="assets/branding/purge-banner.png" alt="Purge — Purge the Weak, Remain Supreme" class="hero-banner-img">
   </div>
 
   <div class="hero-copy">
     <div class="hero-eyebrow">Black Desert Online · Node War Guild</div>
-    <div class="hero-title">P<span>urge</span></div>
     <p class="hero-tagline">
       We don't negotiate. We don't retreat.<br>
       Every node falls, or we fall taking it.
