@@ -31,12 +31,16 @@ import {
   verifyToken,
   readSessionId,
   familyNameForDiscordId,
-  getOfficerIds,
-  isOfficer,
+  getOfficers,
+  roleForDiscordId,
+  ROLE_RANK,
 } from "./auth.js";
 
 const PAGES_ORIGIN = "https://itzdjpsycho-ctrl.github.io";
 const MAX_POSTED = 25;
+// The legacy shared password outranks every officer role — it's the only way
+// to crown/depose a Guild Master, and a break-glass fallback for everything else.
+const PASSWORD_RANK = 4;
 
 function corsHeaders(request) {
   const origin = request.headers.get("Origin") || "";
@@ -53,24 +57,35 @@ function corsHeaders(request) {
 }
 
 /** Session for this request's X-Session-Id header, or null if invalid/expired.
- *  isAdmin/familyName are resolved fresh from KV on every call (rather than
+ *  role/familyName are resolved fresh from KV on every call (rather than
  *  baked into the token) so promoting an officer or linking an account takes
  *  effect immediately, without needing to sign in again. */
 async function sessionFor(request, env) {
   const identity = await verifyToken(env, readSessionId(request));
   if (!identity) return null;
-  const [isAdmin, familyName] = await Promise.all([
-    isOfficer(env, identity.discordId),
+  const [role, familyName] = await Promise.all([
+    roleForDiscordId(env, identity.discordId),
     familyNameForDiscordId(env, identity.discordId),
   ]);
-  return { ...identity, isAdmin, familyName };
+  return { ...identity, role, isAdmin: Boolean(role), familyName };
 }
 
-/** True if the request carries either an admin session or the legacy shared password. */
-async function isAdminRequest(request, env) {
-  if (request.headers.get("x-admin-password") === env.ADMIN_POST_PASSWORD) return true;
+/** 0-4: the legacy password outranks every role; a session's rank is its
+ *  officer tier (0 if none/not signed in). Used to decide who can post
+ *  sign-ups (rank >= 1) vs. who can add/remove which officer tier. */
+async function rankFor(request, env) {
+  if (request.headers.get("x-admin-password") === env.ADMIN_POST_PASSWORD) return PASSWORD_RANK;
   const session = await sessionFor(request, env);
-  return Boolean(session?.isAdmin);
+  return ROLE_RANK[session?.role] || 0;
+}
+
+/** True if the request carries any officer-tier session or the legacy shared password. */
+async function isAdminRequest(request, env) {
+  return (await rankFor(request, env)) >= ROLE_RANK.officer;
+}
+
+function withFamilyNames(officers, links) {
+  return officers.map((o) => ({ ...o, familyName: links[o.discordId] || null }));
 }
 
 function json(data, status, request) {
@@ -180,7 +195,7 @@ export default {
       const session = await sessionFor(request, env);
       return json(
         session
-          ? { loggedIn: true, discordId: session.discordId, username: session.username, avatar: session.avatar, isAdmin: session.isAdmin, familyName: session.familyName }
+          ? { loggedIn: true, discordId: session.discordId, username: session.username, avatar: session.avatar, isAdmin: session.isAdmin, role: session.role, familyName: session.familyName }
           : { loggedIn: false },
         200,
         request
@@ -193,25 +208,35 @@ export default {
       return json({ ok: true }, 200, request);
     }
 
-    // ---- manage the officer list, by family name (admin-gated) ----
-    // Officers are just Discord ids in KV — no Discord role IDs needed. To
-    // resolve a family name to a Discord id we reuse the "links" map the bot
-    // pushes (see /links below), so only players who've run /profile register
-    // can be made an officer.
+    // ---- manage the officer list, by family name ----
+    // Officers are {discordId, role} in KV, role one of "officer" < "second"
+    // (Second in Command) < "guildmaster" (Guild Master) — no Discord role
+    // IDs needed. Adding/removing someone requires STRICTLY outranking the
+    // role being granted/revoked, so: officers can't touch other officers;
+    // Second in Command can add/remove officers but not touch a Guild Master
+    // or another Second in Command; only the legacy password can crown or
+    // depose a Guild Master. Family names resolve to a Discord id via the
+    // "links" map the bot pushes (see /links below), so only players who've
+    // run /profile register can hold an officer role.
     if (path === "/officers" && method === "GET") {
       if (!(await isAdminRequest(request, env))) return json({ error: "Not signed in as an officer." }, 401, request);
-      const [ids, linksRaw] = await Promise.all([getOfficerIds(env), env.SIGNUPS_KV.get("links")]);
+      const [officers, linksRaw] = await Promise.all([getOfficers(env), env.SIGNUPS_KV.get("links")]);
       const links = linksRaw ? JSON.parse(linksRaw) : {};
-      const officers = ids.map((id) => ({ discordId: id, familyName: links[id] || null }));
-      return json({ officers }, 200, request);
+      return json({ officers: officers.map((o) => ({ ...o, familyName: links[o.discordId] || null })) }, 200, request);
     }
 
     if (path === "/officers" && method === "POST") {
-      if (!(await isAdminRequest(request, env))) return json({ error: "Not signed in as an officer." }, 401, request);
+      const requesterRank = await rankFor(request, env);
+      if (requesterRank < ROLE_RANK.officer) return json({ error: "Not signed in as an officer." }, 401, request);
+
       const body = await readJson(request);
       if (!body?.familyName || (body.action !== "add" && body.action !== "remove")) {
         return json({ error: "familyName + action(add|remove) required." }, 400, request);
       }
+      if (body.action === "add" && !ROLE_RANK[body.role]) {
+        return json({ error: "role must be one of officer, second, guildmaster." }, 400, request);
+      }
+
       const linksRaw = await env.SIGNUPS_KV.get("links");
       const links = linksRaw ? JSON.parse(linksRaw) : {};
       const lc = body.familyName.toLowerCase();
@@ -219,12 +244,24 @@ export default {
       if (!discordId) {
         return json({ error: `${body.familyName} hasn't linked a Discord account yet (they need to run /profile register).` }, 404, request);
       }
-      const ids = await getOfficerIds(env);
+
+      const officers = await getOfficers(env);
+      const existing = officers.find((o) => o.discordId === discordId);
+      if (body.action === "remove" && !existing) {
+        return json({ ok: true, officers: withFamilyNames(officers, links) }, 200, request);
+      }
+      // Adding: must outrank the role being granted. Removing: must outrank
+      // whatever role that person currently holds.
+      const targetRank = body.action === "add" ? ROLE_RANK[body.role] : ROLE_RANK[existing.role];
+      if (requesterRank <= targetRank) {
+        return json({ error: "You don't have permission to do that." }, 403, request);
+      }
+
       const next = body.action === "add"
-        ? (ids.includes(discordId) ? ids : [...ids, discordId])
-        : ids.filter((id) => id !== discordId);
+        ? [...officers.filter((o) => o.discordId !== discordId), { discordId, role: body.role }]
+        : officers.filter((o) => o.discordId !== discordId);
       await env.SIGNUPS_KV.put("officers", JSON.stringify(next));
-      return json({ ok: true, officers: next.map((id) => ({ discordId: id, familyName: links[id] || null })) }, 200, request);
+      return json({ ok: true, officers: withFamilyNames(next, links) }, 200, request);
     }
 
     // ---- bot → push the private Discord-id <-> family-name link map (bot-secret gated) ----

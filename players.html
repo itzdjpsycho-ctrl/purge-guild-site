@@ -130,6 +130,11 @@
     padding:8px 11px; border-radius:8px; outline:none; flex:1; max-width:260px;
   }
   .officers-add input:focus{ border-color:var(--crimson); }
+  .officers-add select{
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    color:var(--text); font-family:var(--font-ui); font-size:13px;
+    padding:8px 11px; border-radius:8px; outline:none;
+  }
 
   .btn{
     font-family:var(--font-mono); font-size:12px; letter-spacing:0.04em;
@@ -425,6 +430,7 @@
     <div class="officers-add">
       <input type="text" id="officerInput" list="officerRosterList" placeholder="Family name…">
       <datalist id="officerRosterList"></datalist>
+      <select id="officerRoleSelect"></select>
       <button class="btn purple" id="officerAddBtn" type="button">Add Officer</button>
     </div>
   </div>
@@ -875,16 +881,25 @@ const WORKER_URL = (localStorage.getItem("signupWorkerUrl")
   || "https://purge-signups.itzdjpsycho.workers.dev").replace(/\/+$/, "");
 
 function renderOfficers(list){
+  const myRank = PurgeAuth.rank();
   document.getElementById("officersList").innerHTML = list.length
     ? list.map(o => {
         const label = o.familyName || `Unlinked (${o.discordId})`;
-        return `<span class="officer-chip">${label}<button type="button" data-remove="${o.familyName||""}">&times;</button></span>`;
+        const roleLabel = PurgeAuth.ROLE_LABELS[o.role] || o.role;
+        const canRemove = myRank > (PurgeAuth.ROLE_RANK[o.role] || 0);
+        return `<span class="officer-chip">${label} <span style="opacity:0.65;">(${roleLabel})</span>${canRemove ? `<button type="button" data-remove="${o.familyName||""}">&times;</button>` : ""}</span>`;
       }).join("")
     : `<span style="font-family:var(--font-mono);font-size:11px;color:var(--text-faint);">No officers yet — add one below.</span>`;
   document.getElementById("officersList").querySelectorAll("[data-remove]").forEach(btn => {
     btn.addEventListener("click", () => { if(btn.dataset.remove) removeOfficer(btn.dataset.remove); });
   });
   document.getElementById("officerRosterList").innerHTML = ROSTER_MEMBERS.map(n => `<option value="${n}">`).join("");
+  // Can only grant a role you outrank — a Second in Command can only add
+  // plain Officers, a Guild Master can add Officers or Second in Command.
+  // Plain Officers can't grant anything, so the whole add row is hidden.
+  const grantable = Object.entries(PurgeAuth.ROLE_RANK).filter(([, rank]) => rank < myRank);
+  document.getElementById("officerRoleSelect").innerHTML = grantable.map(([role]) => `<option value="${role}">${PurgeAuth.ROLE_LABELS[role]}</option>`).join("");
+  document.querySelector(".officers-add").style.display = grantable.length ? "" : "none";
 }
 async function loadOfficers(){
   try{
@@ -894,12 +909,12 @@ async function loadOfficers(){
     renderOfficers(data.officers || []);
   }catch(e){}
 }
-async function officerOp(familyName, action){
+async function officerOp(familyName, action, role){
   try{
     const res = await fetch(`${WORKER_URL}/officers`, {
       method:"POST",
       headers:{ "content-type":"application/json", ...PurgeAuth.headers() },
-      body: JSON.stringify({ familyName, action }),
+      body: JSON.stringify({ familyName, action, role }),
     });
     const data = await res.json().catch(()=>({}));
     if(!res.ok){ showToast(data.error || "Couldn't update officers", "error"); return; }
@@ -911,7 +926,7 @@ document.getElementById("officerAddBtn").addEventListener("click", () => {
   const input = document.getElementById("officerInput");
   const name = input.value.trim();
   if(!name) return;
-  officerOp(name, "add");
+  officerOp(name, "add", document.getElementById("officerRoleSelect").value);
   input.value = "";
 });
 window.purgeAuthReady?.then((state) => {

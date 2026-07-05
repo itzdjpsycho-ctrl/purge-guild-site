@@ -150,20 +150,32 @@ export async function familyNameForDiscordId(env, discordId) {
   }
 }
 
-/** Officers are a plain list of Discord ids, managed from the website itself
- *  (see worker.js GET/POST /officers) — no Discord role IDs needed. */
-export async function getOfficerIds(env) {
+// ---- Officer roles: a strict 3-tier hierarchy, managed from the website
+// itself (see worker.js GET/POST /officers) — no Discord role IDs needed.
+// Higher rank can add/remove anyone strictly below it; nothing in the UI can
+// touch a Guild Master (or assign one) — that's reserved for the legacy
+// ADMIN_POST_PASSWORD (see PASSWORD_RANK in worker.js), a deliberate
+// "only a super-admin can crown/depose a Guild Master" rule.
+export const ROLE_RANK = { officer: 1, second: 2, guildmaster: 3 };
+
+/** Officers are stored as {discordId, role}[]; a bare string is a pre-roles
+ *  entry from before this feature existed and defaults to "officer". */
+function normalizeOfficer(entry) {
+  return typeof entry === "string" ? { discordId: entry, role: "officer" } : entry;
+}
+
+export async function getOfficers(env) {
   const raw = await env.SIGNUPS_KV.get("officers");
   if (!raw) return [];
   try {
     const list = JSON.parse(raw);
-    return Array.isArray(list) ? list : [];
+    return Array.isArray(list) ? list.map(normalizeOfficer) : [];
   } catch {
     return [];
   }
 }
 
-export async function isOfficer(env, discordId) {
-  const ids = await getOfficerIds(env);
-  return ids.includes(discordId);
+export async function roleForDiscordId(env, discordId) {
+  const officers = await getOfficers(env);
+  return officers.find((o) => o.discordId === discordId)?.role || null;
 }

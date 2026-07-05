@@ -1600,7 +1600,7 @@
 </footer>
 
 <script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
-<script>PurgeAuth.init();</script>
+<script>window.purgeAuthReady = PurgeAuth.init();</script>
 <!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
 <script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>
@@ -2288,9 +2288,11 @@ function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof
           <button class="panel-search-clear" id="panelSearchClear" type="button">✕</button>
         </div>
         <div class="result-pill ${resultClass}">${resultLabel}</div>
-        ${currentMatchKey === "overall"
-          ? `<button class="clear-wars-btn" id="clearWarsBtn" type="button">Clear Added Wars</button>`
-          : `<button class="clear-wars-btn" id="removeWarBtn" type="button">Remove This War</button>`}
+        ${window.PurgeAuth?.state?.isAdmin
+          ? (currentMatchKey === "overall"
+              ? `<button class="clear-wars-btn" id="clearWarsBtn" type="button">Clear Added Wars</button>`
+              : `<button class="clear-wars-btn" id="removeWarBtn" type="button">Remove This War</button>`)
+          : ""}
       </div>
     </div>
     ${hofHTML}
@@ -2348,6 +2350,11 @@ function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof
 
 // Initial view
 selectMatch("overall");
+
+// Re-render once we know whether the signed-in user can see admin-only
+// controls (Clear Added Wars / Remove This War) — PurgeAuth.init() resolves
+// after this initial render, so the buttons are hidden until proven authorized.
+window.purgeAuthReady?.then(() => refreshCurrentPanel());
 
 // ================================================================
 // PLAYER INSPECT DRAWER

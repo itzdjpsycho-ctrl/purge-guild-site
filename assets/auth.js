@@ -49,14 +49,17 @@
     return localStorage.getItem(SESSION_KEY) || null;
   }
 
+  const ROLE_LABELS = { officer: "Officer", second: "Second in Command", guildmaster: "Guild Master" };
+
   function render(container, state) {
     if (state.loggedIn) {
       const avatarUrl = state.avatar
         ? `https://cdn.discordapp.com/avatars/${state.discordId}/${state.avatar}.png?size=32`
         : "";
+      const roleLabel = ROLE_LABELS[state.role];
       container.innerHTML =
         (avatarUrl ? `<img src="${avatarUrl}" alt="">` : "") +
-        `<span>${state.familyName || state.username}${state.isAdmin ? " · Officer" : ""}</span>` +
+        `<span>${state.familyName || state.username}${roleLabel ? ` · ${roleLabel}` : ""}</span>` +
         `<button type="button" data-auth-action="logout">Sign out</button>`;
     } else {
       container.innerHTML = `<button type="button" data-auth-action="login">Sign in with Discord</button>`;
@@ -74,14 +77,24 @@
     });
   }
 
+  // Mirrors worker/src/auth.js ROLE_RANK — client-side only for deciding what
+  // UI to show; the Worker re-checks every permission server-side regardless.
+  const ROLE_RANK = { officer: 1, second: 2, guildmaster: 3 };
+
   window.PurgeAuth = {
     WORKER_URL,
+    ROLE_RANK,
+    ROLE_LABELS,
     state: { loggedIn: false },
     // Header to spread into any fetch() that needs to identify the signed-in
     // user (empty object if nobody's signed in — same shape either way).
     headers() {
       const id = sessionId();
       return id ? { "X-Session-Id": id } : {};
+    },
+    // This user's officer rank (0 if signed out or not an officer).
+    rank() {
+      return ROLE_RANK[window.PurgeAuth.state.role] || 0;
     },
     // Fetches /auth/me, renders the widget into #<containerId>, and resolves
     // with the auth state so callers can gate their own admin/owner UI.
