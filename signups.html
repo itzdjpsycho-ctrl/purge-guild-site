@@ -98,6 +98,36 @@
   .conn .dot.off{ background:var(--red-bright); box-shadow:0 0 10px rgba(214,90,69,0.5); }
   .toolbar-spacer{ flex:1; }
 
+  /* Officers panel (admin-only) */
+  .officers-panel{
+    background:var(--panel); border:1px solid var(--hairline); border-radius:12px;
+    padding:14px 16px; margin:0 0 18px;
+  }
+  .officers-head{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--crimson-bright); margin-bottom:10px;
+  }
+  .officers-head .officers-sub{ text-transform:none; letter-spacing:0; color:var(--text-faint); font-size:10.5px; }
+  .officers-list{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+  .officer-chip{
+    display:flex; align-items:center; gap:6px;
+    font-family:var(--font-mono); font-size:11.5px; color:var(--crimson-glow);
+    background:rgba(110,31,184,0.16); border:1px solid var(--crimson); border-radius:999px;
+    padding:5px 6px 5px 12px;
+  }
+  .officer-chip button{
+    background:none; border:none; color:inherit; cursor:pointer; font-size:13px; line-height:1;
+    padding:2px 6px; border-radius:50%;
+  }
+  .officer-chip button:hover{ background:rgba(255,255,255,0.12); }
+  .officers-add{ display:flex; gap:8px; }
+  .officers-add input{
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    color:var(--text); font-family:var(--font-ui); font-size:13px;
+    padding:8px 11px; border-radius:8px; outline:none; flex:1; max-width:260px;
+  }
+  .officers-add input:focus{ border-color:var(--crimson); }
+
   /* Hint + board/tray layout */
   .board-hint{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint); margin-bottom:14px; line-height:1.6; }
   .board-wrap{ display:flex; gap:16px; align-items:flex-start; }
@@ -286,6 +316,17 @@
   <div class="field wide"><label>Notes (rules / requirements)</label><textarea id="fNotes" placeholder="Bring pots, be on time…"></textarea></div>
 </div>
 
+<!-- Officers (only shown to a signed-in officer) -->
+<div class="officers-panel" id="officersPanel" style="display:none;">
+  <div class="officers-head">Officers <span class="officers-sub">— can post sign-ups &amp; moderate profiles</span></div>
+  <div class="officers-list" id="officersList"></div>
+  <div class="officers-add">
+    <input type="text" id="officerInput" list="officerRosterList" placeholder="Family name…">
+    <datalist id="officerRosterList"></datalist>
+    <button class="btn purple" id="officerAddBtn" type="button">Add Officer</button>
+  </div>
+</div>
+
 <!-- Toolbar -->
 <div class="signup-toolbar">
   <div class="conn"><span class="dot" id="connDot"></span><span id="connText">Checking relay…</span></div>
@@ -325,7 +366,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="assets/auth.js"></script>
-<script>PurgeAuth.init();</script>
+<script>window.purgeAuthReady = PurgeAuth.init();</script>
 <!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
 <script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>document.write('<scr'+'ipt src="profiles.js?v='+Date.now()+'"></scr'+'ipt>')</script>
@@ -889,6 +930,54 @@ byId("fStatus").addEventListener("change", () => { model.status = byId("fStatus"
 byId("guestInput").addEventListener("keydown", e => { if(e.key==="Enter"){ const v=byId("guestInput").value; if(v){ addEntry(v); byId("guestInput").value=""; } } });
 byId("postBtn").addEventListener("click", () => postSheet(false));
 byId("repostBtn").addEventListener("click", repostMerged);
+
+// ---- Officers panel (admin-only; officers are managed by family name, not Discord role IDs) ----
+function renderOfficers(list){
+  byId("officersList").innerHTML = list.length
+    ? list.map(o => {
+        const label = o.familyName || `Unlinked (${o.discordId})`;
+        return `<span class="officer-chip">${label}<button type="button" data-remove="${o.familyName||""}">&times;</button></span>`;
+      }).join("")
+    : `<span style="font-family:var(--font-mono);font-size:11px;color:var(--text-faint);">No officers yet — add one below.</span>`;
+  byId("officersList").querySelectorAll("[data-remove]").forEach(btn => {
+    btn.addEventListener("click", () => { if(btn.dataset.remove) removeOfficer(btn.dataset.remove); });
+  });
+  byId("officerRosterList").innerHTML = roster().map(n => `<option value="${n}">`).join("");
+}
+async function loadOfficers(){
+  try{
+    const res = await fetch(`${WORKER_URL}/officers`, { credentials:"include" });
+    if(!res.ok) return;
+    const data = await res.json();
+    renderOfficers(data.officers || []);
+  }catch(e){}
+}
+async function officerOp(familyName, action){
+  try{
+    const res = await fetch(`${WORKER_URL}/officers`, {
+      method:"POST", credentials:"include",
+      headers:{ "content-type":"application/json" },
+      body: JSON.stringify({ familyName, action }),
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok){ toast(data.error || "Couldn't update officers", "error"); return; }
+    renderOfficers(data.officers || []);
+  }catch(e){ toast("Couldn't reach the relay", "error"); }
+}
+function removeOfficer(familyName){ officerOp(familyName, "remove"); }
+byId("officerAddBtn").addEventListener("click", () => {
+  const input = byId("officerInput");
+  const name = input.value.trim();
+  if(!name) return;
+  officerOp(name, "add");
+  input.value = "";
+});
+window.purgeAuthReady?.then((state) => {
+  if(state?.isAdmin){
+    byId("officersPanel").style.display = "";
+    loadOfficers();
+  }
+});
 byId("refreshBtn").addEventListener("click", async () => {
   const btn = byId("refreshBtn");
   const original = btn.textContent;

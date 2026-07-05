@@ -2,6 +2,7 @@
 //
 //   Website  ──GET  /auth/login,/auth/callback,/auth/me──►  Sign in with Discord (session cookie)
 //   Website  ──POST /auth/logout─────────────────────────►  clear session
+//   Website  ──GET/POST /officers (session-or-password)──►  manage who's an officer, by family name
 //   Website  ──POST /post,/edit,/op (session-or-password)──► posts to Discord as the bot
 //   Website  ──POST /profile-op (session: admin or own familyName)──► queue a profile edit
 //   Website  ──GET  /state (public, sanitized)──────►  live view
@@ -9,8 +10,10 @@
 //   Bot      ──GET  /posted (x-bot-secret)─────────►   hydrate offline-posted sheets
 //
 // Secrets (wrangler secret put): DISCORD_BOT_TOKEN, ADMIN_POST_PASSWORD, BOT_PUSH_SECRET,
-//   DISCORD_CLIENT_SECRET. Vars: DISCORD_CLIENT_ID, GUILD_ID, ADMIN_ROLE_IDS (mirrors bot/src/config.js).
-// KV binding: SIGNUPS_KV.  Keys: "config", "state", "posted", "links", "session:<id>", "oauthstate:<id>".
+//   DISCORD_CLIENT_SECRET. Vars: DISCORD_CLIENT_ID.
+// Officers aren't Discord roles — they're a plain list of Discord ids in KV ("officers"),
+// managed from the website itself (bootstrap the first one with ADMIN_POST_PASSWORD).
+// KV binding: SIGNUPS_KV.  Keys: "config", "state", "posted", "links", "officers", "session:<id>", "oauthstate:<id>".
 
 import { postMessage, patchMessage } from "./discord.js";
 import { readGearStats } from "./gear.js";
@@ -18,7 +21,6 @@ import {
   buildAuthorizeUrl,
   exchangeCode,
   fetchDiscordUser,
-  fetchGuildRoles,
   stashOAuthState,
   consumeOAuthState,
   createSession,
@@ -28,7 +30,8 @@ import {
   sessionCookieHeader,
   clearSessionCookieHeader,
   familyNameForDiscordId,
-  isAdminRoles,
+  getOfficerIds,
+  isOfficer,
 } from "./auth.js";
 
 const PAGES_ORIGIN = "https://itzdjpsycho-ctrl.github.io";
@@ -153,12 +156,11 @@ export default {
       const user = await fetchDiscordUser(exch.accessToken);
       if (!user) return new Response("Login failed: could not fetch Discord identity.", { status: 502 });
 
-      const roles = env.GUILD_ID ? await fetchGuildRoles(exch.accessToken, env.GUILD_ID) : [];
       const sessionId = await createSession(env, {
         discordId: user.id,
         username: user.username,
         avatar: user.avatar,
-        isAdmin: isAdminRoles(env, roles),
+        isAdmin: await isOfficer(env, user.id),
         familyName: await familyNameForDiscordId(env, user.id),
       });
 
@@ -185,6 +187,40 @@ export default {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders(request), "Set-Cookie": clearSessionCookieHeader() },
       });
+    }
+
+    // ---- manage the officer list, by family name (admin-gated) ----
+    // Officers are just Discord ids in KV — no Discord role IDs needed. To
+    // resolve a family name to a Discord id we reuse the "links" map the bot
+    // pushes (see /links below), so only players who've run /profile register
+    // can be made an officer.
+    if (path === "/officers" && method === "GET") {
+      if (!(await isAdminRequest(request, env))) return json({ error: "Not signed in as an officer." }, 401, request);
+      const [ids, linksRaw] = await Promise.all([getOfficerIds(env), env.SIGNUPS_KV.get("links")]);
+      const links = linksRaw ? JSON.parse(linksRaw) : {};
+      const officers = ids.map((id) => ({ discordId: id, familyName: links[id] || null }));
+      return json({ officers }, 200, request);
+    }
+
+    if (path === "/officers" && method === "POST") {
+      if (!(await isAdminRequest(request, env))) return json({ error: "Not signed in as an officer." }, 401, request);
+      const body = await readJson(request);
+      if (!body?.familyName || (body.action !== "add" && body.action !== "remove")) {
+        return json({ error: "familyName + action(add|remove) required." }, 400, request);
+      }
+      const linksRaw = await env.SIGNUPS_KV.get("links");
+      const links = linksRaw ? JSON.parse(linksRaw) : {};
+      const lc = body.familyName.toLowerCase();
+      const discordId = Object.keys(links).find((id) => links[id].toLowerCase() === lc);
+      if (!discordId) {
+        return json({ error: `${body.familyName} hasn't linked a Discord account yet (they need to run /profile register).` }, 404, request);
+      }
+      const ids = await getOfficerIds(env);
+      const next = body.action === "add"
+        ? (ids.includes(discordId) ? ids : [...ids, discordId])
+        : ids.filter((id) => id !== discordId);
+      await env.SIGNUPS_KV.put("officers", JSON.stringify(next));
+      return json({ ok: true, officers: next.map((id) => ({ discordId: id, familyName: links[id] || null })) }, 200, request);
     }
 
     // ---- bot → push the private Discord-id <-> family-name link map (bot-secret gated) ----

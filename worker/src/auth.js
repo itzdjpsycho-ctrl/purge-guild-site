@@ -12,7 +12,7 @@ export function buildAuthorizeUrl(env, state, redirectUri) {
     client_id: env.DISCORD_CLIENT_ID,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "identify guilds.members.read",
+    scope: "identify",
     state,
   });
   return `https://discord.com/oauth2/authorize?${params}`;
@@ -42,16 +42,6 @@ export async function fetchDiscordUser(accessToken) {
   });
   if (!res.ok) return null;
   return res.json();
-}
-
-/** Roles the user holds in the guild, or [] if they're not a member. */
-export async function fetchGuildRoles(accessToken, guildId) {
-  const res = await fetch(`${API}/users/@me/guilds/${guildId}/member`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!res.ok) return [];
-  const data = await res.json().catch(() => null);
-  return data?.roles || [];
 }
 
 function randomId() {
@@ -118,8 +108,20 @@ export async function familyNameForDiscordId(env, discordId) {
   }
 }
 
-export function isAdminRoles(env, roles) {
-  const adminRoleIds = (env.ADMIN_ROLE_IDS || "").split(",").map((s) => s.trim()).filter(Boolean);
-  if (!adminRoleIds.length) return false;
-  return roles.some((r) => adminRoleIds.includes(r));
+/** Officers are a plain list of Discord ids, managed from the website itself
+ *  (see worker.js GET/POST /officers) — no Discord role IDs needed. */
+export async function getOfficerIds(env) {
+  const raw = await env.SIGNUPS_KV.get("officers");
+  if (!raw) return [];
+  try {
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function isOfficer(env, discordId) {
+  const ids = await getOfficerIds(env);
+  return ids.includes(discordId);
 }

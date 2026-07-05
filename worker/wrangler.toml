@@ -8,12 +8,11 @@ kv_namespaces = [
   { binding = "SIGNUPS_KV", id = "080b0d66de544ebe9c5ac9f6f55bf9da" }
 ]
 
-# Not secret — same values as the bot's bot/src/config.js (GUILD_ID, ADMIN_ROLE_IDS)
-# and the OAuth app's public client id (Discord Developer Portal → OAuth2).
+# Not secret — the OAuth app's public client id (Discord Developer Portal → OAuth2).
+# Officers are managed from the website itself (see worker.js /officers), not via
+# Discord role IDs, so no GUILD_ID / ADMIN_ROLE_IDS are needed here.
 [vars]
-DISCORD_CLIENT_ID = "your-discord-application-client-id"
-GUILD_ID = "your-discord-guild-id"
-ADMIN_ROLE_IDS = "role-id-1,role-id-2"
+DISCORD_CLIENT_ID = "1519482554917584916"
 
 # Secrets are NOT stored here — set them with:
 #   wrangler secret put DISCORD_BOT_TOKEN     (same value as the bot's DISCORD_TOKEN)
