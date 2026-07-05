@@ -172,6 +172,14 @@ export function setCaps(messageId, caps) {
   });
 }
 
+/** Flag a sign-up's Discord message as auto-deleted (post-war cleanup). The
+ *  record itself is kept forever — attendance history reads it. */
+export function markAutoDeleted(messageId) {
+  return mutate(messageId, (s) => {
+    s.autoDeletedAt = new Date().toISOString();
+  });
+}
+
 export function updateDetails(messageId, { date, time, location, notes }) {
   return mutate(messageId, (s) => {
     if (date !== undefined) s.date = date;

@@ -2285,7 +2285,9 @@ function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof
           <button class="panel-search-clear" id="panelSearchClear" type="button">✕</button>
         </div>
         <div class="result-pill ${resultClass}">${resultLabel}</div>
-        <button class="clear-wars-btn" id="clearWarsBtn" type="button">Clear Added Wars</button>
+        ${currentMatchKey === "overall"
+          ? `<button class="clear-wars-btn" id="clearWarsBtn" type="button">Clear Added Wars</button>`
+          : `<button class="clear-wars-btn" id="removeWarBtn" type="button">Remove This War</button>`}
       </div>
     </div>
     ${hofHTML}
@@ -2639,6 +2641,43 @@ document.addEventListener("click", e=>{
         btn.textContent = "Clear Added Wars";
         btn.style.background = "";
       }, 3000);
+    }
+  }
+
+  if (e.target && e.target.id === "removeWarBtn"){
+    const btn = e.target;
+    const m = MATCHES[Number(currentMatchKey)];
+    if (!m) return;
+
+    if (btn.dataset.confirming !== "1"){
+      btn.dataset.confirming = "1";
+      btn.textContent = "Tap again to confirm";
+      btn.style.background = "rgba(178,64,47,0.28)";
+      setTimeout(()=>{
+        btn.dataset.confirming = "";
+        btn.textContent = "Remove This War";
+        btn.style.background = "";
+      }, 3000);
+      return;
+    }
+
+    const { matches, extended } = loadDynamicMatches();
+    const isLocal = matches.some(dm => dm.date === m.date);
+
+    if (isLocal){
+      saveDynamicMatches(
+        matches.filter(dm => dm.date !== m.date),
+        Object.fromEntries(Object.entries(extended).filter(([d]) => d !== m.date))
+      );
+      location.reload();
+    } else {
+      btn.dataset.confirming = "";
+      btn.textContent = `Use /removewar ${m.date} in Discord`;
+      btn.style.background = "rgba(178,64,47,0.28)";
+      setTimeout(()=>{
+        btn.textContent = "Remove This War";
+        btn.style.background = "";
+      }, 4000);
     }
   }
 });

@@ -136,6 +136,22 @@ export function addWar(war) {
   return { replaced, players: basicPlayers.length };
 }
 
+/**
+ * Delete a war by exact YYYY-MM-DD date from matches + extendedStats.
+ * @returns {{removed:boolean, location:string|null}}
+ */
+export function removeWar(date) {
+  const data = loadData();
+  const match = data.matches.find((m) => m.date === date);
+  if (!match) return { removed: false, location: null };
+
+  data.matches = data.matches.filter((m) => m.date !== date);
+  delete data.extendedStats[date];
+
+  saveData(data);
+  return { removed: true, location: match.location };
+}
+
 /** List of all distinct player names (for autocomplete), sorted. */
 export function allPlayerNames() {
   const set = new Set();

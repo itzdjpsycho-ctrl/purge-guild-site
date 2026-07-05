@@ -1,4 +1,10 @@
-import { SlashCommandBuilder } from "discord.js";
+import {
+  SlashCommandBuilder,
+  ActionRowBuilder,
+  StringSelectMenuBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} from "discord.js";
 import {
   createSignup,
   getSignup,
@@ -26,13 +32,7 @@ export const data = new SlashCommandBuilder()
   .addSubcommand((s) =>
     s
       .setName("create")
-      .setDescription("Post a new sign-up sheet.")
-      .addStringOption((o) =>
-        o.setName("date").setDescription("War date, e.g. 2026-06-26").setRequired(true)
-      )
-      .addStringOption((o) =>
-        o.setName("time").setDescription("Start time, e.g. 11:00 AM").setRequired(false)
-      )
+      .setDescription("Post a new sign-up sheet (pick date/time from dropdowns).")
       .addStringOption((o) =>
         o.setName("location").setDescription("Node / location").setRequired(false)
       )
@@ -109,6 +109,137 @@ function targetName(interaction) {
   return member?.displayName || user?.globalName || user?.username || "Unknown";
 }
 
+// ---- /signup create: date/time picked from dropdowns, then confirmed ----
+// A throwaway in-memory session (keyed by the setup message id) holds the
+// picks until "Post Sign-Up" is clicked. If the bot restarts mid-setup, the
+// admin just runs /signup create again — nothing durable is at stake yet.
+const createSessions = new Map(); // messageId -> { location, notes, date, time }
+
+function dateOptions() {
+  const opts = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    // Build the value from local Y/M/D (not toISOString, which is UTC and can
+    // land on a different calendar day than the local label near midnight).
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    opts.push({
+      label: d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }),
+      value: iso,
+    });
+  }
+  return opts;
+}
+
+function timeOptions() {
+  // Discord select menus cap at 25 options, so the full 24-hour day only fits
+  // at hourly granularity (30-min steps would need 48 slots).
+  const opts = [];
+  for (let h24 = 0; h24 < 24; h24++) {
+    const label = new Date(2000, 0, 1, h24, 0).toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    const value = `${String(h24).padStart(2, "0")}:00`;
+    opts.push({ label, value });
+  }
+  return opts;
+}
+
+const DATE_OPTIONS = dateOptions();
+const TIME_OPTIONS = timeOptions();
+
+function createSetupComponents(session) {
+  const dateSelect = new StringSelectMenuBuilder()
+    .setCustomId("signup:csetup:date")
+    .setPlaceholder(session.date ? DATE_OPTIONS.find((o) => o.value === session.date)?.label : "Pick a date…")
+    .addOptions(DATE_OPTIONS);
+  const timeSelect = new StringSelectMenuBuilder()
+    .setCustomId("signup:csetup:time")
+    .setPlaceholder(session.time ? TIME_OPTIONS.find((o) => o.value === session.time)?.label : "Pick a time…")
+    .addOptions(TIME_OPTIONS);
+  const buttons = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("signup:csetup:post")
+      .setLabel("Post Sign-Up")
+      .setEmoji("✅")
+      .setStyle(ButtonStyle.Success)
+      .setDisabled(!session.date),
+    new ButtonBuilder()
+      .setCustomId("signup:csetup:cancel")
+      .setLabel("Cancel")
+      .setEmoji("✖️")
+      .setStyle(ButtonStyle.Secondary)
+  );
+  return [
+    new ActionRowBuilder().addComponents(dateSelect),
+    new ActionRowBuilder().addComponents(timeSelect),
+    buttons,
+  ];
+}
+
+function createSetupContent(session) {
+  const dateLabel = session.date ? DATE_OPTIONS.find((o) => o.value === session.date)?.label : "*(not picked)*";
+  const timeLabel = session.time ? TIME_OPTIONS.find((o) => o.value === session.time)?.label : "*(not picked)*";
+  return (
+    `**Setting up a Node War sign-up**\n` +
+    `📍 ${session.location || "TBD"}   📅 ${dateLabel}   🕐 ${timeLabel}\n` +
+    `Pick a date and time below, then **Post Sign-Up**.`
+  );
+}
+
+async function handleCreateSetup(interaction, action) {
+  if (!isAdmin(interaction)) {
+    return interaction.reply({
+      content: "🚫 You need an admin role (or Manage Server) to use sign-up commands.",
+      ephemeral: true,
+    });
+  }
+
+  const session = createSessions.get(interaction.message.id);
+  if (!session) {
+    return interaction.update({
+      content: "⌛ This setup expired (the bot may have restarted). Run `/signup create` again.",
+      components: [],
+    });
+  }
+
+  if (action === "date") {
+    session.date = interaction.values[0];
+    return interaction.update({ content: createSetupContent(session), components: createSetupComponents(session) });
+  }
+  if (action === "time") {
+    session.time = interaction.values[0];
+    return interaction.update({ content: createSetupContent(session), components: createSetupComponents(session) });
+  }
+  if (action === "cancel") {
+    createSessions.delete(interaction.message.id);
+    return interaction.update({ content: "❌ Cancelled — no sign-up was posted.", components: [] });
+  }
+
+  // post
+  if (!session.date) {
+    return interaction.reply({ content: "🚫 Pick a date first.", ephemeral: true });
+  }
+  createSessions.delete(interaction.message.id);
+
+  const { location, notes, date, time } = session;
+  const placeholder = { date, time, location, notes, status: "open", seq: 0, entries: {} };
+  await interaction.update({ content: "", embeds: [signupEmbed(placeholder)], components: signupComponents(placeholder) });
+
+  createSignup({
+    messageId: interaction.message.id,
+    channelId: interaction.message.channelId,
+    date,
+    time,
+    location,
+    notes,
+    createdBy: interaction.user.id,
+  });
+}
+
 export async function execute(interaction) {
   if (!isAdmin(interaction)) {
     return interaction.reply({
@@ -143,27 +274,18 @@ export async function execute(interaction) {
   }
 
   if (sub === "create") {
-    const date = interaction.options.getString("date");
-    const time = interaction.options.getString("time") || "";
-    const location = interaction.options.getString("location") || "";
-    const notes = interaction.options.getString("notes") || "";
-
-    const placeholder = { date, time, location, notes, status: "open", seq: 0, entries: {} };
+    const session = {
+      location: interaction.options.getString("location") || "",
+      notes: interaction.options.getString("notes") || "",
+      date: null,
+      time: null,
+    };
     const msg = await interaction.reply({
-      embeds: [signupEmbed(placeholder)],
-      components: signupComponents(placeholder),
+      content: createSetupContent(session),
+      components: createSetupComponents(session),
       fetchReply: true,
     });
-
-    createSignup({
-      messageId: msg.id,
-      channelId: msg.channelId,
-      date,
-      time,
-      location,
-      notes,
-      createdBy: interaction.user.id,
-    });
+    createSessions.set(msg.id, session);
     return;
   }
 
@@ -223,6 +345,11 @@ export async function execute(interaction) {
 // ---- component handlers (self-service for any member) ----
 
 export async function handleComponent(interaction) {
+  // The /signup create dropdown/button setup flow.
+  if (interaction.customId.startsWith("signup:csetup:")) {
+    return handleCreateSetup(interaction, interaction.customId.split(":")[2]);
+  }
+
   // A class chosen from the ephemeral "Pick your class" picker — the click
   // arrives on the ephemeral message, so the sheet id is carried in the customId.
   if (
@@ -263,19 +390,17 @@ export async function handleComponent(interaction) {
       const role = interaction.values[0];
       const cap = signup.caps?.[role] ?? ROLE_BY_ID[role]?.cap;
       const alreadyHere = existing?.role === role;
-      if (!alreadyHere && cap && roleFill(signup, role) >= cap) {
-        return interaction.reply({
-          content: `🚫 **${ROLE_BY_ID[role]?.label || role}** is full (${cap}/${cap}). Pick another role, or ask leadership to slot you in.`,
-          ephemeral: true,
-        });
-      }
+      const isFull = !alreadyHere && cap && roleFill(signup, role) >= cap;
+
       // Picking a role signs you in if you hadn't set an active status.
       const status = existing && existing.status !== "absence" ? existing.status : "in";
       const opts = { role, status, name };
       // Strict: drop a previously-set class that doesn't fit the new role.
       if (existing?.cls && !roleAllowsClass(role, existing.cls)) opts.cls = null;
       setEntry(signup.messageId, userId, opts);
-      ack = `Role set to **${ROLE_BY_ID[role]?.label || role}**.`;
+      ack = isFull
+        ? `**${ROLE_BY_ID[role]?.label || role}** is full — you've been added on the waitlist (shown struck-through) and will move up automatically if a spot opens.`
+        : `Role set to **${ROLE_BY_ID[role]?.label || role}**.`;
       pickClassFor = role;
     }
   }

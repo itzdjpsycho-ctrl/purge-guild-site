@@ -5,20 +5,28 @@ import * as stats from "./commands/stats.js";
 import * as signup from "./commands/signup.js";
 import * as profile from "./commands/profile.js";
 import * as addwar from "./commands/addwar.js";
+import * as removewar from "./commands/removewar.js";
 import * as balance from "./commands/balance.js";
 import { syncFromWorker, applyOps } from "./lib/worker-sync.js";
 import { applyProfileOps } from "./lib/profile-sync.js";
 import { workerEnabled } from "./lib/worker.js";
+import { sweepExpiredSignups } from "./lib/signup-cleanup.js";
 
 assertConfig();
 
 const commands = new Collection();
-for (const cmd of [mvp, stats, signup, profile, addwar, balance]) commands.set(cmd.data.name, cmd);
+for (const cmd of [mvp, stats, signup, profile, addwar, removewar, balance]) commands.set(cmd.data.name, cmd);
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.once(Events.ClientReady, async (c) => {
   console.log(`✅ Logged in as ${c.user.tag}. Serving ${commands.size} commands.`);
+  // Delete sign-up sheets whose war started 4+ hours ago (history is kept in
+  // signups.json — only the live Discord message is removed).
+  sweepExpiredSignups(c).catch((err) => console.error("Sign-up sweep failed:", err.message));
+  setInterval(() => {
+    sweepExpiredSignups(c).catch((err) => console.error("Sign-up sweep failed:", err.message));
+  }, 15 * 60 * 1000);
   if (workerEnabled()) {
     // Adopt any sheets the website posted via the Worker (e.g. while we were
     // offline) so their buttons work, then keep checking on an interval.
@@ -34,7 +42,7 @@ client.once(Events.ClientReady, async (c) => {
 
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
-    // Sign-up buttons & role select are routed by their custom id prefix.
+    // Sign-up buttons & role/date/time selects are routed by their custom id prefix.
     if (
       (interaction.isButton() || interaction.isStringSelectMenu()) &&
       interaction.customId.startsWith("signup:")
@@ -44,6 +52,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (interaction.isButton() && interaction.customId.startsWith("addwar:")) {
       return await addwar.handleComponent(interaction);
+    }
+
+    if (interaction.isButton() && interaction.customId.startsWith("removewar:")) {
+      return await removewar.handleComponent(interaction);
     }
 
     // Balanced War Builder: buttons + the "add guilds" modal submit.

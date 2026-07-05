@@ -5,10 +5,11 @@ import {
   ButtonStyle,
   StringSelectMenuBuilder,
 } from "discord.js";
-import { SIGNUP_ROLES, SIGNUP_STATUSES, BDO_CLASSES, ROLE_CLASSES } from "../config.js";
+import { SIGNUP_ROLES, SIGNUP_STATUSES, BDO_CLASSES, ROLE_CLASSES, SITE_URL } from "../config.js";
 import { fmtNum, fmtKD, fmtTime, fmtDate } from "./data.js";
 import { topReasons } from "./mvp.js";
 import { roleFill } from "./signups.js";
+import { parseWarStart } from "./wartime.js";
 
 export const PURPLE = 0x8b2fd9;
 const GOLD = 0xc49a30;
@@ -142,10 +143,14 @@ const BUTTON_STYLE = {
   Danger: ButtonStyle.Danger,
 };
 
-/** One roster line: `42` Name (struck through when benched, ⏰ when late). */
-function memberLine(e) {
+/**
+ * One roster line: `42` Name (struck through when benched, ⏰ when late,
+ * struck through + ⏳ when waitlisted for a full role).
+ */
+function memberLine(e, waitlisted = false) {
   const tag = `\`${String(e.num).padStart(2, " ")}\` `;
   if (e.status === "bench") return `${tag}~~${e.name}~~`;
+  if (waitlisted) return `${tag}~~${e.name}~~ ⏳`;
   if (e.status === "late") return `${tag}${e.name} ⏰`;
   return `${tag}${e.name}`;
 }
@@ -195,20 +200,39 @@ export function signupEmbed(signup) {
 
   if (signup.notes) embed.setDescription(signup.notes);
 
+  // Discord's <t:seconds:F/R> renders in each viewer's own timezone/locale.
+  // Falls back to plain text if the free-text time field can't be parsed.
+  const start = parseWarStart(signup.date, signup.time);
+  const startsValue = start
+    ? `<t:${Math.floor(start.getTime() / 1000)}:F>  ·  <t:${Math.floor(start.getTime() / 1000)}:R>`
+    : `${signup.date ? fmtDate(signup.date) : "TBD"}${signup.time ? ` · ${signup.time}` : ""}`;
+
   // Header info row (inline → sits in columns like the reference sheet).
   embed.addFields(
     { name: "📍 Node", value: signup.location || "TBD", inline: true },
-    { name: "📅 Date", value: signup.date ? fmtDate(signup.date) : "TBD", inline: true },
-    { name: "🕐 Time", value: signup.time || "TBD", inline: true }
+    { name: "🕐 Starts", value: startsValue, inline: true }
   );
 
-  // Role columns.
+  // Role columns. Beyond capacity, "in"/"late" members are still added (never
+  // turned away) but rendered struck-through as waitlisted — first-signed-up,
+  // first-slotted. Purely computed from sign-up order at render time, so a
+  // withdrawal elsewhere instantly un-strikes the next person in line.
   for (const r of SIGNUP_ROLES) {
     const list = g.byRole[r.id];
     const fill = roleFill(signup, r.id);
+    const cap = capOf(r);
+    let activeSeen = 0;
+    const lines = list.map((e) => {
+      let waitlisted = false;
+      if (e.status === "in" || e.status === "late") {
+        activeSeen++;
+        if (cap && activeSeen > cap) waitlisted = true;
+      }
+      return memberLine(e, waitlisted);
+    });
     embed.addFields({
-      name: `${r.emoji} ${r.label} (${fill}/${capOf(r)})`,
-      value: list.length ? clip(list.map(memberLine).join("\n")) : "—",
+      name: `${r.emoji} ${r.label} (${fill}/${cap})`,
+      value: lines.length ? clip(lines.join("\n")) : "—",
       inline: true,
     });
   }
@@ -285,7 +309,12 @@ export function signupComponents(signup) {
       .setLabel("Withdraw")
       .setEmoji("🗑️")
       .setStyle(ButtonStyle.Secondary)
-      .setDisabled(disabled)
+      .setDisabled(disabled),
+    new ButtonBuilder()
+      .setLabel("Web View")
+      .setEmoji("🌐")
+      .setStyle(ButtonStyle.Link)
+      .setURL(`${SITE_URL}/signups.html`)
   );
 
   // Class is no longer picked on the sheet — picking a role pops up an ephemeral

@@ -439,8 +439,8 @@ function roleFill(roleId, exceptKey){
   ).length;
 }
 
-// Apply a drop zone to an entry (role + status). Returns false if a role was
-// full. zone: a role id, "" (unassigned), or "bench"/"tentative"/"absence".
+// Apply a drop zone to an entry (role + status). zone: a role id, "" (unassigned),
+// or "bench"/"tentative"/"absence". Always succeeds — a full role just waitlists.
 function applyZone(e, zone, exceptKey){
   if(zone === "bench"){ e.status = "bench"; e.role = null; }
   else if(zone === "tentative"){ e.status = "tentative"; }
@@ -453,9 +453,10 @@ function applyZone(e, zone, exceptKey){
     if(newStatus === "tentative" || newStatus === "absence") newStatus = "in";
     const active = (newStatus === "in" || newStatus === "late");
     const cap = capFor(zone);
+    // Full roles are no longer blocked — admins can still place someone, they
+    // just render waitlisted (struck-through) same as the bot/live view.
     if(active && e.role !== zone && roleFill(zone, exceptKey) >= cap){
-      toast(`${ROLE_BY_ID[zone].label} is full (${cap}/${cap})`, "error");
-      return false;
+      toast(`${ROLE_BY_ID[zone].label} is full — added as waitlisted.`);
     }
     e.role = zone; e.status = newStatus;
   }
@@ -504,8 +505,9 @@ function arrange(){
 
 // ---- Render -----------------------------------------------------------------
 function chipHTML(e){
-  const benchCls = e.status === "bench" ? " bench" : "";
+  const benchCls = (e.status === "bench" || e.waitlisted) ? " bench" : "";
   const late = e.status === "late" ? " ⏰" : "";
+  const wl = e.waitlisted ? " ⏳" : "";
   const statusOpts = SIGNUP_STATUSES.map(s => `<option value="${s.id}"${e.status===s.id?" selected":""}>${s.label}</option>`).join("");
   const roleClasses = classesForRole(e.role);
   let classCtrl;
@@ -520,7 +522,7 @@ function chipHTML(e){
   return `<div class="chip" draggable="true" data-key="${e.key}">
     <div class="chip-top">
       <span class="chip-num">${String(e.num).padStart(2," ")}</span>
-      <span class="chip-name${benchCls}">${escapeHtml(e.name)}${late}</span>
+      <span class="chip-name${benchCls}">${escapeHtml(e.name)}${late}${wl}</span>
       <button class="chip-x" data-remove="${e.key}" title="Remove">×</button>
     </div>
     <div class="chip-ctrls">
@@ -557,7 +559,17 @@ function render(){
   html += colHTML("🎯 Unassigned", null, "", g.unassigned, true);
   for(const r of SIGNUP_ROLES){
     const fill = roleFill(r.id);
-    html += colHTML(`${r.emoji} ${r.label}`, { fill, cap: capFor(r.id), role: r.id }, r.id, g.byRole[r.id], false);
+    const cap = capFor(r.id);
+    // Beyond cap, "in"/"late" chips are marked waitlisted (struck through) —
+    // mirrors the bot embed / live view, purely computed from sign-up order.
+    let activeSeen = 0;
+    for(const e of g.byRole[r.id]){
+      if(e.status === "in" || e.status === "late"){
+        activeSeen++;
+        e.waitlisted = cap && activeSeen > cap;
+      }
+    }
+    html += colHTML(`${r.emoji} ${r.label}`, { fill, cap, role: r.id }, r.id, g.byRole[r.id], false);
   }
   html += colHTML("🪑 Bench", null, "bench", g.benchNoRole, true);
   html += colHTML("⚖️ Tentative", null, "tentative", g.tentative, true);
@@ -745,7 +757,7 @@ async function fetchLive(){
   if(!res.ok) return null;
   return res.json();
 }
-function nameLine(e){ const late = e.status==="late"?" ⏰":""; const cls = e.cls?` · ${e.cls}`:""; return `<div class="ln${e.status==="bench"?" bench":""}">\`${String(e.num).padStart(2," ")}\` ${escapeHtml(e.name)}${late}${cls}</div>`; }
+function nameLine(e, waitlisted){ const late = e.status==="late"?" ⏰":""; const wl = waitlisted?" ⏳":""; const cls = e.cls?` · ${e.cls}`:""; return `<div class="ln${(e.status==="bench"||waitlisted)?" bench":""}">\`${String(e.num).padStart(2," ")}\` ${escapeHtml(e.name)}${late}${wl}${cls}</div>`; }
 async function loadLive(){
   let state;
   try{ state = await fetchLive(); }catch(e){ setConn(false); byId("liveBody").innerHTML = `<div class="live-empty">Relay not reachable. Posting won't work until it's up.</div>`; return; }
@@ -774,7 +786,15 @@ async function loadLive(){
     const list = byRole[r.id];
     const fill = list.filter(e=>e.status==="in"||e.status==="late").length;
     const cap = (lcaps[r.id] != null) ? lcaps[r.id] : r.cap;
-    html += `<div class="live-col"><h4>${r.emoji} ${r.label} (${fill}/${cap})</h4>${list.length?list.map(nameLine).join(""):'<div class="ln" style="opacity:.5">—</div>'}</div>`;
+    // Beyond cap, "in"/"late" members are still shown, just waitlisted (struck
+    // through) — mirrors the Discord embed's overflow rendering exactly.
+    let activeSeen = 0;
+    const lines = list.map(e=>{
+      let waitlisted = false;
+      if(e.status==="in"||e.status==="late"){ activeSeen++; if(cap && activeSeen>cap) waitlisted = true; }
+      return nameLine(e, waitlisted);
+    });
+    html += `<div class="live-col"><h4>${r.emoji} ${r.label} (${fill}/${cap})</h4>${lines.length?lines.join(""):'<div class="ln" style="opacity:.5">—</div>'}</div>`;
   }
   for(const [title, list] of Object.entries(extra)){
     if(!list.length) continue;
