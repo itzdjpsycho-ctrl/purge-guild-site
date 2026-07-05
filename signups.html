@@ -290,6 +290,7 @@
   <div class="conn"><span class="dot" id="connDot"></span><span id="connText">Checking relay…</span></div>
   <div class="toolbar-spacer"></div>
   <button class="btn" id="refreshBtn" type="button">↻ Refresh live view</button>
+  <button class="btn" id="adoptBtn" type="button">⇩ Edit Live Sheet</button>
   <button class="btn" id="clearBtn" type="button">Clear draft</button>
   <button class="btn purple" id="repostBtn" type="button" disabled>Re-post edits</button>
   <button class="btn gold" id="postBtn" type="button">Post to Discord</button>
@@ -750,6 +751,37 @@ async function repostMerged(){
   postSheet(true);
 }
 
+// Attach the local editable board to whatever sign-up is currently posted in
+// Discord (e.g. created via the bot's /signup create), so drag/drop edits made
+// here actually reach it. Without this, model.messageId stays empty for a
+// Discord-created sheet and enqueueOp() silently no-ops on every edit.
+async function adoptLiveSheet(){
+  let live;
+  try{ live = await fetchLive(); }catch(e){ toast("Couldn't reach the relay", "error"); return; }
+  if(!live || !live.messageId){ toast("No sign-up currently posted in Discord", "error"); return; }
+
+  const byName = {};
+  for(const [k,e] of Object.entries(model.entries)) byName[e.name.toLowerCase()] = k;
+  const next = {};
+  for(const le of (live.entries || [])){
+    const lc = (le.name||"").toLowerCase();
+    const key = byName[lc] || ("k:" + slug(le.name) + ":" + (++model.seq));
+    next[key] = { num: le.num || model.seq, name: le.name, status: le.status || "in", role: le.role || null, cls: le.cls || null };
+  }
+
+  model.messageId = live.messageId;
+  model.channelId = live.channelId || model.channelId;
+  model.date = live.date || model.date;
+  model.time = live.time || model.time;
+  model.location = live.location || model.location;
+  model.notes = live.notes || model.notes;
+  model.status = live.status || model.status;
+  model.caps = live.caps || {};
+  model.entries = next;
+  save(); render(); refreshTray();
+  toast("Now editing the live Discord sheet ✓", "success");
+}
+
 // ---- Live view --------------------------------------------------------------
 async function fetchLive(){
   const res = await fetch(`${WORKER_URL}/state`, { cache:"no-store" });
@@ -856,6 +888,7 @@ byId("guestInput").addEventListener("keydown", e => { if(e.key==="Enter"){ const
 byId("postBtn").addEventListener("click", () => postSheet(false));
 byId("repostBtn").addEventListener("click", repostMerged);
 byId("refreshBtn").addEventListener("click", loadLive);
+byId("adoptBtn").addEventListener("click", adoptLiveSheet);
 byId("clearBtn").addEventListener("click", () => {
   if(!confirm("Clear the draft sheet? (This only clears your local draft, not anything already posted to Discord.)")) return;
   model = normalizeModel({ date: model.date, time: model.time, location: model.location, status: model.status });
