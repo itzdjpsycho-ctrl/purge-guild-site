@@ -66,6 +66,11 @@ export async function pushConfig(channelId) {
   return send("/config", "POST", { channelId });
 }
 
+/** Push the Discord-id -> family-name link map, so /auth/callback can resolve familyName. */
+export async function pushLinks(map) {
+  return send("/links", "POST", map);
+}
+
 /** Pull sign-ups the Worker posted (while the bot may have been offline). */
 export async function fetchPosted() {
   const r = await send("/posted", "GET");

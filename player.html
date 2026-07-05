@@ -377,6 +377,7 @@
     <a href="dashboard.html"><span class="ico">📊</span> Dashboard</a>
     <a href="signups.html"><span class="ico">📝</span> Sign Ups</a>
   </nav>
+  <div id="authWidget" class="auth-widget"></div>
   <div class="app-sidebar-foot">
     <b>Purge</b> · BDO Guild<br>
     Node War Log
@@ -422,6 +423,8 @@
 <div class="toast" id="toast"></div>
 
 <script src="flags.js"></script>
+<script src="assets/auth.js"></script>
+<script>PurgeAuth.init();</script>
 <!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
 <script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>document.write('<scr'+'ipt src="profiles.js?v='+Date.now()+'"></scr'+'ipt>')</script>
@@ -474,22 +477,34 @@ function saveProfiles(p){
   try{ localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(p)); }
   catch(e){ showToast("Could not save — localStorage unavailable","error"); }
 }
+// Queue a profile-op that actually publishes to profiles.js for everyone.
+// The Worker only accepts this from an admin session or from the player
+// signed in as this exact family name — everyone else just keeps today's
+// local-browser-only override, so this silently no-ops for them.
+async function publishOwnEdit(player, op){
+  const state = window.PurgeAuth?.state;
+  const isSelf = state?.familyName && state.familyName.toLowerCase() === player.toLowerCase();
+  if(!state?.isAdmin && !isSelf) return;
+  try{
+    await fetch(`${WORKER_URL}/profile-op`, {
+      method:"POST",
+      credentials:"include",
+      headers:{ "content-type":"application/json" },
+      body: JSON.stringify({ player, op }),
+    });
+  }catch(e){ /* offline: local save still applied */ }
+}
 // Ask the bot (via the Worker) to remove a PUBLISHED screenshot for everyone.
-// Admin-gated: needs the shared admin password. Without it, the Remove still
-// hid the screenshot locally (tombstone) — this just won't propagate to others.
+// Gated server-side to an admin session or the signed-in owner of this profile.
 async function requestGlobalRemove(player, field){
-  let pw = localStorage.getItem("signupAdminPassword");
-  if(!pw){
-    pw = prompt("Admin password to remove this for EVERYONE.\n(Cancel = just hide it on this device.)");
-    if(pw) localStorage.setItem("signupAdminPassword", pw); else return;
-  }
   try{
     const res = await fetch(`${WORKER_URL}/profile-op`, {
       method:"POST",
-      headers:{ "content-type":"application/json", "x-admin-password": pw },
-      body: JSON.stringify({ player, field }),
+      credentials:"include",
+      headers:{ "content-type":"application/json" },
+      body: JSON.stringify({ player, op:{ type:"removeShot", field } }),
     });
-    if(res.status === 401){ localStorage.removeItem("signupAdminPassword"); showToast("Wrong admin password — removed only on this device", "error"); return; }
+    if(res.status === 401){ showToast("Sign in as an officer or as this player to remove it for everyone", "error"); return; }
     if(res.ok) showToast("Removing for everyone — live in ~1–2 min", "success");
   }catch(e){ /* offline: local tombstone still applied */ }
 }
@@ -702,6 +717,7 @@ function renderHero(profile, role, totalKills, totalDeaths, kdVal, profiles){
     if(!profiles[playerName]) profiles[playerName] = {};
     profiles[playerName].class = this.value;
     saveProfiles(profiles);
+    publishOwnEdit(playerName, { type:"setClass", className: this.value });
     showToast("Class saved", "success");
   });
 
@@ -728,9 +744,15 @@ function renderHero(profile, role, totalKills, totalDeaths, kdVal, profiles){
     set("ap", apInput); set("aap", aapInput); set("dp", dpInput);
     saveProfiles(profiles);
   }
+  function publishGear(){
+    const val = (el) => el.value.trim() === "" ? null : gearNum(el.value);
+    const stats = { ap: val(apInput), aap: val(aapInput), dp: val(dpInput) };
+    if(stats.ap == null && stats.aap == null && stats.dp == null) return;
+    publishOwnEdit(playerName, { type:"setStats", ...stats });
+  }
   [apInput, aapInput, dpInput].forEach(el=>{
     el.addEventListener("input", ()=>{ refreshGearScore(); saveGear(); });
-    el.addEventListener("change", ()=>{ saveGear(); showToast("Gear score saved", "success"); });
+    el.addEventListener("change", ()=>{ saveGear(); publishGear(); showToast("Gear score saved", "success"); });
   });
   refreshGearScore();
 

@@ -1,15 +1,35 @@
-// Cloudflare Worker relay for the website's "Sign Ups" page.
+// Cloudflare Worker relay for the website's "Sign Ups" page + Discord OAuth login.
 //
-//   Website  ──POST /post,/edit (x-admin-password)──►  posts to Discord as the bot
+//   Website  ──GET  /auth/login,/auth/callback,/auth/me──►  Sign in with Discord (session cookie)
+//   Website  ──POST /auth/logout─────────────────────────►  clear session
+//   Website  ──POST /post,/edit,/op (session-or-password)──► posts to Discord as the bot
+//   Website  ──POST /profile-op (session: admin or own familyName)──► queue a profile edit
 //   Website  ──GET  /state (public, sanitized)──────►  live view
-//   Bot      ──POST /state,/config (x-bot-secret)──►   live state + channel
+//   Bot      ──POST /state,/config,/links (x-bot-secret)──►  live state + channel + link map
 //   Bot      ──GET  /posted (x-bot-secret)─────────►   hydrate offline-posted sheets
 //
-// Secrets (wrangler secret put): DISCORD_BOT_TOKEN, ADMIN_POST_PASSWORD, BOT_PUSH_SECRET.
-// KV binding: SIGNUPS_KV.  Keys: "config", "state", "posted".
+// Secrets (wrangler secret put): DISCORD_BOT_TOKEN, ADMIN_POST_PASSWORD, BOT_PUSH_SECRET,
+//   DISCORD_CLIENT_SECRET. Vars: DISCORD_CLIENT_ID, GUILD_ID, ADMIN_ROLE_IDS (mirrors bot/src/config.js).
+// KV binding: SIGNUPS_KV.  Keys: "config", "state", "posted", "links", "session:<id>", "oauthstate:<id>".
 
 import { postMessage, patchMessage } from "./discord.js";
 import { readGearStats } from "./gear.js";
+import {
+  buildAuthorizeUrl,
+  exchangeCode,
+  fetchDiscordUser,
+  fetchGuildRoles,
+  stashOAuthState,
+  consumeOAuthState,
+  createSession,
+  getSession,
+  deleteSession,
+  readSessionCookie,
+  sessionCookieHeader,
+  clearSessionCookieHeader,
+  familyNameForDiscordId,
+  isAdminRoles,
+} from "./auth.js";
 
 const PAGES_ORIGIN = "https://itzdjpsycho-ctrl.github.io";
 const MAX_POSTED = 25;
@@ -24,8 +44,21 @@ function corsHeaders(request) {
     "Access-Control-Allow-Origin": allow,
     "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
     "Access-Control-Allow-Headers": "content-type, x-admin-password",
+    "Access-Control-Allow-Credentials": "true",
     Vary: "Origin",
   };
+}
+
+/** Session for this request's cookie, or null if none/expired. */
+async function sessionFor(request, env) {
+  return getSession(env, readSessionCookie(request));
+}
+
+/** True if the request carries either an admin session or the legacy shared password. */
+async function isAdminRequest(request, env) {
+  if (request.headers.get("x-admin-password") === env.ADMIN_POST_PASSWORD) return true;
+  const session = await sessionFor(request, env);
+  return Boolean(session?.isAdmin);
 }
 
 function json(data, status, request) {
@@ -93,6 +126,78 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders(request) });
     }
 
+    // ---- Discord OAuth login ----
+    if (path === "/auth/login" && method === "GET") {
+      const redirectUri = `${url.origin}/auth/callback`;
+      const state = await stashOAuthState(env);
+      const next = url.searchParams.get("next") || PAGES_ORIGIN;
+      // Carried through KV (keyed by state) rather than the URL, so it can't be tampered with in transit.
+      await env.SIGNUPS_KV.put(`oauthnext:${state}`, next, { expirationTtl: 600 });
+      return Response.redirect(buildAuthorizeUrl(env, state, redirectUri), 302);
+    }
+
+    if (path === "/auth/callback" && method === "GET") {
+      const code = url.searchParams.get("code");
+      const state = url.searchParams.get("state");
+      const validState = await consumeOAuthState(env, state);
+      const next = (await env.SIGNUPS_KV.get(`oauthnext:${state}`)) || PAGES_ORIGIN;
+      await env.SIGNUPS_KV.delete(`oauthnext:${state}`);
+      if (!validState || !code) {
+        return new Response("Login failed: invalid or expired state.", { status: 400 });
+      }
+
+      const redirectUri = `${url.origin}/auth/callback`;
+      const exch = await exchangeCode(env, code, redirectUri);
+      if (!exch.ok) return new Response("Login failed: could not exchange code with Discord.", { status: 502 });
+
+      const user = await fetchDiscordUser(exch.accessToken);
+      if (!user) return new Response("Login failed: could not fetch Discord identity.", { status: 502 });
+
+      const roles = env.GUILD_ID ? await fetchGuildRoles(exch.accessToken, env.GUILD_ID) : [];
+      const sessionId = await createSession(env, {
+        discordId: user.id,
+        username: user.username,
+        avatar: user.avatar,
+        isAdmin: isAdminRoles(env, roles),
+        familyName: await familyNameForDiscordId(env, user.id),
+      });
+
+      return new Response(null, {
+        status: 302,
+        headers: { Location: next, "Set-Cookie": sessionCookieHeader(sessionId) },
+      });
+    }
+
+    if (path === "/auth/me" && method === "GET") {
+      const session = await sessionFor(request, env);
+      return json(
+        session
+          ? { loggedIn: true, discordId: session.discordId, username: session.username, avatar: session.avatar, isAdmin: session.isAdmin, familyName: session.familyName }
+          : { loggedIn: false },
+        200,
+        request
+      );
+    }
+
+    if (path === "/auth/logout" && method === "POST") {
+      await deleteSession(env, readSessionCookie(request));
+      return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders(request), "Set-Cookie": clearSessionCookieHeader() },
+      });
+    }
+
+    // ---- bot → push the private Discord-id <-> family-name link map (bot-secret gated) ----
+    if (path === "/links" && method === "POST") {
+      if (request.headers.get("x-bot-secret") !== env.BOT_PUSH_SECRET) {
+        return json({ error: "Bad secret." }, 401, request);
+      }
+      const body = await readJson(request);
+      if (!body || typeof body !== "object") return json({ error: "Invalid JSON." }, 400, request);
+      await env.SIGNUPS_KV.put("links", JSON.stringify(body));
+      return json({ ok: true }, 200, request);
+    }
+
     // ---- public gear-screenshot OCR (no auth, per the guild's choice) ----
     // Reads AP / Awk AP / DP off a gear screenshot via Claude vision. CORS is
     // locked to the site origin and the image is size-capped to limit misuse.
@@ -122,8 +227,8 @@ export default {
 
     // ---- website → post / edit (admin-password gated) ----
     if ((path === "/post" || path === "/edit") && method === "POST") {
-      if (request.headers.get("x-admin-password") !== env.ADMIN_POST_PASSWORD) {
-        return json({ error: "Bad password." }, 401, request);
+      if (!(await isAdminRequest(request, env))) {
+        return json({ error: "Not signed in as an officer." }, 401, request);
       }
       const body = await readJson(request);
       if (!body) return json({ error: "Invalid JSON." }, 400, request);
@@ -166,8 +271,8 @@ export default {
     // one op; the bot drains + applies them to signups.json so Discord-side
     // self-sign-ups are never overwritten.
     if (path === "/op" && method === "POST") {
-      if (request.headers.get("x-admin-password") !== env.ADMIN_POST_PASSWORD) {
-        return json({ error: "Bad password." }, 401, request);
+      if (!(await isAdminRequest(request, env))) {
+        return json({ error: "Not signed in as an officer." }, 401, request);
       }
       const body = await readJson(request);
       if (!body?.messageId || !body?.op?.type || (body.op.type !== "caps" && !body.op.name)) {
@@ -179,17 +284,38 @@ export default {
       return json({ ok: true }, 200, request);
     }
 
-    // ---- website → profile op (e.g. remove a published screenshot), admin-gated ----
+    // ---- website → profile op (remove a screenshot / set class / set stats) ----
+    // Admins can edit anyone's profile; a signed-in player (session.familyName
+    // matches body.player) can edit their own.
     if (path === "/profile-op" && method === "POST") {
-      if (request.headers.get("x-admin-password") !== env.ADMIN_POST_PASSWORD) {
-        return json({ error: "Bad password." }, 401, request);
-      }
       const body = await readJson(request);
-      if (!body?.player || !body?.field) {
-        return json({ error: "player + field required." }, 400, request);
+      if (!body?.player) return json({ error: "player required." }, 400, request);
+
+      const opType = body.op?.type || (body.field ? "removeShot" : null);
+      const opBody = body.op || { field: body.field };
+      if (!opType) return json({ error: "op.type required." }, 400, request);
+      if (opType === "removeShot" && !opBody.field) {
+        return json({ error: "op.field required for removeShot." }, 400, request);
       }
+      if (opType === "setClass" && !opBody.className) {
+        return json({ error: "op.className required for setClass." }, 400, request);
+      }
+      if (opType === "setStats" && opBody.ap == null && opBody.aap == null && opBody.dp == null) {
+        return json({ error: "op needs at least one of ap/aap/dp." }, 400, request);
+      }
+
+      const admin = await isAdminRequest(request, env);
+      let owner = false;
+      if (!admin) {
+        const session = await sessionFor(request, env);
+        owner = Boolean(session?.familyName) && session.familyName.toLowerCase() === String(body.player).toLowerCase();
+      }
+      if (!admin && !owner) {
+        return json({ error: "Not signed in as an officer or as this player." }, 401, request);
+      }
+
       const ops = await getProfileOps(env);
-      ops.push({ op: { type: "removeShot", player: body.player, field: body.field }, at: new Date().toISOString() });
+      ops.push({ op: { type: opType, player: body.player, ...opBody }, at: new Date().toISOString() });
       await env.SIGNUPS_KV.put("profileops", JSON.stringify(ops.slice(-200)));
       return json({ ok: true }, 200, request);
     }

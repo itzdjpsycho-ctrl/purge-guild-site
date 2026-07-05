@@ -2,3 +2,4 @@
 DISCORD_BOT_TOKEN=your-bot-token-here
 ADMIN_POST_PASSWORD=pick-a-shared-admin-password
 BOT_PUSH_SECRET=pick-a-long-random-string
+DISCORD_CLIENT_SECRET=your-discord-oauth-client-secret

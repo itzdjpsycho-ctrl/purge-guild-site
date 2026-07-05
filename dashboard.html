@@ -311,6 +311,7 @@
     <a href="dashboard.html" class="current"><span class="ico">📊</span> Dashboard</a>
     <a href="signups.html"><span class="ico">📝</span> Sign Ups</a>
   </nav>
+  <div id="authWidget" class="auth-widget"></div>
   <div class="app-sidebar-foot">
     <b>Purge</b> · BDO Guild<br>
     Node War Log
@@ -437,6 +438,8 @@
 <footer>Node War Log · Dashboard</footer>
 
 <script src="flags.js"></script>
+<script src="assets/auth.js"></script>
+<script>PurgeAuth.init();</script>
 <!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
 <script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>document.write('<scr'+'ipt src="attendance.js?v='+Date.now()+'"></scr'+'ipt>')</script>

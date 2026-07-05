@@ -253,6 +253,7 @@
     <a href="dashboard.html"><span class="ico">📊</span> Dashboard</a>
     <a href="signups.html" class="current"><span class="ico">📝</span> Sign Ups</a>
   </nav>
+  <div id="authWidget" class="auth-widget"></div>
   <div class="app-sidebar-foot">
     <b>Purge</b> · BDO Guild<br>
     Node War Log
@@ -323,6 +324,8 @@
 <footer>Node War Log · Sign Ups</footer>
 <div class="toast" id="toast"></div>
 
+<script src="assets/auth.js"></script>
+<script>PurgeAuth.init();</script>
 <!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
 <script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>document.write('<scr'+'ipt src="profiles.js?v='+Date.now()+'"></scr'+'ipt>')</script>
@@ -667,20 +670,19 @@ function toPayload(){
 // ---- Worker calls -----------------------------------------------------------
 // Once a sheet is posted, mirror each board edit to Discord as a small op the
 // bot applies (so it never wipes people who signed up in Discord). No-op before
-// the first post, or if no admin password is stored yet.
+// the first post, or if not signed in as an officer.
 async function enqueueOp(op){
   lastLocalEdit = Date.now(); // pause board↔Discord reconcile while ops are in flight
   if(!model.messageId){ toast("Not synced to Discord — click Edit Live Sheet or Post to Discord first", "error"); return; }
-  const pw = localStorage.getItem("signupAdminPassword");
-  if(!pw){ toast("Tip: use Re-post edits to sync this to Discord"); return; }
+  if(!window.PurgeAuth?.state?.isAdmin){ toast("Sign in as an officer to sync edits to Discord"); return; }
   try{
     const res = await fetch(`${WORKER_URL}/op`, {
       method:"POST",
-      headers:{ "content-type":"application/json", "x-admin-password": pw },
+      credentials:"include",
+      headers:{ "content-type":"application/json" },
       body: JSON.stringify({ messageId: model.messageId, op }),
     });
     if(res.ok){ flashSync(); }
-    else if(res.status === 401){ localStorage.removeItem("signupAdminPassword"); }
   }catch(e){}
 }
 let syncTimer;
@@ -691,18 +693,11 @@ function flashSync(){
   syncTimer = setTimeout(() => loadLive(), 1200);
 }
 
-function adminPassword(){
-  let pw = localStorage.getItem("signupAdminPassword");
-  if(!pw){
-    pw = prompt("Admin password (set on the Worker) — needed to post to Discord:");
-    if(pw) localStorage.setItem("signupAdminPassword", pw);
-  }
-  return pw;
-}
-
 async function postSheet(isEdit){
-  const pw = adminPassword();
-  if(!pw){ toast("Posting cancelled — no password", "error"); return; }
+  if(!window.PurgeAuth?.state?.isAdmin){
+    toast("Sign in as an officer to post to Discord", "error");
+    return;
+  }
   const payload = toPayload();
   if(isEdit && !payload.messageId){ toast("Nothing posted yet to edit", "error"); return; }
 
@@ -711,12 +706,12 @@ async function postSheet(isEdit){
   try{
     const res = await fetch(`${WORKER_URL}/${isEdit ? "edit" : "post"}`, {
       method:"POST",
-      headers:{ "content-type":"application/json", "x-admin-password": pw },
+      credentials:"include",
+      headers:{ "content-type":"application/json" },
       body: JSON.stringify(payload),
     });
     if(res.status === 401){
-      localStorage.removeItem("signupAdminPassword");
-      toast("Wrong password — try again", "error"); return;
+      toast("Not signed in as an officer — sign in and try again", "error"); return;
     }
     if(res.status === 428){ toast("An admin must run /signup channel set #channel in Discord first", "error"); return; }
     if(!res.ok){ const t = await res.text().catch(()=> ""); toast(`Post failed (${res.status})`, "error"); console.error(t); return; }

@@ -1,7 +1,8 @@
 import { SlashCommandBuilder, EmbedBuilder } from "discord.js";
 import { BDO_CLASSES, SITE_URL } from "../config.js";
 import { knownNames, canonicalName, getProfile, setClass, setImage, setGear, SLOT_KEYS } from "../lib/profiles.js";
-import { nameForUser, link, unlink } from "../lib/links.js";
+import { nameForUser, link, unlink, allLinks } from "../lib/links.js";
+import { pushLinks } from "../lib/worker.js";
 import { saveAttachment } from "../lib/images.js";
 import { readGearStats, gearScore } from "../lib/gear.js";
 import { publish } from "../lib/git.js";
@@ -96,6 +97,7 @@ async function register(interaction) {
   if (!res.ok) {
     return interaction.reply({ content: `🚫 ${res.error}`, ephemeral: true });
   }
+  pushLinks(allLinks()).catch(() => {});
   return interaction.reply({
     content: `✅ You're linked to **${name}**. Now use \`/profile upload\` to add your Gear, Crystals, and Skill-Addons screenshots.`,
     ephemeral: true,
@@ -201,6 +203,7 @@ async function unlinkCmd(interaction) {
   if (!removed) {
     return interaction.reply({ content: "You weren't linked to a family name.", ephemeral: true });
   }
+  pushLinks(allLinks()).catch(() => {});
   return interaction.reply({
     content: `🔓 Unlinked you from **${removed}**. Your uploaded screenshots stay on the site; re-register anytime.`,
     ephemeral: true,

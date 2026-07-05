@@ -27,6 +27,11 @@ export function nameForUser(userId) {
   return readAll()[userId] || null;
 }
 
+/** The full Discord-id -> family-name map, for pushing to the Worker. */
+export function allLinks() {
+  return readAll();
+}
+
 /** Discord user id that owns this family name, or null. */
 export function userForName(name) {
   const lc = name.toLowerCase();

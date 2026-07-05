@@ -8,8 +8,16 @@ kv_namespaces = [
   { binding = "SIGNUPS_KV", id = "080b0d66de544ebe9c5ac9f6f55bf9da" }
 ]
 
+# Not secret — same values as the bot's bot/src/config.js (GUILD_ID, ADMIN_ROLE_IDS)
+# and the OAuth app's public client id (Discord Developer Portal → OAuth2).
+[vars]
+DISCORD_CLIENT_ID = "your-discord-application-client-id"
+GUILD_ID = "your-discord-guild-id"
+ADMIN_ROLE_IDS = "role-id-1,role-id-2"
+
 # Secrets are NOT stored here — set them with:
 #   wrangler secret put DISCORD_BOT_TOKEN     (same value as the bot's DISCORD_TOKEN)
-#   wrangler secret put ADMIN_POST_PASSWORD   (shared password admins type on the site)
+#   wrangler secret put ADMIN_POST_PASSWORD   (shared password admins type on the site — kept as a break-glass fallback)
 #   wrangler secret put BOT_PUSH_SECRET       (must match the bot's BOT_PUSH_SECRET)
-# For local `wrangler dev`, put the same three in worker/.dev.vars (git-ignored).
+#   wrangler secret put DISCORD_CLIENT_SECRET (Discord Developer Portal → OAuth2 → client secret)
+# For local `wrangler dev`, put the same four in worker/.dev.vars (git-ignored).

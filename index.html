@@ -1478,6 +1478,7 @@
     <a href="dashboard.html"><span class="ico">📊</span> Dashboard</a>
     <a href="signups.html"><span class="ico">📝</span> Sign Ups</a>
   </nav>
+  <div id="authWidget" class="auth-widget"></div>
   <div class="app-sidebar-foot">
     <b>Purge</b> · BDO Guild<br>
     Node War Log
@@ -1598,6 +1599,8 @@
   Built for hosting — edit the MATCHES array in this file to add new wars.
 </footer>
 
+<script src="assets/auth.js"></script>
+<script>PurgeAuth.init();</script>
 <!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
 <script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>
