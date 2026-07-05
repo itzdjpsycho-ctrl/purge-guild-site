@@ -175,33 +175,34 @@
     box-shadow:0 12px 32px rgba(0,0,0,0.3);
   }
 
-  .card-gear-thumb{
-    width:100%; height:120px;
+  .card-status-dot{
+    position:absolute; top:16px; right:16px; z-index:1;
+    width:10px; height:10px; border-radius:50%;
+    background:var(--crimson-bright); box-shadow:0 0 10px rgba(171,77,255,0.6);
+  }
+
+  .card-body{ padding:18px 18px 16px; }
+
+  .card-top{ display:flex; gap:14px; margin-bottom:14px; }
+
+  .card-avatar-ring{
+    flex:none; width:64px; height:64px; border-radius:50%; padding:2px;
+    background:var(--hairline-soft);
+  }
+  .card-avatar-ring.flag-onfire, .card-avatar-ring.flag-mvp{ background:var(--gold-bright); }
+  .card-avatar-ring.flag-watch{ background:var(--red-bright); }
+  .card-avatar-ring.flag-none{ background:var(--green-bright); }
+  .card-avatar-thumb{
+    width:100%; height:100%; border-radius:50%; overflow:hidden;
     background:var(--panel-raised);
     display:flex; align-items:center; justify-content:center;
-    border-bottom:1px solid var(--hairline-soft);
-    overflow:hidden;
-    position:relative;
   }
-  .card-gear-thumb img{
-    width:100%; height:100%; object-fit:cover;
-    transition:opacity 0.2s ease;
-  }
-  .card-gear-placeholder{
-    font-size:28px; opacity:0.18;
-  }
-  .card-gear-thumb .no-img-label{
-    position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
-    font-family:var(--font-mono); font-size:9px; letter-spacing:0.08em;
-    text-transform:uppercase; color:var(--text-faint);
-    white-space:nowrap;
-  }
+  .card-avatar-thumb img{ width:100%; height:100%; object-fit:cover; }
+  .card-gear-placeholder{ font-size:22px; opacity:0.3; }
 
-  .card-body{ padding:14px 16px 16px; }
-
+  .card-identity{ flex:1; min-width:0; }
   .card-name-row{
     display:flex; align-items:baseline; justify-content:space-between; gap:8px;
-    margin-bottom:2px;
   }
   .card-name{
     font-family:var(--font-display); font-size:17px; font-weight:620;
@@ -210,49 +211,38 @@
   }
   .card-gs{
     flex:none; white-space:nowrap;
-    font-family:var(--font-mono); font-size:13px; font-weight:700;
+    font-family:var(--font-mono); font-size:12px; font-weight:700;
     color:var(--gold-bright);
   }
   .card-gs-label{
     font-size:9px; font-weight:600; letter-spacing:0.06em;
     color:var(--text-faint);
   }
-  .card-class{
-    font-family:var(--font-mono); font-size:10px; letter-spacing:0.1em;
-    text-transform:uppercase; color:var(--text-faint); margin-bottom:12px;
+  .card-updated-rel{
+    font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint);
+    margin:1px 0 8px;
   }
-  .card-class.set{ color:var(--gold); }
-
-  .card-stats{
-    display:grid; grid-template-columns:repeat(3,1fr);
-    gap:1px; background:var(--hairline-soft); border-radius:6px; overflow:hidden;
+  .card-pills{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px; }
+  .pill{
+    display:inline-flex; align-items:center;
+    font-family:var(--font-mono); font-size:10px; font-weight:600; letter-spacing:0.03em;
+    padding:3px 9px; border-radius:999px; white-space:nowrap;
   }
-  .card-stat{
-    background:var(--panel-raised); padding:8px 6px; text-align:center;
+  .pill-kd{ background:rgba(217,164,65,0.18); color:var(--gold-bright); }
+  .pill-class{ background:rgba(110,31,184,0.16); color:var(--crimson-glow); border:1px solid rgba(171,77,255,0.3); }
+  .pill-role{ background:rgba(0,0,0,0.3); border:1px solid transparent; }
+  .pill-role.role-shotcaller{ color:var(--orange); border-color:rgba(224,121,60,0.4); }
+  .pill-role.role-defensive{ color:var(--green-bright); border-color:rgba(91,201,118,0.4); }
+  .pill-role.role-flex{ color:var(--gold-bright); border-color:rgba(240,195,107,0.4); }
+  .pill-role.role-mainball{ color:#A78BFA; border-color:rgba(167,139,250,0.4); }
+  .card-trend{
+    font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint);
   }
-  .card-stat-val{
-    font-family:var(--font-mono); font-size:16px; font-weight:600; color:var(--text);
-  }
-  .card-stat-val.kd{ color:var(--gold-bright); }
-  .card-stat-label{
-    font-family:var(--font-mono); font-size:9px; letter-spacing:0.06em;
-    text-transform:uppercase; color:var(--text-faint); margin-top:2px;
-  }
-
-  .card-role{
-    position:absolute; top:10px; right:10px;
-    font-family:var(--font-mono); font-size:9px; letter-spacing:0.08em;
-    text-transform:uppercase; padding:3px 8px; border-radius:999px;
-    font-weight:600; background:rgba(0,0,0,0.55);
-  }
-  .card-role.role-shotcaller{ color:var(--orange); border:1px solid rgba(224,121,60,0.4); }
-  .card-role.role-defensive{ color:var(--green-bright); border:1px solid rgba(91,201,118,0.4); }
-  .card-role.role-flex{ color:var(--gold-bright); border:1px solid rgba(240,195,107,0.4); }
-  .card-role.role-mainball{ color:#A78BFA; border:1px solid rgba(167,139,250,0.4); }
-  .card-role.role-none{ display:none; }
+  .card-trend.up{ color:var(--green-bright); }
+  .card-trend.down{ color:var(--red-bright); }
 
   .card-flag{
-    position:absolute; top:10px; left:10px; z-index:1;
+    position:absolute; top:16px; left:16px; z-index:1;
     display:inline-flex; align-items:center; gap:4px;
     font-family:var(--font-mono); font-size:9px; letter-spacing:0.06em;
     text-transform:uppercase; padding:3px 8px; border-radius:999px;
@@ -262,8 +252,49 @@
   .card-flag.flag-onfire{ color:var(--gold-bright); border:1px solid rgba(240,195,107,0.45); }
   .card-flag.flag-watch{ color:var(--red-bright); border:1px solid rgba(178,64,47,0.45); }
 
+  .card-stats-list{ margin-bottom:12px; }
+  .card-stat-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:7px 0; border-bottom:1px solid var(--hairline-soft);
+    font-family:var(--font-mono);
+  }
+  .card-stat-row:last-child{ border-bottom:none; }
+  .card-stat-row .label{ font-size:12px; color:var(--text-muted); }
+  .card-stat-row .val{ font-size:15px; font-weight:700; color:var(--text); }
+  .card-stat-row .val.kills{ color:var(--green-bright); }
+  .card-stat-row .val.deaths{ color:var(--red-bright); }
+  .card-stat-row .val.wars{ color:#7DB8FF; }
+
+  .card-footer{
+    display:flex; align-items:center; justify-content:space-between;
+    padding-top:12px; margin-bottom:12px; border-top:1px solid var(--hairline-soft);
+    font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint);
+  }
+  .card-footer .val{ color:var(--text-muted); }
+
+  .card-toggles{ display:flex; flex-direction:column; gap:10px; }
+  .card-toggle-row{
+    display:flex; align-items:center; justify-content:space-between;
+    font-family:var(--font-mono); font-size:11.5px; color:var(--text-muted);
+  }
+  .switch{
+    position:relative; display:inline-block; width:34px; height:19px; flex:none;
+  }
+  .switch input{ opacity:0; width:0; height:0; }
+  .switch .track{
+    position:absolute; inset:0; background:var(--hairline); border-radius:999px;
+    cursor:pointer; transition:background 0.16s ease;
+  }
+  .switch .track::before{
+    content:""; position:absolute; width:14px; height:14px; left:2.5px; top:2.5px;
+    background:var(--text-faint); border-radius:50%; transition:transform 0.16s ease, background 0.16s ease;
+  }
+  .switch input:checked + .track{ background:rgba(110,31,184,0.35); }
+  .switch input:checked + .track::before{ background:var(--crimson-glow); transform:translateX(15px); }
+  .switch input:disabled + .track{ cursor:not-allowed; opacity:0.5; }
+
   .card-role-row{
-    margin-top:10px;
+    margin-top:12px;
     position:relative;
   }
   .card-role-select{
@@ -500,6 +531,45 @@ function fmtNum(v){
   return String(v);
 }
 
+/* ---- relative time since a player's most recent war appearance ---- */
+function playerAppearances(name, matches){
+  return matches
+    .filter(m => m.players.some(p => p[0] === name))
+    .slice()
+    .sort((a,b) => a.date.localeCompare(b.date));
+}
+function relativeTime(dateStr){
+  if(!dateStr) return "";
+  const then = new Date(dateStr + "T00:00:00").getTime();
+  if(isNaN(then)) return "";
+  const days = Math.max(0, Math.floor((Date.now() - then) / 86400000));
+  if(days < 1) return "Today";
+  if(days < 14) return `${days} day${days!==1?"s":""} ago`;
+  if(days < 60) { const w = Math.floor(days/7); return `${w} week${w!==1?"s":""} ago`; }
+  const mo = Math.floor(days/30);
+  return `${mo} month${mo!==1?"s":""} ago`;
+}
+
+/* ---- K/D trend: last 3 wars' avg K/D vs. the 3 before that, as % change ---- */
+function kdTrend(name, matches){
+  const apps = playerAppearances(name, matches);
+  if(apps.length < 4) return null;
+  const kdOf = (m) => { const p = m.players.find(x=>x[0]===name); return kd(p[1], p[2]); };
+  const recent = apps.slice(-3).map(kdOf).filter(v=>v!==null);
+  const prior = apps.slice(-6,-3).map(kdOf).filter(v=>v!==null);
+  if(!recent.length || !prior.length) return null;
+  const avg = (arr) => arr.reduce((s,v)=>s+v,0) / arr.length;
+  const recentAvg = avg(recent), priorAvg = avg(prior);
+  if(priorAvg === 0) return null;
+  return ((recentAvg - priorAvg) / priorAvg) * 100;
+}
+function fmtDateShort(iso){
+  if(!iso) return "—";
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return "—";
+  return `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;
+}
+
 const EXTENDED_STATS = window.GUILD_DATA.extendedStats;
 
 /* ---- per-player totals incl. extended stats, for the Compare tool ---- */
@@ -626,46 +696,78 @@ function render(){
   const ROLE_LABELS = { shotcaller:"Shotcaller", defensive:"Defensive", flex:"Flex Squad", mainball:"Mainball" };
   const matches = getAllMatches();
 
+  const authState = window.PurgeAuth?.state || {};
+  const myFamilyName = (authState.familyName || "").toLowerCase();
+
   grid.innerHTML = roster.map(r=>{
     const p     = profiles[r.name] || {};
     const role  = roles[r.name]   || "";
     const kdVal = kd(r.kills, r.deaths);
     const flag  = GuildFlags.currentFlag(r.name, matches, roles, profiles);
     const flagMeta = flag ? GuildFlags.META[flag] : null;
-    const gearThumb = p.gearImg
+    const ringClass = flagMeta ? flagMeta.cls : "flag-none";
+    const avatarThumb = p.gearImg
       ? `<img src="${p.gearImg}" alt="Gear" loading="lazy">`
-      : `<span class="card-gear-placeholder">🛡</span><span class="no-img-label">No gear screenshot</span>`;
+      : `<span class="card-gear-placeholder">🛡</span>`;
     const classStr = p.class || "";
     const gs = (p.ap!=null && p.aap!=null && p.dp!=null)
       ? Math.round((Number(p.ap) + Number(p.aap)) / 2 + Number(p.dp))
       : null;
 
+    const apps = playerAppearances(r.name, matches);
+    const lastSeen = relativeTime(apps.length ? apps[apps.length-1].date : null);
+    const trend = kdTrend(r.name, matches);
+    const trendClass = trend==null ? "" : trend>0 ? "up" : trend<0 ? "down" : "";
+    const trendLabel = trend==null ? "— No trend yet" : `— ${trend>0?"+":""}${trend.toFixed(1)}%`;
+
+    const canToggle = authState.isAdmin || myFamilyName === r.name.toLowerCase();
     const roleClass = role ? `role-${role}` : "";
     return `
       <a class="player-card" href="player.html?name=${encodeURIComponent(r.name)}" data-name="${r.name}">
         <div class="card-compare-badge">+</div>
+        <div class="card-status-dot"></div>
         ${flagMeta ? `<div class="card-flag ${flagMeta.cls}" title="${flagMeta.label}">${flagMeta.icon} ${flagMeta.label}</div>` : ""}
-        ${role ? `<div class="card-role role-${role}" id="badge-${r.name}">${ROLE_LABELS[role]||role}</div>` : `<div class="card-role role-none" id="badge-${r.name}"></div>`}
-        <div class="card-gear-thumb">${gearThumb}</div>
         <div class="card-body">
-          <div class="card-name-row">
-            <span class="card-name" title="${r.name}">${r.name}</span>
-            ${gs!=null ? `<span class="card-gs" title="Gear Score">${gs} <span class="card-gs-label">GS</span></span>` : ""}
+          <div class="card-top">
+            <div class="card-avatar-ring ${ringClass}"><div class="card-avatar-thumb">${avatarThumb}</div></div>
+            <div class="card-identity">
+              <div class="card-name-row">
+                <span class="card-name" title="${r.name}">${r.name}</span>
+                ${gs!=null ? `<span class="card-gs" title="Gear Score">${gs} <span class="card-gs-label">GS</span></span>` : ""}
+              </div>
+              ${lastSeen ? `<div class="card-updated-rel">${lastSeen}</div>` : ""}
+              <div class="card-pills">
+                <span class="pill pill-kd">${fmtKD(kdVal)} KDR</span>
+                <span class="pill pill-class">${classStr || "Unknown Class"}</span>
+              </div>
+              ${role ? `<div class="card-pills"><span class="pill pill-role role-${role}">${ROLE_LABELS[role]||role}</span></div>` : ""}
+              <div class="card-trend ${trendClass}">${trendLabel}</div>
+            </div>
           </div>
-          <div class="card-class ${classStr?'set':''}">${classStr || "Unknown Class"}</div>
-          <div class="card-stats">
-            <div class="card-stat">
-              <div class="card-stat-val kd">${fmtKD(kdVal)}</div>
-              <div class="card-stat-label">K/D</div>
-            </div>
-            <div class="card-stat">
-              <div class="card-stat-val">${r.kills}</div>
-              <div class="card-stat-label">Kills</div>
-            </div>
-            <div class="card-stat">
-              <div class="card-stat-val">${r.deaths}</div>
-              <div class="card-stat-label">Deaths</div>
-            </div>
+          <div class="card-stats-list">
+            <div class="card-stat-row"><span class="label">Kills</span><span class="val kills">${r.kills}</span></div>
+            <div class="card-stat-row"><span class="label">Deaths</span><span class="val deaths">${r.deaths}</span></div>
+            <div class="card-stat-row"><span class="label">Wars</span><span class="val wars">${r.played}</span></div>
+          </div>
+          <div class="card-footer">
+            <span>Last Updated</span>
+            <span class="val">${fmtDateShort(p.updatedAt)}</span>
+          </div>
+          <div class="card-toggles" onclick="event.preventDefault();event.stopPropagation();">
+            <label class="card-toggle-row">
+              <span>Exception</span>
+              <span class="switch">
+                <input type="checkbox" data-flag-toggle="exception" data-player="${r.name}" ${p.exception?"checked":""} ${canToggle?"":"disabled"}>
+                <span class="track"></span>
+              </span>
+            </label>
+            <label class="card-toggle-row">
+              <span>Vacation</span>
+              <span class="switch">
+                <input type="checkbox" data-flag-toggle="vacation" data-player="${r.name}" ${p.vacation?"checked":""} ${canToggle?"":"disabled"}>
+                <span class="track"></span>
+              </span>
+            </label>
           </div>
           <div class="card-role-row" onclick="event.preventDefault();event.stopPropagation();">
             <select class="card-role-select ${roleClass}" data-player="${r.name}">
@@ -680,7 +782,33 @@ function render(){
       </a>
     `;
   }).join("");
+  wireFlagToggles();
   applyCompareVisualState();
+}
+
+/* ---- Exception / Vacation toggles: local-instant + publish for everyone ---- */
+function wireFlagToggles(){
+  document.querySelectorAll("[data-flag-toggle]").forEach(input=>{
+    input.addEventListener("change", ()=>{
+      const player = input.dataset.player;
+      const flagName = input.dataset.flagToggle;
+      const value = input.checked;
+
+      const profiles = loadProfiles();
+      if(!profiles[player]) profiles[player] = {};
+      profiles[player][flagName] = value;
+      saveProfiles(profiles);
+
+      fetch(`${WORKER_URL}/profile-op`, {
+        method:"POST",
+        headers:{ "content-type":"application/json", ...PurgeAuth.headers() },
+        body: JSON.stringify({ player, op:{ type:"setFlags", [flagName]: value } }),
+      }).then(res=>{
+        if(!res.ok){ showToast("Sign in as an officer or as this player to save that", "error"); return; }
+        showToast(`${flagName[0].toUpperCase()+flagName.slice(1)} ${value?"on":"off"} for ${player}`, "success");
+      }).catch(()=>{ showToast("Couldn't reach the relay — saved locally only", "error"); });
+    });
+  });
 }
 
 /* ================================================================
@@ -934,6 +1062,7 @@ window.purgeAuthReady?.then((state) => {
     document.getElementById("officersPanel").style.display = "";
     loadOfficers();
   }
+  render(); // re-render cards now that we know who can toggle Exception/Vacation
 });
 </script>
 </body>

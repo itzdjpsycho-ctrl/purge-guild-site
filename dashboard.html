@@ -443,6 +443,7 @@
 <!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
 <script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>document.write('<scr'+'ipt src="attendance.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script>document.write('<scr'+'ipt src="profiles.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>
 /* ================================================================
    MATCH DATA — keep in sync with index.html
@@ -674,9 +675,10 @@ renderFlags();
 function renderAttendance(){
   const MIN_SIGNUPS = 3; // enough sign-ups on record before a rate means anything
   const attendance = typeof window.GUILD_ATTENDANCE === "object" ? window.GUILD_ATTENDANCE : {};
+  const profiles = window.GUILD_PROFILES || {};
   const qualified = Object.entries(attendance)
     .map(([name,a])=>({name, ...a}))
-    .filter(a=>a.signups >= MIN_SIGNUPS);
+    .filter(a=>a.signups >= MIN_SIGNUPS && !(profiles[a.name] && profiles[a.name].vacation));
 
   const pctRow = (a) =>
     `<div class="flag-row"><span class="name">${a.name}</span><span class="rate">${Math.round(a.rate*100)}% (${a.attended}/${a.signups})</span></div>`;

@@ -92,6 +92,22 @@ export function setGear(name, { ap, aap, dp } = {}) {
   return profiles[name];
 }
 
+/**
+ * Vacation excludes a player from the Dashboard's attendance rankings
+ * (Most Reliable / Frequent No-Shows) while it's on. Exception exempts them
+ * from the site's automatic ⚠ Watch performance flag (flags.js). Both are
+ * simple on/off switches, not date-ranged leave.
+ */
+export function setFlags(name, { vacation, exception } = {}) {
+  const profiles = loadProfiles();
+  if (!profiles[name]) profiles[name] = {};
+  if (vacation != null) profiles[name].vacation = vacation;
+  if (exception != null) profiles[name].exception = exception;
+  profiles[name].updatedAt = new Date().toISOString();
+  writeProfiles(profiles);
+  return profiles[name];
+}
+
 /** Remove a screenshot slot from a player. Returns the prior relative path (so
  *  the caller can delete the asset file), or null if there was nothing set. */
 export function removeImage(name, slotKey) {

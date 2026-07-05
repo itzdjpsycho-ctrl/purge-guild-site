@@ -1,4 +1,4 @@
-import { removeImage, canonicalName, setClass, setGear } from "./profiles.js";
+import { removeImage, canonicalName, setClass, setGear, setFlags } from "./profiles.js";
 import { deleteAsset } from "./images.js";
 import { fetchProfileOps, workerEnabled } from "./worker.js";
 import { publish } from "./git.js";
@@ -8,8 +8,8 @@ const VALID_FIELDS = new Set(["gearImg", "crystalsImg", "addonsImg"]);
 
 /**
  * Apply pending website profile-ops: "removeShot" deletes a published
- * screenshot (+ its asset file); "setClass"/"setStats" publish class/gear
- * edits a signed-in player made on their own player.html. The Worker only
+ * screenshot (+ its asset file); "setClass"/"setStats"/"setFlags" publish
+ * class/gear/vacation-exception edits made on the website. The Worker only
  * queues these from an admin session or the profile's own owner (see
  * worker/src/worker.js POST /profile-op), so no further auth check is needed
  * here. Returns how many ops applied.
@@ -40,6 +40,10 @@ export async function applyProfileOps() {
       } else if (op.type === "setStats" && (op.ap != null || op.aap != null || op.dp != null)) {
         setGear(name, { ap: op.ap, aap: op.aap, dp: op.dp });
         summary.push(`${name} gear stats`);
+        applied++;
+      } else if (op.type === "setFlags" && (typeof op.vacation === "boolean" || typeof op.exception === "boolean")) {
+        setFlags(name, { vacation: op.vacation, exception: op.exception });
+        summary.push(`${name} flags`);
         applied++;
       }
     }

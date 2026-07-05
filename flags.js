@@ -44,6 +44,13 @@
     return SUPPORT_ROLES.indexOf(role) !== -1 || SUPPORT_CLASSES.indexOf(cls) !== -1;
   }
 
+  // A player with the "Exception" toggle on (see players.html) is exempt from
+  // the ⚠ Watch flag — e.g. someone known to be playing a sacrificial role or
+  // going through something, who shouldn't get auto-flagged for low stats.
+  function hasException(name, profiles) {
+    return !!(profiles && profiles[name] && profiles[name].exception);
+  }
+
   function appearancesOf(name, matches) {
     return (matches || [])
       .filter(function (m) {
@@ -78,7 +85,8 @@
       if (out[r.name]) return; // already crowned MVP — guard
       if (r.kd < FLAG_CFG.WATCH_MAX_KD &&
           r.deaths >= FLAG_CFG.WATCH_MIN_DEATHS &&
-          !isSupport(r.name, roles, profiles)) {
+          !isSupport(r.name, roles, profiles) &&
+          !hasException(r.name, profiles)) {
         out[r.name] = "watch";
       }
     });

@@ -389,6 +389,9 @@ export default {
       if (opType === "setStats" && opBody.ap == null && opBody.aap == null && opBody.dp == null) {
         return json({ error: "op needs at least one of ap/aap/dp." }, 400, request);
       }
+      if (opType === "setFlags" && typeof opBody.vacation !== "boolean" && typeof opBody.exception !== "boolean") {
+        return json({ error: "op needs at least one of vacation/exception (boolean)." }, 400, request);
+      }
 
       const admin = await isAdminRequest(request, env);
       let owner = false;
