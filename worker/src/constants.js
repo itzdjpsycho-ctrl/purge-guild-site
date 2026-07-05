@@ -26,6 +26,8 @@ export const SIGNUP_STATUSES = [
   { id: "absence", label: "Absence", emoji: "🚫", style: 4 },
 ];
 
+export const SITE_URL = "https://itzdjpsycho-ctrl.github.io/purge-guild-site";
+
 export const BDO_CLASSES = [
   "Warrior", "Ranger", "Sorceress", "Berserker", "Tamer", "Musa", "Maehwa",
   "Valkyrie", "Kunoichi", "Ninja", "Wizard", "Witch", "Dark Knight", "Striker",

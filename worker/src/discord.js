@@ -4,7 +4,7 @@
 // customId.startsWith("signup:")); the embed content only needs to be close
 // because the bot re-renders the message after the first interaction.
 
-import { SIGNUP_ROLES, SIGNUP_STATUSES } from "./constants.js";
+import { SIGNUP_ROLES, SIGNUP_STATUSES, SITE_URL } from "./constants.js";
 
 const PURPLE = 0x8b2fd9;
 const CLOSED_COLOR = 0x555160;
@@ -95,6 +95,7 @@ export function buildSignupEmbed(state) {
         ? "Sign-ups are closed."
         : `${attending} in · Pick a role + class below, then set your availability.`,
     },
+    image: { url: `${SITE_URL}/assets/branding/purge-banner.png` },
   };
   if (state.notes) embed.description = state.notes;
   return embed;

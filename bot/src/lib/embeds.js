@@ -288,6 +288,7 @@ export function signupEmbed(signup) {
       ? "Sign-ups are closed."
       : "Pick a role + class below, then set your availability.",
   });
+  embed.setImage(`${SITE_URL}/assets/branding/purge-banner.png`);
   return embed;
 }
 
