@@ -670,7 +670,7 @@ function toPayload(){
 // the first post, or if no admin password is stored yet.
 async function enqueueOp(op){
   lastLocalEdit = Date.now(); // pause board↔Discord reconcile while ops are in flight
-  if(!model.messageId) return;
+  if(!model.messageId){ toast("Not synced to Discord — click Edit Live Sheet or Post to Discord first", "error"); return; }
   const pw = localStorage.getItem("signupAdminPassword");
   if(!pw){ toast("Tip: use Re-post edits to sync this to Discord"); return; }
   try{
@@ -763,10 +763,17 @@ async function adoptLiveSheet(){
   const byName = {};
   for(const [k,e] of Object.entries(model.entries)) byName[e.name.toLowerCase()] = k;
   const next = {};
+  const seen = new Set();
   for(const le of (live.entries || [])){
     const lc = (le.name||"").toLowerCase();
+    seen.add(lc);
     const key = byName[lc] || ("k:" + slug(le.name) + ":" + (++model.seq));
     next[key] = { num: le.num || model.seq, name: le.name, status: le.status || "in", role: le.role || null, cls: le.cls || null };
+  }
+  // Keep names already on the local draft that Discord doesn't have yet (e.g.
+  // dragged in before adopting) — Re-post edits pushes them once attached.
+  for(const [k,e] of Object.entries(model.entries)){
+    if(!seen.has(e.name.toLowerCase())) next[k] = e;
   }
 
   model.messageId = live.messageId;
@@ -887,7 +894,18 @@ byId("fStatus").addEventListener("change", () => { model.status = byId("fStatus"
 byId("guestInput").addEventListener("keydown", e => { if(e.key==="Enter"){ const v=byId("guestInput").value; if(v){ addEntry(v); byId("guestInput").value=""; } } });
 byId("postBtn").addEventListener("click", () => postSheet(false));
 byId("repostBtn").addEventListener("click", repostMerged);
-byId("refreshBtn").addEventListener("click", loadLive);
+byId("refreshBtn").addEventListener("click", async () => {
+  const btn = byId("refreshBtn");
+  const original = btn.textContent;
+  btn.disabled = true; btn.textContent = "↻ Refreshing…";
+  try{
+    await loadLive();
+    const ok = byId("connDot").classList.contains("on");
+    toast(ok ? "Live view refreshed" : "Relay unreachable — check connection", ok ? "success" : "error");
+  } finally {
+    btn.disabled = false; btn.textContent = original;
+  }
+});
 byId("adoptBtn").addEventListener("click", adoptLiveSheet);
 byId("clearBtn").addEventListener("click", () => {
   if(!confirm("Clear the draft sheet? (This only clears your local draft, not anything already posted to Discord.)")) return;
