@@ -1,7 +1,11 @@
 // Discord OAuth login for the website — "Sign in with Discord" against the
 // same Discord application the bot uses (adds an OAuth2 redirect URI there,
-// no new app). Sessions live in SIGNUPS_KV; the cookie only carries an opaque
-// session id, never the Discord access token.
+// no new app). Sessions live in SIGNUPS_KV; the site holds only an opaque
+// session id (never the Discord access token), sent back as the X-Session-Id
+// header — NOT a cookie, since the site (github.io) and this Worker
+// (workers.dev) are different domains and browsers increasingly refuse to
+// store/send third-party SameSite=None cookies (Safari and Brave block them
+// outright). A header the client attaches explicitly sidesteps that entirely.
 
 const API = "https://discord.com/api/v10";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days
@@ -82,18 +86,8 @@ export async function deleteSession(env, id) {
   await env.SIGNUPS_KV.delete(`session:${id}`);
 }
 
-export function readSessionCookie(request) {
-  const header = request.headers.get("Cookie") || "";
-  const match = header.match(/(?:^|;\s*)session=([^;]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
-export function sessionCookieHeader(id) {
-  return `session=${encodeURIComponent(id)}; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=${SESSION_TTL_SECONDS}`;
-}
-
-export function clearSessionCookieHeader() {
-  return `session=; HttpOnly; Secure; SameSite=None; Path=/; Max-Age=0`;
+export function readSessionId(request) {
+  return request.headers.get("X-Session-Id") || null;
 }
 
 /** Look up the family name linked to a Discord user id, via the bot's pushed link map. */

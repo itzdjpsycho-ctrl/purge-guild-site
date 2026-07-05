@@ -1,6 +1,9 @@
 // Cloudflare Worker relay for the website's "Sign Ups" page + Discord OAuth login.
 //
-//   Website  ──GET  /auth/login,/auth/callback,/auth/me──►  Sign in with Discord (session cookie)
+//   Website  ──GET  /auth/login,/auth/callback,/auth/me──►  Sign in with Discord (X-Session-Id header,
+//                                                            NOT a cookie — github.io and workers.dev
+//                                                            are different domains, and third-party
+//                                                            SameSite=None cookies get blocked by Safari/Brave/etc)
 //   Website  ──POST /auth/logout─────────────────────────►  clear session
 //   Website  ──GET/POST /officers (session-or-password)──►  manage who's an officer, by family name
 //   Website  ──POST /post,/edit,/op (session-or-password)──► posts to Discord as the bot
@@ -26,9 +29,7 @@ import {
   createSession,
   getSession,
   deleteSession,
-  readSessionCookie,
-  sessionCookieHeader,
-  clearSessionCookieHeader,
+  readSessionId,
   familyNameForDiscordId,
   getOfficerIds,
   isOfficer,
@@ -46,15 +47,14 @@ function corsHeaders(request) {
   return {
     "Access-Control-Allow-Origin": allow,
     "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
-    "Access-Control-Allow-Headers": "content-type, x-admin-password",
-    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Headers": "content-type, x-admin-password, x-session-id",
     Vary: "Origin",
   };
 }
 
-/** Session for this request's cookie, or null if none/expired. */
+/** Session for this request's X-Session-Id header, or null if none/expired. */
 async function sessionFor(request, env) {
-  return getSession(env, readSessionCookie(request));
+  return getSession(env, readSessionId(request));
 }
 
 /** True if the request carries either an admin session or the legacy shared password. */
@@ -164,9 +164,13 @@ export default {
         familyName: await familyNameForDiscordId(env, user.id),
       });
 
+      // The session id rides back in the URL fragment (never sent to any
+      // server, GitHub Pages included) — assets/auth.js picks it up client-side
+      // and stores it, then attaches it as X-Session-Id on future requests.
+      const separator = next.includes("#") ? "&" : "#";
       return new Response(null, {
         status: 302,
-        headers: { Location: next, "Set-Cookie": sessionCookieHeader(sessionId) },
+        headers: { Location: `${next}${separator}purgeSession=${sessionId}` },
       });
     }
 
@@ -182,11 +186,8 @@ export default {
     }
 
     if (path === "/auth/logout" && method === "POST") {
-      await deleteSession(env, readSessionCookie(request));
-      return new Response(JSON.stringify({ ok: true }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders(request), "Set-Cookie": clearSessionCookieHeader() },
-      });
+      await deleteSession(env, readSessionId(request));
+      return json({ ok: true }, 200, request);
     }
 
     // ---- manage the officer list, by family name (admin-gated) ----

@@ -719,8 +719,7 @@ async function enqueueOp(op){
   try{
     const res = await fetch(`${WORKER_URL}/op`, {
       method:"POST",
-      credentials:"include",
-      headers:{ "content-type":"application/json" },
+      headers:{ "content-type":"application/json", ...PurgeAuth.headers() },
       body: JSON.stringify({ messageId: model.messageId, op }),
     });
     if(res.ok){ flashSync(); }
@@ -747,8 +746,7 @@ async function postSheet(isEdit){
   try{
     const res = await fetch(`${WORKER_URL}/${isEdit ? "edit" : "post"}`, {
       method:"POST",
-      credentials:"include",
-      headers:{ "content-type":"application/json" },
+      headers:{ "content-type":"application/json", ...PurgeAuth.headers() },
       body: JSON.stringify(payload),
     });
     if(res.status === 401){
@@ -946,7 +944,7 @@ function renderOfficers(list){
 }
 async function loadOfficers(){
   try{
-    const res = await fetch(`${WORKER_URL}/officers`, { credentials:"include" });
+    const res = await fetch(`${WORKER_URL}/officers`, { headers: PurgeAuth.headers() });
     if(!res.ok) return;
     const data = await res.json();
     renderOfficers(data.officers || []);
@@ -955,8 +953,8 @@ async function loadOfficers(){
 async function officerOp(familyName, action){
   try{
     const res = await fetch(`${WORKER_URL}/officers`, {
-      method:"POST", credentials:"include",
-      headers:{ "content-type":"application/json" },
+      method:"POST",
+      headers:{ "content-type":"application/json", ...PurgeAuth.headers() },
       body: JSON.stringify({ familyName, action }),
     });
     const data = await res.json().catch(()=>({}));

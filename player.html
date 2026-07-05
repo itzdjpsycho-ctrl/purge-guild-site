@@ -488,8 +488,7 @@ async function publishOwnEdit(player, op){
   try{
     await fetch(`${WORKER_URL}/profile-op`, {
       method:"POST",
-      credentials:"include",
-      headers:{ "content-type":"application/json" },
+      headers:{ "content-type":"application/json", ...PurgeAuth.headers() },
       body: JSON.stringify({ player, op }),
     });
   }catch(e){ /* offline: local save still applied */ }
@@ -500,8 +499,7 @@ async function requestGlobalRemove(player, field){
   try{
     const res = await fetch(`${WORKER_URL}/profile-op`, {
       method:"POST",
-      credentials:"include",
-      headers:{ "content-type":"application/json" },
+      headers:{ "content-type":"application/json", ...PurgeAuth.headers() },
       body: JSON.stringify({ player, op:{ type:"removeShot", field } }),
     });
     if(res.status === 401){ showToast("Sign in as an officer or as this player to remove it for everyone", "error"); return; }
