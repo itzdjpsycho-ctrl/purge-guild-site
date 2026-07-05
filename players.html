@@ -265,6 +265,84 @@
   /* Hidden file input */
   #importInput{ display:none; }
 
+  /* ---- Compare mode ---- */
+  body.compare-mode .player-card{ cursor:pointer; }
+  .card-compare-badge{
+    display:none;
+    position:absolute; bottom:10px; right:10px; z-index:2;
+    width:22px; height:22px; border-radius:50%;
+    align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.6); border:1px solid var(--hairline);
+    font-family:var(--font-mono); font-size:12px; color:var(--text-faint);
+    transition:all 0.15s ease;
+  }
+  body.compare-mode .card-compare-badge{ display:flex; }
+  .player-card.selected{
+    box-shadow:0 0 0 1px var(--crimson-bright), 0 12px 32px rgba(110,31,184,0.35);
+  }
+  .player-card.selected .card-compare-badge{
+    background:var(--crimson-bright); color:#0A0810; border-color:var(--crimson-bright);
+  }
+  body.compare-mode .player-card.dimmed{ opacity:0.4; }
+
+  .compare-bar{
+    position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(140%);
+    display:flex; align-items:center; gap:12px;
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    border-radius:14px; padding:12px 16px;
+    box-shadow:0 16px 40px rgba(0,0,0,0.5);
+    z-index:150; transition:transform 0.24s ease;
+  }
+  .compare-bar.show{ transform:translateX(-50%) translateY(0); }
+  .compare-bar-chips{ display:flex; gap:8px; flex-wrap:wrap; max-width:420px; }
+  .compare-bar-chip{
+    font-family:var(--font-mono); font-size:11.5px; padding:6px 12px;
+    border-radius:999px; background:rgba(171,77,255,0.12); color:var(--crimson-glow);
+    border:1px solid rgba(171,77,255,0.3); white-space:nowrap;
+  }
+
+  .compare-modal{
+    position:fixed; inset:0; z-index:300; display:none;
+    align-items:flex-start; justify-content:center;
+    background:rgba(4,2,8,0.72); backdrop-filter:blur(6px);
+    padding:60px 24px; overflow-y:auto;
+  }
+  .compare-modal.show{ display:flex; }
+  .compare-panel{
+    background:var(--panel); border:1px solid var(--hairline); border-radius:14px;
+    max-width:980px; width:100%; padding:30px 32px 36px; position:relative;
+  }
+  .compare-close{
+    position:absolute; top:16px; right:18px;
+    font-family:var(--font-mono); font-size:22px; color:var(--text-faint);
+    cursor:pointer; line-height:1; background:none; border:none;
+  }
+  .compare-close:hover{ color:var(--text); }
+  .compare-heads{ display:grid; gap:0; margin-top:6px; }
+  .compare-head-cell{ padding:0 14px 16px; text-align:center; }
+  .compare-head-cell:first-child{ visibility:hidden; }
+  .compare-head-name{ font-family:var(--font-display); font-size:21px; font-weight:660; }
+  .compare-head-class{
+    font-family:var(--font-mono); font-size:10px; color:var(--gold);
+    text-transform:uppercase; letter-spacing:0.08em; margin-top:4px;
+  }
+  .compare-grid{
+    display:grid; gap:0;
+    border:1px solid var(--hairline-soft); border-radius:10px; overflow:hidden;
+  }
+  .compare-row{ display:grid; }
+  .compare-row:nth-child(odd){ background:rgba(255,255,255,0.015); }
+  .compare-cell{
+    padding:10px 14px; font-family:var(--font-mono); font-size:13px; color:var(--text-muted);
+    border-bottom:1px solid var(--hairline-soft); display:flex; align-items:center; justify-content:center;
+  }
+  .compare-row:last-child .compare-cell{ border-bottom:none; }
+  .compare-cell.label{
+    color:var(--text-faint); font-size:10px; letter-spacing:0.08em;
+    text-transform:uppercase; justify-content:flex-start;
+  }
+  .compare-cell.best{ color:var(--gold-bright); font-weight:700; }
+
   footer{
     text-align:center; padding:36px 24px 56px;
     font-size:12px; color:var(--text-faint); font-family:var(--font-mono);
@@ -310,6 +388,7 @@
     <span class="roster-count" id="rosterCount">— members</span>
   </div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <button class="btn" id="compareBtn" type="button">⇄ Compare</button>
     <button class="btn" id="importBtn" type="button">Import JSON</button>
     <button class="btn gold" id="exportBtn" type="button">Export JSON</button>
   </div>
@@ -323,6 +402,22 @@
 
 <footer>Node War Log · Roster</footer>
 <div class="toast" id="toast"></div>
+
+<div class="compare-bar" id="compareBar">
+  <div class="compare-bar-chips" id="compareBarChips"></div>
+  <button class="btn gold" id="compareGoBtn" type="button">Compare →</button>
+  <button class="btn" id="compareClearBtn" type="button">Clear</button>
+</div>
+
+<div class="compare-modal" id="compareModal">
+  <div class="compare-panel">
+    <button class="compare-close" id="compareCloseBtn" type="button" aria-label="Close">✕</button>
+    <div class="page-eyebrow">Side by Side</div>
+    <h1 style="font-family:var(--font-display);font-size:24px;font-weight:660;">Player Comparison</h1>
+    <div class="compare-heads" id="compareHeads"></div>
+    <div class="compare-grid" id="compareGrid"></div>
+  </div>
+</div>
 
 <script src="flags.js"></script>
 <!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
@@ -344,6 +439,49 @@ const DYNAMIC_MATCHES_KEY = "nodeWarDynamicMatches";
 /* ---- helpers ---- */
 function kd(k,d){ return (k===0&&d===0) ? null : d===0 ? k : k/d; }
 function fmtKD(v){ return v===null ? "—" : v.toFixed(2); }
+function fmtNum(v){
+  if (v >= 1000000) return (v/1000000).toFixed(1) + "M";
+  if (v >= 100000) return (v/1000).toFixed(1) + "K";
+  return String(v);
+}
+
+const EXTENDED_STATS = window.GUILD_DATA.extendedStats;
+
+/* ---- per-player totals incl. extended stats, for the Compare tool ---- */
+function buildExtendedTotals(){
+  const totals = {};
+  getAllMatches().forEach(m=>{
+    m.players.forEach(([name,k,d])=>{
+      if(!totals[name]) totals[name] = {
+        name, kills:0, deaths:0, played:0, streak:0,
+        dmgDone:0, dmgTaken:0, cc:0, hpHealed:0, allyHpHealed:0,
+        fortDmg:0, cannonsLanded:0, objDestroyed:0, traps:0, timeAlive:0
+      };
+      totals[name].kills += k;
+      totals[name].deaths += d;
+      totals[name].played += 1;
+    });
+    const ext = EXTENDED_STATS[m.date];
+    if (ext){
+      ext.forEach(p=>{
+        const [name,,,streak,dmgDone,dmgTaken,cc,hpHealed,allyHpHealed,fortDmg,cannonsLanded,objDestroyed,cannonDist,traps,timeDead,timeAlive] = p;
+        if (!totals[name]) return;
+        totals[name].streak       = Math.max(totals[name].streak, streak ?? 0);
+        totals[name].dmgDone     += dmgDone      ?? 0;
+        totals[name].dmgTaken    += dmgTaken     ?? 0;
+        totals[name].cc          += cc           ?? 0;
+        totals[name].hpHealed    += hpHealed     ?? 0;
+        totals[name].allyHpHealed+= allyHpHealed ?? 0;
+        totals[name].fortDmg     += fortDmg      ?? 0;
+        totals[name].cannonsLanded+=cannonsLanded?? 0;
+        totals[name].objDestroyed+= objDestroyed ?? 0;
+        totals[name].traps       += traps        ?? 0;
+        totals[name].timeAlive   += timeAlive    ?? 0;
+      });
+    }
+  });
+  return totals;
+}
 
 function loadProfiles(){
   // Shared layer: profiles published by the Discord bot (class + screenshots).
@@ -449,7 +587,8 @@ function render(){
 
     const roleClass = role ? `role-${role}` : "";
     return `
-      <a class="player-card" href="player.html?name=${encodeURIComponent(r.name)}">
+      <a class="player-card" href="player.html?name=${encodeURIComponent(r.name)}" data-name="${r.name}">
+        <div class="card-compare-badge">+</div>
         ${flagMeta ? `<div class="card-flag ${flagMeta.cls}" title="${flagMeta.label}">${flagMeta.icon} ${flagMeta.label}</div>` : ""}
         ${role ? `<div class="card-role role-${role}" id="badge-${r.name}">${ROLE_LABELS[role]||role}</div>` : `<div class="card-role role-none" id="badge-${r.name}"></div>`}
         <div class="card-gear-thumb">${gearThumb}</div>
@@ -486,7 +625,133 @@ function render(){
       </a>
     `;
   }).join("");
+  applyCompareVisualState();
 }
+
+/* ================================================================
+   COMPARE TOOL — pick 2–3 roster cards, view their stats side by side
+   ================================================================ */
+let compareMode = false;
+let compareSelection = [];
+
+function applyCompareVisualState(){
+  document.querySelectorAll(".player-card").forEach(card=>{
+    const selected = compareSelection.includes(card.dataset.name);
+    card.classList.toggle("selected", selected);
+    card.classList.toggle("dimmed", compareMode && compareSelection.length>0 && !selected);
+  });
+}
+
+function updateCompareBar(){
+  const bar = document.getElementById("compareBar");
+  bar.classList.toggle("show", compareSelection.length>=2);
+  document.getElementById("compareBarChips").innerHTML =
+    compareSelection.map(n=>`<span class="compare-bar-chip">${n}</span>`).join("");
+}
+
+function toggleCompareMode(){
+  compareMode = !compareMode;
+  document.body.classList.toggle("compare-mode", compareMode);
+  const btn = document.getElementById("compareBtn");
+  btn.textContent = compareMode ? "✕ Exit Compare" : "⇄ Compare";
+  btn.classList.toggle("gold", compareMode);
+  if (!compareMode){
+    compareSelection = [];
+    updateCompareBar();
+  }
+  applyCompareVisualState();
+}
+
+function toggleSelect(name){
+  const idx = compareSelection.indexOf(name);
+  if (idx>=0){
+    compareSelection.splice(idx,1);
+  } else {
+    if (compareSelection.length>=3){ showToast("Compare up to 3 players at a time", "error"); return; }
+    compareSelection.push(name);
+  }
+  applyCompareVisualState();
+  updateCompareBar();
+}
+
+const COMPARE_ROWS = [
+  { label:"K/D",              fmt:t=>fmtKD(kd(t.kills,t.deaths)), val:t=>kd(t.kills,t.deaths) ?? -1 },
+  { label:"Kills",            fmt:t=>String(t.kills),             val:t=>t.kills },
+  { label:"Deaths",           fmt:t=>String(t.deaths),            val:t=>-t.deaths },
+  { label:"Wars Played",      fmt:t=>String(t.played),            val:t=>t.played },
+  { label:"Best Streak",      fmt:t=>String(t.streak),            val:t=>t.streak },
+  { label:"Damage Done",      fmt:t=>fmtNum(t.dmgDone),           val:t=>t.dmgDone },
+  { label:"Damage Taken",     fmt:t=>fmtNum(t.dmgTaken),          val:t=>-t.dmgTaken },
+  { label:"Crowd Control",    fmt:t=>String(t.cc),                 val:t=>t.cc },
+  { label:"Fort Damage",      fmt:t=>fmtNum(t.fortDmg),           val:t=>t.fortDmg },
+  { label:"HP Healed",        fmt:t=>fmtNum(t.hpHealed),          val:t=>t.hpHealed },
+  { label:"Ally HP Healed",   fmt:t=>fmtNum(t.allyHpHealed),      val:t=>t.allyHpHealed },
+  { label:"Objects Destroyed",fmt:t=>String(t.objDestroyed),       val:t=>t.objDestroyed },
+  { label:"Cannons Landed",   fmt:t=>String(t.cannonsLanded),      val:t=>t.cannonsLanded },
+];
+
+function openCompareModal(){
+  if (compareSelection.length<2) return;
+  const totalsMap = buildExtendedTotals();
+  const profiles  = loadProfiles();
+  const players   = compareSelection.map(name=>({
+    name,
+    class: (profiles[name]||{}).class || "Unknown Class",
+    totals: totalsMap[name] || { name, kills:0, deaths:0, played:0, streak:0, dmgDone:0, dmgTaken:0, cc:0, hpHealed:0, allyHpHealed:0, fortDmg:0, cannonsLanded:0, objDestroyed:0, traps:0, timeAlive:0 },
+  }));
+  const n = players.length;
+  const cols = `160px repeat(${n}, 1fr)`;
+
+  document.getElementById("compareHeads").style.gridTemplateColumns = cols;
+  document.getElementById("compareHeads").innerHTML =
+    `<div class="compare-head-cell"></div>` +
+    players.map(p=>`
+      <div class="compare-head-cell">
+        <div class="compare-head-name">${p.name}</div>
+        <div class="compare-head-class">${p.class}</div>
+      </div>
+    `).join("");
+
+  document.getElementById("compareGrid").innerHTML = COMPARE_ROWS.map(row=>{
+    const vals = players.map(p=>row.val(p.totals));
+    const best = Math.max(...vals);
+    const cells = players.map((p,i)=>{
+      const isBest = vals[i]===best && !vals.every(v=>v===vals[0]);
+      return `<div class="compare-cell${isBest?" best":""}">${row.fmt(p.totals)}</div>`;
+    }).join("");
+    return `<div class="compare-row" style="grid-template-columns:${cols}">
+      <div class="compare-cell label">${row.label}</div>
+      ${cells}
+    </div>`;
+  }).join("");
+
+  document.getElementById("compareModal").classList.add("show");
+}
+function closeCompareModal(){
+  document.getElementById("compareModal").classList.remove("show");
+}
+
+document.getElementById("compareBtn").addEventListener("click", toggleCompareMode);
+document.getElementById("compareClearBtn").addEventListener("click", ()=>{
+  compareSelection = [];
+  applyCompareVisualState();
+  updateCompareBar();
+});
+document.getElementById("compareGoBtn").addEventListener("click", openCompareModal);
+document.getElementById("compareCloseBtn").addEventListener("click", closeCompareModal);
+document.getElementById("compareModal").addEventListener("click", e=>{
+  if (e.target.id==="compareModal") closeCompareModal();
+});
+document.addEventListener("keydown", e=>{
+  if (e.key==="Escape") closeCompareModal();
+});
+document.getElementById("rosterGrid").addEventListener("click", e=>{
+  if (!compareMode) return;
+  const card = e.target.closest(".player-card");
+  if (!card) return;
+  e.preventDefault();
+  toggleSelect(card.dataset.name);
+});
 
 /* ---- Role select handler ---- */
 document.getElementById("rosterGrid").addEventListener("change", e=>{
