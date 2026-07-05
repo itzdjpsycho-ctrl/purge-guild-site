@@ -365,7 +365,7 @@
 <footer>Node War Log · Sign Ups</footer>
 <div class="toast" id="toast"></div>
 
-<script src="assets/auth.js"></script>
+<script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>window.purgeAuthReady = PurgeAuth.init();</script>
 <!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
 <script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>

@@ -99,6 +99,38 @@
     letter-spacing:0.1em; text-transform:uppercase; color:var(--text-faint);
   }
 
+  /* Officers panel (admin-only) */
+  .officers-panel{
+    max-width:980px; margin:0 auto 20px; padding:14px 24px;
+  }
+  .officers-panel-inner{
+    background:var(--panel); border:1px solid var(--hairline); border-radius:12px; padding:14px 16px;
+  }
+  .officers-head{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--crimson-bright); margin-bottom:10px;
+  }
+  .officers-head .officers-sub{ text-transform:none; letter-spacing:0; color:var(--text-faint); font-size:10.5px; }
+  .officers-list{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+  .officer-chip{
+    display:flex; align-items:center; gap:6px;
+    font-family:var(--font-mono); font-size:11.5px; color:var(--crimson-glow);
+    background:rgba(110,31,184,0.16); border:1px solid var(--crimson); border-radius:999px;
+    padding:5px 6px 5px 12px;
+  }
+  .officer-chip button{
+    background:none; border:none; color:inherit; cursor:pointer; font-size:13px; line-height:1;
+    padding:2px 6px; border-radius:50%;
+  }
+  .officer-chip button:hover{ background:rgba(255,255,255,0.12); }
+  .officers-add{ display:flex; gap:8px; }
+  .officers-add input{
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    color:var(--text); font-family:var(--font-ui); font-size:13px;
+    padding:8px 11px; border-radius:8px; outline:none; flex:1; max-width:260px;
+  }
+  .officers-add input:focus{ border-color:var(--crimson); }
+
   .btn{
     font-family:var(--font-mono); font-size:12px; letter-spacing:0.04em;
     padding:8px 16px; border-radius:999px; cursor:pointer;
@@ -108,6 +140,8 @@
   .btn:hover{ color:var(--text); border-color:rgba(255,255,255,0.18); }
   .btn.gold{ color:var(--gold-bright); border-color:var(--gold); background:rgba(217,164,65,0.1); }
   .btn.gold:hover{ background:rgba(217,164,65,0.18); box-shadow:0 0 16px rgba(217,164,65,0.12); }
+  .btn.purple{ color:var(--crimson-glow); border-color:var(--crimson); background:rgba(110,31,184,0.16); }
+  .btn.purple:hover{ background:rgba(110,31,184,0.28); box-shadow:0 0 16px rgba(110,31,184,0.2); }
 
   main{
     max-width:980px; margin:0 auto; padding:0 24px 80px;
@@ -384,6 +418,18 @@
   <div class="page-sub">Class, gear, and war record for every member</div>
 </div>
 
+<div class="officers-panel" id="officersPanel" style="display:none;">
+  <div class="officers-panel-inner">
+    <div class="officers-head">Officers <span class="officers-sub">— can post sign-ups &amp; moderate profiles</span></div>
+    <div class="officers-list" id="officersList"></div>
+    <div class="officers-add">
+      <input type="text" id="officerInput" list="officerRosterList" placeholder="Family name…">
+      <datalist id="officerRosterList"></datalist>
+      <button class="btn purple" id="officerAddBtn" type="button">Add Officer</button>
+    </div>
+  </div>
+</div>
+
 <div class="toolbar">
   <div class="toolbar-left">
     <span class="roster-count" id="rosterCount">— members</span>
@@ -421,8 +467,8 @@
 </div>
 
 <script src="flags.js"></script>
-<script src="assets/auth.js"></script>
-<script>PurgeAuth.init();</script>
+<script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script>window.purgeAuthReady = PurgeAuth.init();</script>
 <!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
 <script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>document.write('<scr'+'ipt src="profiles.js?v='+Date.now()+'"></scr'+'ipt>')</script>
@@ -823,6 +869,57 @@ document.getElementById("importInput").addEventListener("change", e=>{
 });
 
 render();
+
+// ---- Officers panel (admin-only; officers are managed by family name, not Discord role IDs) ----
+const WORKER_URL = (localStorage.getItem("signupWorkerUrl")
+  || "https://purge-signups.itzdjpsycho.workers.dev").replace(/\/+$/, "");
+
+function renderOfficers(list){
+  document.getElementById("officersList").innerHTML = list.length
+    ? list.map(o => {
+        const label = o.familyName || `Unlinked (${o.discordId})`;
+        return `<span class="officer-chip">${label}<button type="button" data-remove="${o.familyName||""}">&times;</button></span>`;
+      }).join("")
+    : `<span style="font-family:var(--font-mono);font-size:11px;color:var(--text-faint);">No officers yet — add one below.</span>`;
+  document.getElementById("officersList").querySelectorAll("[data-remove]").forEach(btn => {
+    btn.addEventListener("click", () => { if(btn.dataset.remove) removeOfficer(btn.dataset.remove); });
+  });
+  document.getElementById("officerRosterList").innerHTML = ROSTER_MEMBERS.map(n => `<option value="${n}">`).join("");
+}
+async function loadOfficers(){
+  try{
+    const res = await fetch(`${WORKER_URL}/officers`, { headers: PurgeAuth.headers() });
+    if(!res.ok) return;
+    const data = await res.json();
+    renderOfficers(data.officers || []);
+  }catch(e){}
+}
+async function officerOp(familyName, action){
+  try{
+    const res = await fetch(`${WORKER_URL}/officers`, {
+      method:"POST",
+      headers:{ "content-type":"application/json", ...PurgeAuth.headers() },
+      body: JSON.stringify({ familyName, action }),
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok){ showToast(data.error || "Couldn't update officers", "error"); return; }
+    renderOfficers(data.officers || []);
+  }catch(e){ showToast("Couldn't reach the relay", "error"); }
+}
+function removeOfficer(familyName){ officerOp(familyName, "remove"); }
+document.getElementById("officerAddBtn").addEventListener("click", () => {
+  const input = document.getElementById("officerInput");
+  const name = input.value.trim();
+  if(!name) return;
+  officerOp(name, "add");
+  input.value = "";
+});
+window.purgeAuthReady?.then((state) => {
+  if(state?.isAdmin){
+    document.getElementById("officersPanel").style.display = "";
+    loadOfficers();
+  }
+});
 </script>
 </body>
 </html>
