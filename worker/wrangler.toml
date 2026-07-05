@@ -19,4 +19,5 @@ DISCORD_CLIENT_ID = "1519482554917584916"
 #   wrangler secret put ADMIN_POST_PASSWORD   (shared password admins type on the site — kept as a break-glass fallback)
 #   wrangler secret put BOT_PUSH_SECRET       (must match the bot's BOT_PUSH_SECRET)
 #   wrangler secret put DISCORD_CLIENT_SECRET (Discord Developer Portal → OAuth2 → client secret)
-# For local `wrangler dev`, put the same four in worker/.dev.vars (git-ignored).
+#   wrangler secret put SESSION_SECRET        (any long random string — signs the login token; changing it logs everyone out)
+# For local `wrangler dev`, put the same five in worker/.dev.vars (git-ignored).

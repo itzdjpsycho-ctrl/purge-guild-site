@@ -1,10 +1,10 @@
 // Cloudflare Worker relay for the website's "Sign Ups" page + Discord OAuth login.
 //
-//   Website  ──GET  /auth/login,/auth/callback,/auth/me──►  Sign in with Discord (X-Session-Id header,
-//                                                            NOT a cookie — github.io and workers.dev
-//                                                            are different domains, and third-party
-//                                                            SameSite=None cookies get blocked by Safari/Brave/etc)
-//   Website  ──POST /auth/logout─────────────────────────►  clear session
+//   Website  ──GET  /auth/login,/auth/callback,/auth/me──►  Sign in with Discord (X-Session-Id header
+//                                                            carrying a signed, stateless token — see
+//                                                            auth.js for why it's neither a cookie nor
+//                                                            a KV-backed session)
+//   Website  ──POST /auth/logout─────────────────────────►  no-op (client just discards its token)
 //   Website  ──GET/POST /officers (session-or-password)──►  manage who's an officer, by family name
 //   Website  ──POST /post,/edit,/op (session-or-password)──► posts to Discord as the bot
 //   Website  ──POST /profile-op (session: admin or own familyName)──► queue a profile edit
@@ -13,10 +13,11 @@
 //   Bot      ──GET  /posted (x-bot-secret)─────────►   hydrate offline-posted sheets
 //
 // Secrets (wrangler secret put): DISCORD_BOT_TOKEN, ADMIN_POST_PASSWORD, BOT_PUSH_SECRET,
-//   DISCORD_CLIENT_SECRET. Vars: DISCORD_CLIENT_ID.
+//   DISCORD_CLIENT_SECRET, SESSION_SECRET (signs the login token — any long random string).
+// Vars: DISCORD_CLIENT_ID.
 // Officers aren't Discord roles — they're a plain list of Discord ids in KV ("officers"),
 // managed from the website itself (bootstrap the first one with ADMIN_POST_PASSWORD).
-// KV binding: SIGNUPS_KV.  Keys: "config", "state", "posted", "links", "officers", "session:<id>", "oauthstate:<id>".
+// KV binding: SIGNUPS_KV.  Keys: "config", "state", "posted", "links", "officers".
 
 import { postMessage, patchMessage } from "./discord.js";
 import { readGearStats } from "./gear.js";
@@ -24,11 +25,10 @@ import {
   buildAuthorizeUrl,
   exchangeCode,
   fetchDiscordUser,
-  stashOAuthState,
-  consumeOAuthState,
-  createSession,
-  getSession,
-  deleteSession,
+  createOAuthState,
+  verifyOAuthState,
+  createSessionToken,
+  verifyToken,
   readSessionId,
   familyNameForDiscordId,
   getOfficerIds,
@@ -52,9 +52,18 @@ function corsHeaders(request) {
   };
 }
 
-/** Session for this request's X-Session-Id header, or null if none/expired. */
+/** Session for this request's X-Session-Id header, or null if invalid/expired.
+ *  isAdmin/familyName are resolved fresh from KV on every call (rather than
+ *  baked into the token) so promoting an officer or linking an account takes
+ *  effect immediately, without needing to sign in again. */
 async function sessionFor(request, env) {
-  return getSession(env, readSessionId(request));
+  const identity = await verifyToken(env, readSessionId(request));
+  if (!identity) return null;
+  const [isAdmin, familyName] = await Promise.all([
+    isOfficer(env, identity.discordId),
+    familyNameForDiscordId(env, identity.discordId),
+  ]);
+  return { ...identity, isAdmin, familyName };
 }
 
 /** True if the request carries either an admin session or the legacy shared password. */
@@ -132,22 +141,20 @@ export default {
     // ---- Discord OAuth login ----
     if (path === "/auth/login" && method === "GET") {
       const redirectUri = `${url.origin}/auth/callback`;
-      const state = await stashOAuthState(env);
       const next = url.searchParams.get("next") || PAGES_ORIGIN;
-      // Carried through KV (keyed by state) rather than the URL, so it can't be tampered with in transit.
-      await env.SIGNUPS_KV.put(`oauthnext:${state}`, next, { expirationTtl: 600 });
+      // The `next` URL + a short expiry are signed directly into the OAuth
+      // `state` param (CSRF guard) — no KV round-trip needed to recover it.
+      const state = await createOAuthState(env, next);
       return Response.redirect(buildAuthorizeUrl(env, state, redirectUri), 302);
     }
 
     if (path === "/auth/callback" && method === "GET") {
       const code = url.searchParams.get("code");
-      const state = url.searchParams.get("state");
-      const validState = await consumeOAuthState(env, state);
-      const next = (await env.SIGNUPS_KV.get(`oauthnext:${state}`)) || PAGES_ORIGIN;
-      await env.SIGNUPS_KV.delete(`oauthnext:${state}`);
-      if (!validState || !code) {
+      const statePayload = await verifyOAuthState(env, url.searchParams.get("state"));
+      if (!statePayload || !code) {
         return new Response("Login failed: invalid or expired state.", { status: 400 });
       }
+      const next = statePayload.next || PAGES_ORIGIN;
 
       const redirectUri = `${url.origin}/auth/callback`;
       const exch = await exchangeCode(env, code, redirectUri);
@@ -156,22 +163,17 @@ export default {
       const user = await fetchDiscordUser(exch.accessToken);
       if (!user) return new Response("Login failed: could not fetch Discord identity.", { status: 502 });
 
-      const sessionId = await createSession(env, {
+      const token = await createSessionToken(env, {
         discordId: user.id,
         username: user.username,
         avatar: user.avatar,
-        isAdmin: await isOfficer(env, user.id),
-        familyName: await familyNameForDiscordId(env, user.id),
       });
 
-      // The session id rides back in the URL fragment (never sent to any
-      // server, GitHub Pages included) — assets/auth.js picks it up client-side
-      // and stores it, then attaches it as X-Session-Id on future requests.
+      // The token rides back in the URL fragment (never sent to any server,
+      // GitHub Pages included) — assets/auth.js picks it up client-side and
+      // stores it, then attaches it as X-Session-Id on future requests.
       const separator = next.includes("#") ? "&" : "#";
-      return new Response(null, {
-        status: 302,
-        headers: { Location: `${next}${separator}purgeSession=${sessionId}` },
-      });
+      return Response.redirect(`${next}${separator}purgeSession=${token}`, 302);
     }
 
     if (path === "/auth/me" && method === "GET") {
@@ -186,7 +188,8 @@ export default {
     }
 
     if (path === "/auth/logout" && method === "POST") {
-      await deleteSession(env, readSessionId(request));
+      // Stateless token — nothing to invalidate server-side; the client just
+      // discards it (see assets/auth.js). This endpoint exists for symmetry.
       return json({ ok: true }, 200, request);
     }
 
