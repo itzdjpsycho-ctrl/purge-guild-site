@@ -2553,6 +2553,10 @@ let uploadedImages = [];  // [{base64, mediaType}]
 let extractedData  = null;
 let inputMode = "screenshot"; // "screenshot" | "json"
 
+// Cloudflare Worker relay — holds the Anthropic key for war-screenshot OCR.
+const WORKER_URL = (localStorage.getItem("signupWorkerUrl")
+  || "https://purge-signups.itzdjpsycho.workers.dev").replace(/\/+$/, "");
+
 function setInputMode(mode){
   inputMode = mode;
   if (mode === "json"){
@@ -2734,13 +2738,33 @@ function handleFiles(files){
   });
 }
 
-extractBtn.addEventListener("click", ()=>{
+extractBtn.addEventListener("click", async ()=>{
   if (!uploadedImages.length) return;
-  // 📸 auto-extraction needed a server to hold the API key — it ran on the old
-  // Netlify function, which is gone now the site is on GitHub Pages. War OCR is
-  // handled by the Discord bot's /addwar, or use the { } Manual JSON option below.
-  uploadStatus.className = "modal-status error";
-  uploadStatus.innerHTML = `📸 auto-extraction isn't available on this site. Send the screenshots to the Discord bot, or switch to the <b>{ } Manual JSON</b> option.`;
+  uploadStatus.className = "modal-status";
+  uploadStatus.textContent = "Reading screenshot" + (uploadedImages.length > 1 ? "s" : "") + "…";
+  extractBtn.disabled = true;
+  try {
+    const res = await fetch(`${WORKER_URL}/war`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ images: uploadedImages }),
+    });
+    const d = await res.json().catch(()=>({}));
+    if (!res.ok) {
+      uploadStatus.className = "modal-status error";
+      uploadStatus.innerHTML = `Couldn't read it — ${d.error || ("error " + res.status)}. Try again, or switch to the <b>{ } Manual JSON</b> option.`;
+      return;
+    }
+    extractedData = d.war;
+    uploadStatus.className = "modal-status success";
+    uploadStatus.textContent = "Extracted — review below.";
+    showReviewStep(d.war);
+  } catch (err) {
+    uploadStatus.className = "modal-status error";
+    uploadStatus.innerHTML = `Couldn't reach the war reader. Try again, or switch to the <b>{ } Manual JSON</b> option.`;
+  } finally {
+    extractBtn.disabled = false;
+  }
 });
 
 function showReviewStep(d){

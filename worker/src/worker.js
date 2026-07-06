@@ -8,6 +8,7 @@
 //   Website  ──GET/POST /officers (session-or-password)──►  manage who's an officer, by family name
 //   Website  ──POST /post,/edit,/op (session-or-password)──► posts to Discord as the bot
 //   Website  ──POST /profile-op (session: admin or own familyName)──► queue a profile edit
+//   Website  ──POST /war (public, origin-locked)──────►  Claude vision reads a war result screenshot
 //   Website  ──GET  /state (public, sanitized)──────►  live view
 //   Bot      ──POST /state,/config,/links (x-bot-secret)──►  live state + channel + link map
 //   Bot      ──GET  /posted (x-bot-secret)─────────►   hydrate offline-posted sheets
@@ -21,6 +22,7 @@
 
 import { postMessage, patchMessage } from "./discord.js";
 import { readGearStats } from "./gear.js";
+import { readWar } from "./war.js";
 import {
   buildAuthorizeUrl,
   exchangeCode,
@@ -303,6 +305,31 @@ export default {
       const r = await readGearStats(image, mediaType, env.ANTHROPIC_API_KEY, env.VISION_MODEL);
       if (!r.ok) return json({ error: r.error || "Couldn't read the screenshot." }, 502, request);
       return json({ ap: r.ap, aap: r.aap, dp: r.dp }, 200, request);
+    }
+
+    // ---- public war-result OCR (no auth, per the guild's choice) ----
+    // Reads a full Node War result (date/location/result + every player's
+    // stats) off 1-4 screenshots via Claude vision. CORS is locked to the
+    // site origin and the images are size-capped to limit misuse.
+    if (path === "/war" && method === "POST") {
+      if (!env.ANTHROPIC_API_KEY) {
+        return json({ error: "War reading isn't configured (no ANTHROPIC_API_KEY)." }, 503, request);
+      }
+      const body = await readJson(request);
+      const images = body?.images;
+      if (!Array.isArray(images) || !images.length) {
+        return json({ error: "images (array of {base64,mediaType}) required." }, 400, request);
+      }
+      if (images.length > 4) {
+        return json({ error: "Max 4 screenshots at a time." }, 400, request);
+      }
+      const totalLen = images.reduce((sum, im) => sum + (im?.base64?.length || 0), 0);
+      if (totalLen > 28_000_000) { // ~21MB decoded across all images
+        return json({ error: "Images too large (max ~20MB total)." }, 413, request);
+      }
+      const r = await readWar(images, env.ANTHROPIC_API_KEY, env.VISION_MODEL);
+      if (!r.ok) return json({ error: r.error === "no-key" ? "War reading isn't configured." : (r.error || "Couldn't read the screenshots.") }, 502, request);
+      return json({ war: r.war }, 200, request);
     }
 
     // ---- public live view ----
