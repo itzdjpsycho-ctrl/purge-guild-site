@@ -1927,20 +1927,20 @@ function renderTabs(){
   });
   if (prevVal && weekGroups.some(g=>g.week===prevVal)) sel.value = prevVal;
 
-  // Only show wars for the selected week (or all if none selected)
+  // Only show individual war tabs once a week is picked — Overall is the
+  // only tab shown by default (no week selected).
   const selectedWeek = document.getElementById("weekSelect").value;
-  MATCHES.forEach((m, i) => {
-    if (selectedWeek && weekKey(m.date) !== selectedWeek) return;
-    const topLabel = selectedWeek
-      ? m.day
-      : new Date(m.date + "T00:00:00").toLocaleDateString("en-US", { month:"short", day:"numeric" });
-    strip.appendChild(makeBanner(
-      m.result === "Victory" ? "victory" : "defeat",
-      topLabel, m.location,
-      m.result === "Victory" ? "Win" : "Loss",
-      String(i)
-    ));
-  });
+  if (selectedWeek) {
+    MATCHES.forEach((m, i) => {
+      if (weekKey(m.date) !== selectedWeek) return;
+      strip.appendChild(makeBanner(
+        m.result === "Victory" ? "victory" : "defeat",
+        m.day, m.location,
+        m.result === "Victory" ? "Win" : "Loss",
+        String(i)
+      ));
+    });
+  }
 
   document.querySelectorAll(".tab").forEach(b=>{
     const active = b.dataset.key === currentMatchKey;
@@ -1951,12 +1951,12 @@ function renderTabs(){
 
 // Week dropdown — filters which wars appear in the strip
 document.getElementById("weekSelect").addEventListener("change", function(){
-  // If the currently selected match is not visible in the new week, reset to overall
-  if (this.value && currentMatchKey !== "overall") {
+  // If the currently selected match is no longer visible in the new state
+  // (no week picked, or a different week picked), reset to overall.
+  if (currentMatchKey !== "overall") {
     const idx = parseInt(currentMatchKey);
-    if (!isNaN(idx) && MATCHES[idx] && weekKey(MATCHES[idx].date) !== this.value) {
-      selectMatch("overall"); // render the overall panel
-    }
+    const stillVisible = this.value && !isNaN(idx) && MATCHES[idx] && weekKey(MATCHES[idx].date) === this.value;
+    if (!stillVisible) selectMatch("overall"); // render the overall panel
   }
   renderTabs(); // always update the strip filter
 });
