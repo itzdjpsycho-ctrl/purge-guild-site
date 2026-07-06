@@ -604,6 +604,16 @@ const WEEKLY_CATEGORIES = [
     }
   },
   {
+    label:"Top Kills", icon:"💀", color:"var(--gold-bright)",
+    rows(weekMatches){
+      return buildOverall(weekMatches)
+        .filter(r=>r.played>0)
+        .sort((a,b)=>b.kills-a.kills)
+        .slice(0,5)
+        .map(r=>({ name:r.name, value:r.kills.toLocaleString() }));
+    }
+  },
+  {
     label:"Highest CC", icon:"🎯", color:"var(--crimson-bright)",
     rows(weekMatches){
       return buildWeeklyExtendedTotals(weekMatches)
