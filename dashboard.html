@@ -626,15 +626,12 @@ const WEEKLY_CATEGORIES = [
   {
     label:"Attendance", icon:"✅", color:"var(--green-bright)",
     rows(){
-      const MIN_SIGNUPS = 3;
-      const attendance = typeof window.GUILD_ATTENDANCE === "object" ? window.GUILD_ATTENDANCE : {};
       const profiles = window.GUILD_PROFILES || {};
-      return Object.entries(attendance)
-        .map(([name,a])=>({name, ...a}))
-        .filter(a=>a.signups >= MIN_SIGNUPS && !(profiles[a.name] && profiles[a.name].vacation))
-        .sort((a,b)=>b.rate-a.rate || b.signups-a.signups)
+      return overall
+        .filter(r=>r.played>0 && !(profiles[r.name] && profiles[r.name].vacation))
+        .sort((a,b)=>b.played-a.played)
         .slice(0,5)
-        .map(a=>({ name:a.name, value:`${Math.round(a.rate*100)}% (${a.attended}/${a.signups})` }));
+        .map(r=>({ name:r.name, value:`${r.played}/${allMatches.length}` }));
     }
   },
 ];
