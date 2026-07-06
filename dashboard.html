@@ -211,6 +211,16 @@
   .perf-val.kills{ color:var(--green-bright); }
   .perf-val.deaths{ color:var(--red-bright); }
 
+  /* WEEKLY UPDATE */
+  .weekly-update-sub{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-faint);
+    margin:-8px 0 14px;
+  }
+  .weekly-grid{
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:14px; margin-bottom:32px;
+  }
+
   /* FLAGS SECTION */
   .flags-grid{
     display:grid; grid-template-columns:repeat(3,1fr); gap:14px;
@@ -296,7 +306,7 @@
 
 <div class="app-shell">
 <aside class="app-sidebar">
-  <a class="app-brand" href="home.html">
+  <a class="app-brand" href="index.html">
     <span class="app-brand-logo">⚔</span>
     <span class="app-brand-text">
       <span class="app-brand-name">Purge</span>
@@ -305,8 +315,8 @@
   </a>
   <div class="side-nav-label">Menu</div>
   <nav class="side-nav">
-    <a href="home.html"><span class="ico">🏠</span> Home</a>
-    <a href="index.html"><span class="ico">⚔️</span> War Scores</a>
+    <a href="index.html"><span class="ico">🏠</span> Home</a>
+    <a href="war-scores.html"><span class="ico">⚔️</span> War Scores</a>
     <a href="players.html"><span class="ico">👥</span> Roster</a>
     <a href="dashboard.html" class="current"><span class="ico">📊</span> Dashboard</a>
     <a href="signups.html"><span class="ico">📝</span> Sign Ups</a>
@@ -328,6 +338,13 @@
 
   <!-- SUMMARY STATS -->
   <div class="stat-grid" id="statGrid"></div>
+
+  <!-- WEEKLY UPDATE -->
+  <div class="section">
+    <div class="section-label">Weekly Update</div>
+    <div class="weekly-update-sub" id="weeklyUpdateSub"></div>
+    <div class="weekly-grid" id="weeklyUpdateGrid"></div>
+  </div>
 
   <!-- WIN RATE + NODE BREAKDOWN -->
   <div class="two-col">
@@ -446,9 +463,10 @@
 <script>document.write('<scr'+'ipt src="profiles.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>
 /* ================================================================
-   MATCH DATA — keep in sync with index.html
+   MATCH DATA — keep in sync with war-scores.html
 ================================================================ */
 const MATCHES = window.GUILD_DATA.matches;
+const EXTENDED_STATS = window.GUILD_DATA.extendedStats;
 
 const ROSTER_MEMBERS = window.GUILD_DATA.rosterMembers;
 
@@ -464,6 +482,10 @@ function getAllMatches(){
   try{
     const raw = localStorage.getItem(DYNAMIC_MATCHES_KEY);
     if(raw){ JSON.parse(raw).forEach(m=>{ if(!all.find(e=>e.date===m.date)) all.push(m); }); }
+  }catch(e){}
+  try{
+    const raw = localStorage.getItem(DYNAMIC_EXTENDED_KEY);
+    if(raw){ Object.assign(EXTENDED_STATS, JSON.parse(raw)); }
   }catch(e){}
   return all.sort((a,b)=>a.date.localeCompare(b.date));
 }
@@ -533,6 +555,108 @@ document.getElementById("statGrid").innerHTML = `
     <div class="stat-label">Active Players</div>
   </div>
 `;
+
+/* ---- Weekly Update ---- */
+function weekKey(dateStr){
+  const d = new Date(dateStr + "T00:00:00");
+  const day = d.getDay();
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - ((day + 6) % 7));
+  return monday.toISOString().slice(0,10);
+}
+function weekLabel(startDate){
+  const start = new Date(startDate + "T00:00:00");
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  const short = { month:"short", day:"numeric" };
+  return `${start.toLocaleDateString("en-US", short)} – ${end.toLocaleDateString("en-US", short)}`;
+}
+function getMostRecentWeekMatches(matches){
+  if(!matches.length) return [];
+  const key = weekKey(matches[matches.length-1].date);
+  return matches.filter(m=>weekKey(m.date)===key);
+}
+function buildWeeklyExtendedTotals(matches){
+  const totals = {};
+  matches.forEach(m=>{
+    const ext = EXTENDED_STATS[m.date];
+    if(!ext) return;
+    ext.forEach(p=>{
+      const [name,,,,,,cc,,,fortDmg] = p;
+      if(!totals[name]) totals[name] = { name, cc:0, fortDmg:0 };
+      totals[name].cc += cc||0;
+      totals[name].fortDmg += fortDmg||0;
+    });
+  });
+  return Object.values(totals);
+}
+
+/* Add/remove cards here to change what the Weekly Update shows. */
+const WEEKLY_CATEGORIES = [
+  {
+    label:"Top K/D", icon:"⚔️", color:"var(--gold-bright)",
+    rows(weekMatches){
+      return buildOverall(weekMatches)
+        .filter(r=>r.played>0)
+        .sort((a,b)=>(kd(b.kills,b.deaths)??-1)-(kd(a.kills,a.deaths)??-1))
+        .slice(0,5)
+        .map(r=>({ name:r.name, value:fmtKD(kd(r.kills,r.deaths)) }));
+    }
+  },
+  {
+    label:"Highest CC", icon:"🎯", color:"var(--crimson-bright)",
+    rows(weekMatches){
+      return buildWeeklyExtendedTotals(weekMatches)
+        .filter(r=>r.cc>0)
+        .sort((a,b)=>b.cc-a.cc)
+        .slice(0,5)
+        .map(r=>({ name:r.name, value:r.cc.toLocaleString() }));
+    }
+  },
+  {
+    label:"Fort Damage", icon:"🏰", color:"var(--red-bright)",
+    rows(weekMatches){
+      return buildWeeklyExtendedTotals(weekMatches)
+        .filter(r=>r.fortDmg>0)
+        .sort((a,b)=>b.fortDmg-a.fortDmg)
+        .slice(0,5)
+        .map(r=>({ name:r.name, value:r.fortDmg.toLocaleString() }));
+    }
+  },
+  {
+    label:"Attendance", icon:"✅", color:"var(--green-bright)",
+    rows(){
+      const MIN_SIGNUPS = 3;
+      const attendance = typeof window.GUILD_ATTENDANCE === "object" ? window.GUILD_ATTENDANCE : {};
+      const profiles = window.GUILD_PROFILES || {};
+      return Object.entries(attendance)
+        .map(([name,a])=>({name, ...a}))
+        .filter(a=>a.signups >= MIN_SIGNUPS && !(profiles[a.name] && profiles[a.name].vacation))
+        .sort((a,b)=>b.rate-a.rate || b.signups-a.signups)
+        .slice(0,5)
+        .map(a=>({ name:a.name, value:`${Math.round(a.rate*100)}% (${a.attended}/${a.signups})` }));
+    }
+  },
+];
+
+function renderWeeklyUpdate(){
+  const weekMatches = getMostRecentWeekMatches(allMatches);
+  const sub = document.getElementById("weeklyUpdateSub");
+  sub.textContent = weekMatches.length
+    ? `${weekLabel(weekKey(weekMatches[weekMatches.length-1].date))} · ${weekMatches.length} war${weekMatches.length!==1?"s":""}`
+    : "No wars logged this week.";
+
+  document.getElementById("weeklyUpdateGrid").innerHTML = WEEKLY_CATEGORIES.map(cat=>{
+    const rows = cat.rows(weekMatches).map(r=>
+      `<div class="flag-row"><span class="name">${r.name}</span><span class="kd">${r.value}</span></div>`
+    ).join("");
+    return `<div class="flag-col">
+      <div class="flag-col-head" style="color:${cat.color}"><span class="icon">${cat.icon}</span> ${cat.label}</div>
+      <div class="flag-list">${rows || `<div class="flag-empty">No data yet.</div>`}</div>
+    </div>`;
+  }).join("");
+}
+renderWeeklyUpdate();
 
 /* ---- Win rate ring ---- */
 const circumference = 2 * Math.PI * 64; // 402.1

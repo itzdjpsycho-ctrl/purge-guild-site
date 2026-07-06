@@ -1,6 +1,6 @@
 import { ANTHROPIC_API_KEY, VISION_MODEL } from "../config.js";
 
-// Same extraction prompt the website used (index.html) so the bot and site read
+// Same extraction prompt the website used (war-scores.html) so the bot and site read
 // war result screens identically.
 const PROMPT = `You are extracting Node War result data from screenshots of Black Desert Online.
 

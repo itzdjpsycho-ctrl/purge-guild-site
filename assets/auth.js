@@ -112,18 +112,18 @@
     return document.querySelector(".side-nav a.current")?.getAttribute("href") || null;
   }
 
-  // Signed-out visitors can only browse home.html: every other nav link is
-  // hidden, and landing on a gated page directly bounces you to home.html.
+  // Signed-out visitors can only browse index.html: every other nav link is
+  // hidden, and landing on a gated page directly bounces you to index.html.
   // This is a UX guard, not real access control — the underlying pages are
   // still public static files GitHub Pages will serve to anyone who fetches
   // them directly (curl, view-source, etc.); there's no server in front of
   // this site that could enforce a real login wall.
   function guardPage(state) {
-    document.querySelectorAll('.side-nav a:not([href="home.html"])').forEach((a) => {
+    document.querySelectorAll('.side-nav a:not([href="index.html"])').forEach((a) => {
       a.style.display = state.loggedIn ? "" : "none";
     });
-    if (!state.loggedIn && currentPageHref() !== "home.html") {
-      window.location.replace("home.html");
+    if (!state.loggedIn && currentPageHref() !== "index.html") {
+      window.location.replace("index.html");
     }
   }
 

@@ -1,0 +1,2827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Node War Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     DESIGN TOKENS
+     ============================================================ */
+  :root{
+    --bg:            #08060C;
+    --bg2:           #0C0A12;
+    --panel:         #110D18;
+    --panel-raised:  #181222;
+    --hairline:      #2A1F3A;
+    --hairline-soft: #1A1426;
+    --text:          #EDE8E0;
+    --text-muted:    #8A8088;
+    --text-faint:    #4E454A;
+    --crimson:       #6E1FB8;
+    --crimson-mid:   #8B2FD9;
+    --crimson-bright:#AB4DFF;
+    --crimson-glow:  #C77DFF;
+    --gold:          #C49A30;
+    --gold-bright:   #E8BC55;
+    --red:           #B2402F;
+    --red-bright:    #D65A45;
+    --green:         #4A9F5D;
+    --green-bright:  #5BC976;
+    --bronze:        #8C6A3F;
+    --orange:        #E0793C;
+    --font-display:  'Fraunces', serif;
+    --font-mono:     'IBM Plex Mono', monospace;
+    --font-ui:       'Inter', sans-serif;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+
+  html{ scroll-behavior:smooth; }
+
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-ui);
+    min-height:100vh;
+    position:relative;
+    overflow-x:hidden;
+  }
+
+  /* faint atmospheric texture, no image assets needed */
+    body::before{
+    content:"";
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(110,31,184,0.18), transparent 65%),
+      radial-gradient(ellipse 40% 60% at 0% 100%, rgba(100,10,10,0.12), transparent 60%),
+      radial-gradient(ellipse 40% 60% at 100% 80%, rgba(100,10,10,0.08), transparent 60%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
+  }
+
+  main, header, footer{ position:relative; z-index:1; }
+
+  /* ============================================================
+     SITE NAV — top-left links to other pages
+     ============================================================ */
+  .site-nav{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    padding:20px 24px 0;
+    max-width:980px;
+    margin:0 auto;
+  }
+
+  .site-nav a{
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:0.04em;
+    color:var(--text-muted);
+    text-decoration:none;
+    padding:8px 16px;
+    border:1px solid var(--hairline);
+    border-radius:999px;
+    background:var(--panel);
+    transition:background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+  }
+
+  .site-nav a:hover{
+    color:var(--text);
+    border-color:rgba(255,255,255,0.18);
+    transform:translateY(-1px);
+  }
+
+  .site-nav a:focus-visible{
+    outline:2px solid var(--crimson-bright);
+    outline-offset:2px;
+  }
+
+    .site-nav a.current{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(110,31,184,0.15); }
+
+  /* ============================================================
+     PLAYER INSPECT DRAWER
+     ============================================================ */
+  .inspect-btn{
+    background:none;
+    border:none;
+    cursor:pointer;
+    padding:2px 6px;
+    margin-left:8px;
+    color:var(--text-faint);
+    font-size:11px;
+    font-family:var(--font-mono);
+    letter-spacing:0.04em;
+    border-radius:4px;
+    opacity:0;
+    transition:opacity 0.14s ease, color 0.14s ease, background 0.14s ease;
+    vertical-align:middle;
+  }
+  tr:hover .inspect-btn{ opacity:1; }
+  .inspect-btn:hover{ color:var(--gold-bright); background:rgba(217,164,65,0.1); }
+
+  .drawer-backdrop{
+    display:none;
+    position:fixed;
+    inset:0;
+    z-index:89;
+    background:rgba(0,0,0,0.4);
+  }
+  .drawer-backdrop.open{ display:block; }
+
+  .player-drawer{
+    position:fixed;
+    top:0; right:0;
+    width:460px;
+    max-width:100vw;
+    height:100vh;
+    background:var(--panel);
+    border-left:1px solid var(--hairline);
+    z-index:90;
+    display:flex;
+    flex-direction:column;
+    box-shadow:-24px 0 60px rgba(0,0,0,0.45);
+    transform:translateX(100%);
+    transition:transform 0.28s cubic-bezier(.22,1,.36,1);
+    overflow:hidden;
+  }
+  .player-drawer.open{ transform:translateX(0); }
+
+  .drawer-header{
+    padding:22px 22px 16px;
+    border-bottom:1px solid var(--hairline-soft);
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:12px;
+    flex-shrink:0;
+  }
+  .drawer-player-name{
+    font-family:var(--font-display);
+    font-size:22px;
+    font-weight:640;
+  }
+  .drawer-player-role{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    margin-top:4px;
+  }
+  .drawer-player-role.role-shotcaller{ color:var(--orange); }
+  .drawer-player-role.role-defensive{ color:var(--green-bright); }
+  .drawer-player-role.role-flex{ color:var(--gold-bright); }
+  .drawer-player-role.role-mainball{ color:#A78BFA; }
+  .drawer-player-role.role-none{ color:var(--text-faint); }
+
+  .drawer-close{
+    background:none;
+    border:none;
+    color:var(--text-faint);
+    cursor:pointer;
+    font-size:18px;
+    line-height:1;
+    padding:4px 8px;
+    border-radius:6px;
+    flex-shrink:0;
+    transition:color 0.14s ease;
+  }
+  .drawer-close:hover{ color:var(--text); }
+
+  .drawer-summary{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);
+    gap:1px;
+    background:var(--hairline-soft);
+    border-bottom:1px solid var(--hairline-soft);
+    flex-shrink:0;
+  }
+  .drawer-stat{
+    background:var(--panel);
+    padding:14px 12px;
+    text-align:center;
+  }
+  .drawer-stat-val{
+    font-family:var(--font-mono);
+    font-size:20px;
+    font-weight:600;
+    color:var(--text);
+  }
+  .drawer-stat-val.kd{ color:var(--gold-bright); }
+  .drawer-stat-label{
+    font-family:var(--font-mono);
+    font-size:10px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    margin-top:3px;
+  }
+
+  .drawer-body{
+    flex:1;
+    overflow-y:auto;
+    padding:16px 20px 32px;
+  }
+
+  .drawer-section-label{
+    font-family:var(--font-mono);
+    font-size:10px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    margin-bottom:10px;
+  }
+
+  .drawer-match{
+    background:var(--panel-raised);
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    padding:14px 16px;
+    margin-bottom:10px;
+    transition:border-color 0.16s ease;
+  }
+  .drawer-match:hover{ border-color:rgba(255,255,255,0.14); }
+
+  .drawer-match-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .drawer-match-date{
+    font-family:var(--font-ui);
+    font-size:13px;
+    font-weight:600;
+  }
+  .drawer-match-loc{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-muted);
+    margin-top:2px;
+  }
+  .drawer-match-result{
+    font-family:var(--font-mono);
+    font-size:10px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    padding:4px 10px;
+    border-radius:999px;
+    font-weight:600;
+  }
+  .drawer-match-result.victory{ color:var(--gold-bright); background:rgba(217,164,65,0.12); border:1px solid rgba(217,164,65,0.3); }
+  .drawer-match-result.defeat{ color:var(--red-bright); background:rgba(178,64,47,0.12); border:1px solid rgba(178,64,47,0.3); }
+
+  .drawer-match-stats{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:8px;
+  }
+  .drawer-match-stat{
+    text-align:center;
+  }
+  .drawer-match-stat-val{
+    font-family:var(--font-mono);
+    font-size:15px;
+    font-weight:600;
+    color:var(--text);
+  }
+  .drawer-match-stat-val.kd{ color:var(--gold-bright); }
+  .drawer-match-stat-label{
+    font-family:var(--font-mono);
+    font-size:9.5px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    margin-top:2px;
+  }
+
+  .drawer-extended-grid{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:4px 12px;
+    margin-top:10px;
+    padding-top:10px;
+    border-top:1px solid var(--hairline-soft);
+  }
+  .drawer-ext-row{
+    display:flex;
+    justify-content:space-between;
+    font-family:var(--font-mono);
+    font-size:11px;
+  }
+  .drawer-ext-label{ color:var(--text-faint); }
+  .drawer-ext-val{ color:var(--text-muted); }
+
+  .drawer-not-in-match{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-faint);
+    font-style:italic;
+    text-align:center;
+    padding:10px 0;
+  }
+
+  .drawer-profile-link a{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.06em;
+    color:var(--gold-bright);
+    text-decoration:none;
+    padding:7px 14px;
+    border:1px solid rgba(110,31,184,0.35);
+    border-radius:999px;
+    background:rgba(110,31,184,0.1);
+    transition:background 0.14s ease, border-color 0.14s ease;
+  }
+  .drawer-profile-link a:hover{ background:rgba(110,31,184,0.2); border-color:var(--crimson); }
+
+  .drawer-class-badge{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.06em;
+    color:var(--text-muted);
+    margin-top:3px;
+  }
+
+
+  .add-war-btn{
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:0.04em;
+    color:var(--crimson-bright);
+    background:rgba(110,31,184,0.12);
+    border:1px solid var(--crimson);
+    border-radius:999px;
+    padding:7px 16px;
+    cursor:pointer;
+    transition:background 0.16s ease, box-shadow 0.16s ease;
+    white-space:nowrap;
+  }
+  .add-war-btn:hover{ background:rgba(110,31,184,0.22); box-shadow:0 0 16px rgba(110,31,184,0.2); }
+
+  .clear-wars-btn{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:0.04em;
+    color:var(--red-bright); background:rgba(178,64,47,0.08);
+    border:1px solid rgba(178,64,47,0.3); border-radius:999px;
+    padding:7px 16px; cursor:pointer;
+    transition:background 0.16s ease, box-shadow 0.16s ease;
+    white-space:nowrap;
+  }
+  .clear-wars-btn:hover{ background:rgba(178,64,47,0.16); box-shadow:0 0 16px rgba(178,64,47,0.12); }
+
+  .modal-backdrop{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.72);
+    z-index:100;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    backdrop-filter:blur(4px);
+  }
+  .modal-backdrop.hidden{ display:none; }
+
+  .modal{
+    background:var(--panel);
+    border:1px solid var(--hairline);
+    border-radius:14px;
+    width:100%;
+    max-width:560px;
+    box-shadow:0 40px 90px rgba(0,0,0,0.6);
+    overflow:hidden;
+  }
+  .modal-header{
+    padding:20px 24px 16px;
+    border-bottom:1px solid var(--hairline-soft);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .modal-title{
+    font-family:var(--font-display);
+    font-size:19px;
+    font-weight:620;
+  }
+  .modal-close{
+    background:none;
+    border:none;
+    color:var(--text-faint);
+    cursor:pointer;
+    font-size:20px;
+    line-height:1;
+    padding:4px 8px;
+    border-radius:6px;
+    transition:color 0.14s ease;
+  }
+  .modal-close:hover{ color:var(--text); }
+  .modal-body{ padding:22px 24px 24px; }
+
+  .modal-step{ display:none; }
+  .modal-step.active{ display:block; }
+
+  .upload-zone{
+    border:2px dashed var(--hairline);
+    border-radius:10px;
+    padding:40px 24px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color 0.16s ease, background 0.16s ease;
+    position:relative;
+  }
+  .upload-zone:hover, .upload-zone.drag-over{
+    border-color:var(--crimson);
+    background:rgba(110,31,184,0.05);
+  }
+  .upload-zone input[type=file]{
+    position:absolute;
+    inset:0;
+    opacity:0;
+    cursor:pointer;
+    width:100%;
+    height:100%;
+  }
+  .upload-icon{ font-size:32px; margin-bottom:10px; }
+  .upload-label{
+    font-family:var(--font-ui);
+    font-size:14px;
+    color:var(--text-muted);
+  }
+  .upload-label b{ color:var(--crimson-bright); }
+  .upload-sub{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-faint);
+    margin-top:6px;
+  }
+
+  .upload-preview{
+    margin-top:14px;
+    border-radius:8px;
+    overflow:hidden;
+    border:1px solid var(--hairline);
+    display:none;
+  }
+  .upload-preview img{ width:100%; display:block; max-height:220px; object-fit:contain; background:var(--bg); }
+
+  .modal-actions{
+    display:flex;
+    gap:10px;
+    justify-content:flex-end;
+    margin-top:20px;
+  }
+  .modal-btn{
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:0.04em;
+    padding:9px 18px;
+    border-radius:999px;
+    cursor:pointer;
+    border:1px solid var(--hairline);
+    background:var(--panel-raised);
+    color:var(--text-muted);
+    transition:color 0.14s ease, background 0.14s ease, border-color 0.14s ease;
+  }
+  .modal-btn:hover{ color:var(--text); border-color:rgba(255,255,255,0.18); }
+  .modal-btn.primary{
+    background:rgba(110,31,184,0.14);
+    color:var(--crimson-bright);
+    border-color:var(--crimson);
+  }
+  .modal-btn.primary:hover{ background:rgba(110,31,184,0.26); }
+  .modal-btn:disabled{ opacity:0.4; pointer-events:none; }
+
+  .modal-status{
+    font-family:var(--font-mono);
+    font-size:12px;
+    margin-top:14px;
+    min-height:20px;
+    color:var(--text-muted);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .modal-status.error{ color:var(--red-bright); }
+  .modal-status.success{ color:var(--green-bright); }
+
+  .modal-mode-tabs{
+    display:flex; gap:6px; margin-bottom:16px;
+  }
+  .modal-mode-tab{
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.06em;
+    text-transform:uppercase; padding:6px 14px; border-radius:999px;
+    cursor:pointer; border:1px solid var(--hairline);
+    background:var(--panel-raised); color:var(--text-faint);
+    transition:color 0.14s, background 0.14s, border-color 0.14s;
+  }
+  .modal-mode-tab:hover{ color:var(--text-muted); }
+  .modal-mode-tab.active{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(110,31,184,0.12); }
+
+  .json-input-area{ display:none; }
+  .json-input-area.visible{ display:block; }
+  .json-textarea{
+    width:100%; height:200px; resize:vertical;
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    color:var(--text); font-family:var(--font-mono); font-size:11px;
+    padding:12px; border-radius:8px; outline:none;
+    transition:border-color 0.16s;
+  }
+  .json-textarea:focus{ border-color:var(--crimson); }
+  .json-hint{
+    font-family:var(--font-mono); font-size:10px; color:var(--text-faint);
+    margin-top:6px; line-height:1.6;
+  }
+
+  .spinner{
+    width:14px; height:14px;
+    border:2px solid rgba(255,255,255,0.1);
+    border-top-color:var(--crimson-bright);
+    border-radius:50%;
+    animation:spin 0.7s linear infinite;
+    display:inline-block;
+    flex-shrink:0;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .extracted-preview{
+    background:var(--panel-raised);
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    padding:14px 16px;
+    font-family:var(--font-mono);
+    font-size:12px;
+    color:var(--text-muted);
+    line-height:1.7;
+    max-height:260px;
+    overflow-y:auto;
+  }
+  .extracted-preview b{ color:var(--text); }
+  .extracted-preview .ext-gold{ color:var(--gold-bright); }
+  .extracted-preview .ext-green{ color:var(--green-bright); }
+  .extracted-preview .ext-red{ color:var(--red-bright); }
+  /* roles-bar removed — button is now in the tab toolbar */
+  .roles-edit-btn{
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:0.04em;
+    color:var(--text-muted);
+    background:var(--panel);
+    border:1px solid var(--hairline);
+    border-radius:999px;
+    padding:8px 16px;
+    cursor:pointer;
+    transition:background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+  }
+  .roles-edit-btn:hover{ color:var(--text); border-color:rgba(255,255,255,0.18); }
+  .roles-edit-btn.active{
+    color:var(--crimson-bright);
+    border-color:var(--crimson);
+    background:rgba(110,31,184,0.12);
+  }
+
+  .roles-panel{
+    max-width:980px;
+    margin:0 auto 0;
+    background:var(--panel);
+    border:1px solid var(--hairline);
+    border-radius:10px;
+    overflow:hidden;
+    max-height:0;
+    opacity:0;
+    margin-bottom:0;
+    transition:max-height 0.32s cubic-bezier(.22,1,.36,1), opacity 0.22s ease, margin-bottom 0.28s ease;
+    pointer-events:none;
+  }
+  .roles-panel.open{
+    max-height:min(900px, 70vh);
+    overflow-y:auto;
+    opacity:1;
+    margin-bottom:24px;
+    pointer-events:auto;
+  }
+
+  .roles-summary{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:1px;
+    background:var(--hairline-soft);
+  }
+  .roles-summary-col{
+    background:var(--panel);
+    padding:16px 18px;
+  }
+  .roles-summary-title{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    font-weight:600;
+    margin-bottom:10px;
+    padding-bottom:8px;
+    border-bottom:2px solid;
+  }
+  .roles-summary-col.shotcaller .roles-summary-title{ color:var(--orange); border-color:var(--orange); }
+  .roles-summary-col.defensive .roles-summary-title{ color:var(--green-bright); border-color:var(--green-bright); }
+  .roles-summary-col.flex .roles-summary-title{ color:var(--gold-bright); border-color:var(--gold-bright); }
+
+  .roles-chip-list{ display:flex; flex-wrap:wrap; gap:6px; min-height:28px; }
+  .roles-chip{
+    font-family:var(--font-ui);
+    font-size:12.5px;
+    padding:5px 11px;
+    border-radius:999px;
+    background:var(--panel-raised);
+    border:1px solid var(--hairline);
+  }
+  .roles-empty{
+    font-family:var(--font-mono);
+    font-size:11.5px;
+    color:var(--text-faint);
+    font-style:italic;
+  }
+
+  .roles-dnd{
+    border-top:1px solid var(--hairline-soft);
+    padding:18px 24px 22px;
+  }
+  .roles-dnd-label{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    margin-bottom:14px;
+  }
+  .roles-dnd-board{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr 1fr 1fr;
+    gap:14px;
+  }
+  .roles-dnd-col{
+    background:var(--panel-raised);
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    padding:12px;
+    min-height:220px;
+    display:flex;
+    flex-direction:column;
+  }
+  .roles-dnd-title{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    font-weight:600;
+    margin-bottom:10px;
+    padding-bottom:8px;
+    border-bottom:2px solid;
+    color:var(--text-muted);
+    border-color:var(--hairline);
+  }
+  .roles-dnd-col.shotcaller .roles-dnd-title{ color:var(--orange); border-color:var(--orange); }
+  .roles-dnd-col.defensive .roles-dnd-title{ color:var(--green-bright); border-color:var(--green-bright); }
+  .roles-dnd-col.flex .roles-dnd-title{ color:var(--gold-bright); border-color:var(--gold-bright); }
+  .roles-dnd-col.mainball .roles-dnd-title{ color:#A78BFA; border-color:#A78BFA; }
+
+  .roles-dnd-zone{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    align-content:flex-start;
+    border-radius:6px;
+    transition:background 0.15s ease, box-shadow 0.15s ease;
+    padding:4px;
+    min-height:140px;
+  }
+  .roles-dnd-zone.drag-over{
+    background:rgba(110,31,184,0.08);
+    box-shadow:inset 0 0 0 2px var(--crimson);
+  }
+  .roles-dnd-placeholder{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-faint);
+    font-style:italic;
+    margin:auto;
+    text-align:center;
+    pointer-events:none;
+  }
+
+  .roles-chip-drag{
+    font-family:var(--font-ui);
+    font-size:13px;
+    padding:7px 12px;
+    border-radius:8px;
+    background:var(--panel);
+    border:1px solid var(--hairline);
+    cursor:grab;
+    user-select:none;
+    transition:opacity 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+  }
+  .roles-chip-drag:hover{ border-color:rgba(255,255,255,0.22); }
+  .roles-chip-drag:active{ cursor:grabbing; }
+  .roles-chip-drag.dragging{ opacity:0.35; }
+
+  .roles-note{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-faint);
+    margin-top:14px;
+    line-height:1.6;
+  }
+
+  @media (max-width:760px){
+    .roles-dnd-board{ grid-template-columns:1fr 1fr; }
+  }
+
+  @media (max-width:640px){
+    .roles-summary{ grid-template-columns:1fr; }
+  }
+
+  /* ============================================================
+     HEADER
+     ============================================================ */
+  header{
+    max-width:880px;
+    margin:0 auto 24px;
+    padding:22px 20px 18px;
+    text-align:center;
+    border:1px solid rgba(110,31,184,0.2);
+    border-radius:36px;
+    background:rgba(8,6,8,0.85);
+    backdrop-filter:blur(16px);
+    box-shadow:0 28px 72px rgba(0,0,0,0.28);
+  }
+
+  .eyebrow{
+    font-family:var(--font-mono);
+    font-size:10px;
+    letter-spacing:0.28em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    margin-bottom:10px;
+  }
+
+  h1{
+    font-family:var(--font-display);
+    font-optical-sizing:auto;
+    font-weight:680;
+    font-size:clamp(28px, 5vw, 42px);
+    letter-spacing:-0.01em;
+    color:var(--text);
+  }
+
+  h1 span{
+    color:var(--crimson-bright);
+    font-style:italic;
+    font-weight:480;
+  }
+
+  .subtitle{
+    font-size:14px;
+    color:var(--text-muted);
+    margin-top:10px;
+    font-weight:400;
+  }
+
+  .record-badge{
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    margin-top:16px;
+    padding:8px 16px;
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:999px;
+    font-family:var(--font-mono);
+    font-size:12px;
+    background:rgba(21,23,27,0.95);
+  }
+  .record-badge b.win{ color:var(--gold-bright); }
+  .record-badge b.loss{ color:var(--red-bright); }
+  .record-badge .div{ color:var(--text-faint); }
+
+  /* ============================================================
+     CAMPAIGN STRIP — signature element
+     a row of war banners, color = outcome, order = chronology
+     ============================================================ */
+  .tab-folder{
+    max-width:980px;
+    margin:0 auto;
+    padding:30px 24px 10px;
+  }
+
+  .tab-toolbar{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:space-between;
+    gap:14px;
+    margin-bottom:10px;
+  }
+
+  .campaign-label{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.2em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+  }
+
+  #campaignStrip{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+
+
+  .week-picker{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+
+  .week-picker-label{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.2em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+  }
+
+  .week-select-wrap{
+    position:relative;
+    display:inline-flex;
+    align-items:center;
+  }
+
+  select#weekSelect{
+    min-width:200px;
+    border-radius:999px;
+    border:1px solid var(--hairline);
+    background:var(--panel);
+    color:var(--text);
+    padding:8px 38px 8px 16px;
+    font-family:var(--font-mono);
+    font-size:12px;
+    cursor:pointer;
+    appearance:none;
+    -webkit-appearance:none;
+    transition:border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    outline:none;
+  }
+
+  select#weekSelect:hover{
+    border-color:rgba(255,255,255,0.2);
+    background:var(--panel-raised);
+  }
+
+  select#weekSelect:focus{
+    border-color:var(--crimson);
+    box-shadow:0 0 0 3px rgba(110,31,184,0.15);
+  }
+
+  .week-select-arrow{
+    position:absolute;
+    right:13px;
+    pointer-events:none;
+    color:var(--text-faint);
+    font-size:12px;
+    line-height:1;
+    transition:color 0.18s ease;
+  }
+  select#weekSelect:focus ~ .week-select-arrow,
+  select#weekSelect:hover ~ .week-select-arrow{
+    color:var(--crimson-bright);
+  }
+
+  .tab-list{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:flex-start;
+    padding-bottom:8px;
+  }
+
+  .tab{
+    position:relative;
+    z-index:1;
+    flex:0 0 auto;
+    min-width:100px;
+    max-width:180px;
+    background:var(--panel);
+    border:1px solid rgba(255,255,255,0.08);
+    border-radius:999px;
+    cursor:pointer;
+    font-family:var(--font-mono);
+    color:var(--text-muted);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:10px 14px;
+    gap:2px;
+    transition:transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+    white-space:nowrap;
+  }
+  .tab::before{
+    content:"";
+    position:absolute;
+    top:0; left:0; right:0;
+    height:4px;
+    border-top-left-radius:999px;
+    border-top-right-radius:999px;
+    display:none;
+  }
+  .tab[data-outcome="victory"]{
+    background:var(--green);
+    border-color:var(--green);
+    color:#fff;
+  }
+  .tab[data-outcome="defeat"]{
+    background:var(--red);
+    border-color:var(--red);
+    color:#fff;
+  }
+  .tab[data-outcome="overall"]::before{ background:var(--bronze); }
+
+  .tab:hover{ transform:translateY(-2px); }
+  .tab.active{ background:var(--panel-raised); color:var(--text); }
+  .tab.active[data-outcome="victory"]{ background:var(--green); border-color:var(--green); color:#fff; }
+  .tab.active[data-outcome="defeat"]{ background:var(--red); border-color:var(--red); color:#fff; }
+  .tab.active[data-outcome="overall"]{ border-color:var(--bronze); }
+
+  .tab .b-date{
+    font-family:var(--font-mono);
+    font-size:12px;
+    font-weight:600;
+    color:inherit;
+  }
+  .tab .b-loc{
+    font-size:10px;
+    color:inherit;
+  }
+  .tab .b-result{
+    font-family:var(--font-mono);
+    font-size:9px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    margin-top:1px;
+  }
+  .tab[data-outcome="victory"] .b-result{ color:#fff; }
+  .tab[data-outcome="defeat"] .b-result{ color:#fff; }
+  .tab[data-outcome="overall"] .b-result{ color:var(--bronze); font-weight:600; }
+
+  /* ============================================================
+     MATCH PANEL
+     ============================================================ */
+  main{ max-width:980px; margin:0 auto; padding:8px 24px 80px; transition:max-width 0.2s ease; }
+  main.wide{ max-width:1360px; }
+
+  /* ---- Extended stats table (compact fixed columns, fits without scroll) ---- */
+  .table-scroll.extended{ padding:6px 14px 22px; }
+  table.extended{ table-layout:fixed; }
+  table.extended col.col-class{ width:3.5%; }
+  table.extended col.col-name{ width:13%; }
+  table.extended col.col-role{ width:7%; }
+  table.extended col.col-num{ width:4.8%; }
+  table.extended thead th{
+    white-space:normal;
+    line-height:1.25;
+    vertical-align:bottom;
+    font-size:9.5px;
+    padding:8px 5px;
+  }
+  table.extended tbody td{
+    font-size:11.5px;
+    padding:7px 5px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--hairline);
+    border-radius:10px;
+    overflow:hidden;
+  }
+
+  .panel-header{
+    padding:26px 28px 22px;
+    border-bottom:1px solid var(--hairline-soft);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:16px;
+  }
+
+  .panel-title{
+    font-family:var(--font-display);
+    font-size:24px;
+    font-weight:620;
+  }
+  .panel-meta{
+    font-family:var(--font-mono);
+    font-size:12px;
+    color:var(--text-muted);
+    margin-top:4px;
+  }
+
+  .result-pill{
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    padding:7px 16px;
+    border-radius:999px;
+    font-weight:600;
+  }
+  .result-pill.victory{ background:rgba(217,164,65,0.14); color:var(--gold-bright); border:1px solid rgba(217,164,65,0.35); }
+  .result-pill.defeat{ background:rgba(178,64,47,0.14); color:var(--red-bright); border:1px solid rgba(178,64,47,0.35); }
+  .result-pill.overall{ background:rgba(140,106,63,0.16); color:#C7A876; border:1px solid rgba(140,106,63,0.4); }
+
+  /* Hall of Fame — only shown on Overall */
+  .hof{
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+    gap:14px;
+    padding:24px 28px 4px;
+  }
+  .hof-card{
+    background:var(--panel-raised);
+    border:1px solid var(--hairline);
+    border-radius:8px;
+    padding:18px 16px;
+    position:relative;
+  }
+  .hof-rank{
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.1em;
+    color:var(--text-faint);
+  }
+  .hof-card[data-rank="1"] .hof-rank{ color:var(--gold-bright); }
+  .hof-card[data-rank="2"] .hof-rank{ color:#C9CCD1; }
+  .hof-card[data-rank="3"] .hof-rank{ color:var(--bronze); }
+  .hof-name{
+    font-family:var(--font-display);
+    font-size:19px;
+    font-weight:600;
+    margin-top:6px;
+  }
+  .hof-kd{
+    font-family:var(--font-mono);
+    font-size:26px;
+    font-weight:600;
+    margin-top:8px;
+    color:var(--text);
+  }
+  .hof-sub{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-muted);
+    margin-top:4px;
+  }
+
+  /* Score share bar chart */
+  .score-chart{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:12px;
+    align-items:start;
+    padding:14px 16px 10px;
+    border-radius:16px;
+    background:rgba(18,19,21,0.96);
+    border:1px solid rgba(255,255,255,0.08);
+    box-shadow:0 12px 24px rgba(0,0,0,0.16);
+    backdrop-filter:blur(14px);
+    transition:background 0.24s ease, transform 0.24s ease, box-shadow 0.24s ease;
+  }
+  .chart-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+  }
+  .chart-toggle{
+    display:grid;
+    place-items:center;
+    width:24px;
+    height:24px;
+    padding:4px;
+    border:none;
+    background:rgba(255,255,255,0.04);
+    border-radius:6px;
+    color:var(--text-muted);
+    cursor:pointer;
+    transition:background 0.16s ease, color 0.16s ease, transform 0.16s ease;
+  }
+  .chart-toggle:hover{
+    background:rgba(255,255,255,0.08);
+    color:var(--text);
+  }
+  .chart-toggle:focus-visible{
+    outline:none;
+    background:rgba(255,255,255,0.12);
+    color:var(--text);
+  }
+  .chart-toggle svg{
+    transition:transform 0.24s ease;
+  }
+  .chart-toggle[aria-expanded="false"] svg{
+    transform:rotate(-180deg);
+  }
+  .chart-content{
+    display:grid;
+    gap:8px;
+    max-height:1000px;
+    overflow:hidden;
+    transition:max-height 0.32s ease, opacity 0.32s ease, margin 0.32s ease;
+    opacity:1;
+  }
+  .score-chart.chart-collapsed .chart-content{
+    max-height:0;
+    opacity:0;
+    margin:0;
+  }
+  .bar-chart-wrap{
+    display:grid;
+    place-items:center;
+    width:100%;
+    padding:8px 0;
+    border-radius:12px;
+    background:rgba(255,255,255,0.02);
+  }
+  .bar-chart{
+    width:100%;
+    height:auto;
+    overflow:visible;
+    filter:drop-shadow(0 6px 12px rgba(0,0,0,0.12));
+    transition:filter 0.24s ease;
+  }
+  .bar-chart:hover{
+    filter:drop-shadow(0 10px 16px rgba(0,0,0,0.16));
+  }
+  .bar{
+    cursor:pointer;
+    opacity:0.88;
+    stroke:rgba(0,0,0,0.2);
+    stroke-width:0.5;
+    transition:opacity 0.24s ease, transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.24s ease, stroke 0.24s ease, width 0.24s ease, x 0.24s ease;
+    transform-box:fill-box;
+    transform-origin:left center;
+  }
+  .bar:hover,
+  .bar:focus-visible,
+  .bar.active{
+    opacity:1;
+    filter:brightness(1.28) saturate(1.2);
+    stroke:rgba(255,255,255,0.32);
+  }
+  .bar-group:hover .bar-label,
+  .bar-group:hover .bar-value,
+  .bar-group.active .bar-label,
+  .bar-group.active .bar-value{
+    opacity:1;
+  }
+  .bar:focus-visible{
+    outline:none;
+    stroke:var(--text);
+    stroke-width:1;
+  }
+  .bar-label{
+    font-family:var(--font-mono);
+    font-size:8px;
+    fill:var(--text);
+    text-anchor:start;
+    pointer-events:none;
+    transition:opacity 0.24s ease;
+  }
+  .bar-value{
+    font-family:var(--font-mono);
+    font-size:7px;
+    font-weight:700;
+    fill:var(--text);
+    text-anchor:end;
+    pointer-events:none;
+    transition:opacity 0.24s ease;
+  }
+  .chart-detail{
+    margin-top:6px;
+    min-height:14px;
+    color:var(--gold-bright);
+    font-family:var(--font-mono);
+    font-size:10px;
+    font-weight:600;
+  }
+  .chart-detail .muted{
+    color:var(--text-muted);
+    font-weight:500;
+  }
+  .chart-copy{
+    min-width:0;
+  }
+  .chart-title{
+    font-family:var(--font-display);
+    font-size:12px;
+    font-weight:620;
+  }
+  .chart-meta{
+    margin-top:2px;
+    color:var(--text-muted);
+    font-family:var(--font-mono);
+    font-size:10px;
+  }
+  .legend{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:4px 8px;
+    margin-top:8px;
+    max-height:160px;
+    overflow:auto;
+    padding-right:4px;
+    scrollbar-width:thin;
+  }
+  .legend-item{
+    display:grid;
+    grid-template-columns:8px minmax(0, 1fr) auto;
+    align-items:center;
+    gap:6px;
+    border:none;
+    background:transparent;
+    padding:2px 3px;
+    border-radius:4px;
+    font-family:var(--font-mono);
+    font-size:10px;
+    color:var(--text-muted);
+    min-width:0;
+    text-align:left;
+    cursor:pointer;
+    transition:background 0.16s ease, color 0.16s ease;
+  }
+  .legend-item:hover,
+  .legend-item:focus-visible,
+  .legend-item.active{
+    background:rgba(255,255,255,0.05);
+    color:var(--text);
+  }
+  .legend-item:focus-visible{
+    outline:1px solid var(--gold-bright);
+    outline-offset:2px;
+  }
+  .legend-swatch{
+    width:8px;
+    height:8px;
+    border-radius:1px;
+    border:1px solid rgba(255,255,255,0.12);
+  }
+  .legend-name{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .legend-score{
+    color:var(--text);
+    font-weight:600;
+  }
+
+  /* Table */
+  .table-scroll{ overflow-x:auto; padding:8px 28px 28px; }
+  table{ width:100%; border-collapse:collapse; min-width:480px; }
+
+  thead th{
+    text-align:left;
+    font-family:var(--font-mono);
+    font-size:11px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--text-faint);
+    font-weight:500;
+    padding:10px 12px;
+    border-bottom:1px solid var(--hairline);
+    cursor:pointer;
+    user-select:none;
+    white-space:nowrap;
+  }
+  thead th:hover{ color:var(--text-muted); }
+  thead th.sorted{ color:var(--gold-bright); }
+  thead th .arrow{ display:inline-block; margin-left:4px; opacity:0.7; font-size:9px; }
+
+  thead th:first-child, tbody td:first-child{ padding-left:14px; }
+
+  tbody td{
+    padding:11px 12px;
+    border-bottom:1px solid var(--hairline-soft);
+    font-size:14px;
+  }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr:hover td{ background:rgba(255,255,255,0.02); }
+  tbody tr.active-chart-row td{
+    background:rgba(217,164,65,0.08);
+  }
+
+  td.num, th.num{ font-family:var(--font-mono); }
+  td.rank{ font-family:var(--font-mono); color:var(--text-faint); width:28px; }
+  tr[data-rank="1"] td.rank{ color:var(--gold-bright); }
+  tr[data-rank="2"] td.rank{ color:#C9CCD1; }
+  tr[data-rank="3"] td.rank{ color:var(--bronze); }
+
+  td.kd{ font-family:var(--font-mono); font-weight:600; color:var(--gold-bright); }
+
+  td.td-class{
+    font-family:var(--font-mono);
+    font-size:11px;
+    color:var(--text-muted);
+    letter-spacing:0.02em;
+    white-space:nowrap;
+  }
+
+  /* ---- Panel search ---- */
+  .panel-search-wrap{
+    position:relative;
+    display:flex;
+    align-items:center;
+  }
+  .panel-search{
+    background:var(--panel-raised);
+    border:1px solid var(--hairline);
+    border-radius:999px;
+    color:var(--text);
+    font-family:var(--font-mono);
+    font-size:12px;
+    padding:7px 14px 7px 34px;
+    width:180px;
+    outline:none;
+    transition:border-color 0.16s ease, box-shadow 0.16s ease, width 0.2s ease;
+  }
+  .panel-search:focus{
+    border-color:var(--crimson);
+    box-shadow:0 0 0 3px rgba(110,31,184,0.12);
+    width:220px;
+  }
+  .panel-search::placeholder{ color:var(--text-faint); }
+  .panel-search-icon{
+    position:absolute;
+    left:12px;
+    color:var(--text-faint);
+    font-size:13px;
+    pointer-events:none;
+    line-height:1;
+  }
+  .panel-search-clear{
+    position:absolute;
+    right:10px;
+    background:none;
+    border:none;
+    color:var(--text-faint);
+    cursor:pointer;
+    font-size:14px;
+    line-height:1;
+    padding:2px 4px;
+    border-radius:4px;
+    display:none;
+    transition:color 0.14s ease;
+  }
+  .panel-search-clear:hover{ color:var(--text); }
+  .panel-search-clear.visible{ display:block; }
+  td.played{ color:var(--text-muted); font-family:var(--font-mono); }
+
+  td.role-cell{
+    font-family:var(--font-mono);
+    font-size:12px;
+    letter-spacing:0.02em;
+  }
+  td.role-shotcaller{ color:var(--orange); }
+  td.role-defensive{ color:var(--green-bright); }
+  td.role-flex{ color:var(--gold-bright); }
+  td.role-mainball{ color:#A78BFA; }
+  td.role-none{ color:var(--text-faint); }
+
+  /* ============================================================
+     FOOTER
+     ============================================================ */
+  footer{
+    text-align:center;
+    padding:36px 24px 56px;
+    font-size:12px;
+    color:var(--text-faint);
+    font-family:var(--font-mono);
+  }
+
+  /* ============================================================
+     RESPONSIVE
+     ============================================================ */
+  @media (max-width:640px){
+    .hof{ grid-template-columns:1fr; }
+    .score-chart{ grid-template-columns:1fr; padding:22px 18px 10px; }
+    .pie{ width:min(100%, 240px); }
+    .legend{ grid-template-columns:1fr; max-height:260px; }
+    .panel-header{ flex-direction:column; align-items:flex-start; }
+
+    table, thead, tbody, th, td, tr{ display:block; }
+    table{ min-width:0; width:100%; }
+    thead{ display:none; }
+    tbody tr{
+      border:1px solid var(--hairline-soft);
+      border-radius:8px;
+      margin-bottom:10px;
+      padding:10px 14px;
+    }
+    tbody td{
+      border-bottom:none;
+      display:flex;
+      justify-content:space-between;
+      padding:6px 0;
+      font-size:13px;
+    }
+    tbody td::before{
+      content:attr(data-label);
+      font-family:var(--font-mono);
+      font-size:10px;
+      letter-spacing:0.06em;
+      text-transform:uppercase;
+      color:var(--text-faint);
+    }
+    td.rank{ display:none; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition:none !important; scroll-behavior:auto !important; }
+  }
+</style>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<div class="app-shell">
+<aside class="app-sidebar">
+  <a class="app-brand" href="index.html">
+    <span class="app-brand-logo">⚔</span>
+    <span class="app-brand-text">
+      <span class="app-brand-name">Purge</span>
+      <span class="app-brand-sub">Node War</span>
+    </span>
+  </a>
+  <div class="side-nav-label">Menu</div>
+  <nav class="side-nav">
+    <a href="index.html"><span class="ico">🏠</span> Home</a>
+    <a href="war-scores.html" class="current"><span class="ico">⚔️</span> War Scores</a>
+    <a href="players.html"><span class="ico">👥</span> Roster</a>
+    <a href="dashboard.html"><span class="ico">📊</span> Dashboard</a>
+    <a href="signups.html"><span class="ico">📝</span> Sign Ups</a>
+  </nav>
+  <div id="authWidget" class="auth-widget"></div>
+  <div class="app-sidebar-foot">
+    <b>Purge</b> · BDO Guild<br>
+    Node War Log
+  </div>
+</aside>
+
+<main class="app-content">
+
+<div class="page-head">
+  <div class="page-head-row">
+    <div>
+      <div class="page-eyebrow">Node War Record</div>
+      <h1>War <span>Log</span></h1>
+      <div class="page-sub">Family-by-family kill / death record, war by war</div>
+    </div>
+    <div class="record-badge" id="recordBadge"></div>
+  </div>
+</div>
+
+<div class="roles-panel" id="rolesPanel"></div>
+
+<div class="tab-folder">
+  <div class="tab-toolbar">
+      <div class="week-picker">
+        <span class="week-picker-label">Week</span>
+        <div class="week-select-wrap">
+          <select id="weekSelect" aria-label="Select week">
+            <option value="">All weeks</option>
+          </select>
+          <span class="week-select-arrow">▾</span>
+        </div>
+      </div>
+      <button class="roles-edit-btn" id="rolesEditBtn" type="button">Adjust Roles</button>
+      <button class="add-war-btn" id="addWarBtn" type="button">+ Add War</button>
+    </div>
+  <div class="tab-list" id="campaignStrip"></div>
+</div>
+
+<!-- Player Inspect Drawer -->
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+<div class="player-drawer" id="playerDrawer">
+  <div class="drawer-header">
+    <div>
+      <div class="drawer-player-name" id="drawerName"></div>
+      <div class="drawer-player-role" id="drawerRole"></div>
+    </div>
+    <button class="drawer-close" id="drawerClose" type="button">✕</button>
+  </div>
+  <div class="drawer-summary" id="drawerSummary"></div>
+  <div class="drawer-profile-link" id="drawerProfileLink" style="padding:10px 20px 0;flex-shrink:0;"></div>
+  <div class="drawer-body" id="drawerBody"></div>
+</div>
+
+<!-- Add War Modal -->
+<div class="modal-backdrop hidden" id="addWarModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add New War</div>
+      <button class="modal-close" id="modalClose" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Step 1: Upload -->
+      <div class="modal-step active" id="stepUpload">
+        <div class="modal-mode-tabs">
+          <button class="modal-mode-tab active" id="modeScreenshot" type="button">📸 Screenshot</button>
+          <button class="modal-mode-tab" id="modeJson" type="button">{ } Manual JSON</button>
+        </div>
+
+        <div id="screenshotArea">
+          <div class="upload-zone" id="uploadZone">
+            <input type="file" id="screenshotInput" accept="image/*" multiple>
+            <div class="upload-icon">🖼</div>
+            <div class="upload-label">Drop your war result screenshot here<br>or <b>click to browse</b></div>
+            <div class="upload-sub">Upload the extended stats screen. If the player list is cut off, upload additional screenshots too — up to 4 total.</div>
+          </div>
+          <div class="upload-preview" id="uploadPreview">
+            <img id="previewImg" src="" alt="Preview">
+          </div>
+        </div>
+
+        <div class="json-input-area" id="jsonInputArea">
+          <textarea class="json-textarea" id="jsonTextarea" placeholder='{"date":"2026-06-21","day":"Saturday","location":"Ulukita","result":"Victory","players":[{"name":"Popspolar","kills":20,"deaths":10}]}'></textarea>
+          <div class="json-hint">
+            Required fields: date (YYYY-MM-DD), day, location, result (Victory/Defeat), players[]<br>
+            Players: name, kills, deaths — all other stats optional (default 0)
+          </div>
+        </div>
+
+        <div class="modal-status" id="uploadStatus"></div>
+        <div class="modal-actions">
+          <button class="modal-btn" id="cancelBtn" type="button">Cancel</button>
+          <button class="modal-btn primary" id="extractBtn" type="button" disabled>Extract Data →</button>
+          <button class="modal-btn primary" id="parseJsonBtn" type="button" style="display:none">Parse JSON →</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Review & Confirm -->
+      <div class="modal-step" id="stepReview">
+        <div class="extracted-preview" id="extractedPreview"></div>
+        <div class="modal-status" id="reviewStatus"></div>
+        <div class="modal-actions">
+          <button class="modal-btn" id="backBtn" type="button">← Back</button>
+          <button class="modal-btn primary" id="confirmBtn" type="button">Add to War Log</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="matchPanel"></div>
+
+</main>
+</div><!-- /app-shell -->
+
+<footer>
+  Built for hosting — edit the MATCHES array in this file to add new wars.
+</footer>
+
+<script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script>window.purgeAuthReady = PurgeAuth.init();</script>
+<!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
+<script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script>
+/* ================================================================
+   MATCH DATA
+   ----------------------------------------------------------------
+   To add a new war: copy a block below, set date/day/location/
+   result ("Victory" or "Defeat"), and list each player as
+   [name, kills, deaths]. The Overall tab recalculates itself —
+   nothing else needs to change.
+   ================================================================ */
+
+const GUILD_NAME = "Node War Log"; // shown in the page title only
+
+const MATCHES = window.GUILD_DATA.matches;
+
+/* ================================================================
+   EXTENDED STATS — richer per-player columns for matches where we
+   have the detailed result screenshot. Keyed by match date; matches
+   not listed here just show the standard Kills/Deaths/K/D table.
+   Each player: [name, kills, deaths, streak, dmgDone, dmgTaken, cc,
+   hpHealed, allyHpHealed, fortDmg, cannonsLanded, objDestroyed,
+   cannonDist, traps, timeDeadSeconds, timeAliveSeconds]
+   ================================================================ */
+const EXTENDED_STATS = window.GUILD_DATA.extendedStats;
+
+/* ================================================================
+   LOGIC — no edits needed below this line
+   ================================================================ */
+
+document.title = GUILD_NAME;
+
+function kd(kills, deaths){
+  if (kills === 0 && deaths === 0) return null;
+  return deaths === 0 ? kills : kills / deaths;
+}
+function fmtKD(v){ return v === null ? "—" : v.toFixed(2); }
+
+function fmtNum(v){
+  if (v >= 1000000) return (v/1000000).toFixed(1) + "M";
+  if (v >= 100000) return (v/1000).toFixed(1) + "K";
+  return String(v);
+}
+function fmtTime(seconds){
+  const m = Math.floor(seconds/60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+}
+
+const ROLE_LABELS = { shotcaller:"Shotcaller", defensive:"Defensive", flex:"Flex Squad", mainball:"Mainball" };
+function fmtRole(role){ return ROLE_LABELS[role] || "—"; }
+
+const EXTENDED_COLS = [
+  ["class","Class", v=>v||""],
+  ["name","Family", v=>v],
+  ["role","Role", fmtRole],
+  ["kills","Kills", v=>v],
+  ["deaths","Deaths", v=>v],
+  ["kd","K/D", fmtKD],
+  ["played","Wars", v=>v!==undefined ? v : ""],
+  ["streak","Streak", v=>v],
+  ["dmgDone","Dmg Done", fmtNum],
+  ["dmgTaken","Dmg Taken", fmtNum],
+  ["cc","CC's", v=>v],
+  ["hpHealed","HP Healed", fmtNum],
+  ["allyHpHealed","Ally HP Healed", fmtNum],
+  ["fortDmg","Fort Dmg", fmtNum],
+  ["cannonsLanded","Cannons Landed", v=>v],
+  ["objDestroyed","Objects Destroyed", v=>v],
+  ["cannonDist","Cannon Dist", v=>v],
+  ["traps","Traps Triggered", v=>v],
+  ["timeDead","Time Dead", fmtTime],
+  ["timeAlive","Time Alive", fmtTime],
+];
+
+function dayShort(dateStr){
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-US", { day:"numeric", month:"short" });
+}
+
+// Build Overall dataset by reducing across all matches
+function buildOverall(){
+  const totals = {};
+  MATCHES.forEach(m=>{
+    m.players.forEach(([name,k,d])=>{
+      if(!totals[name]) totals[name] = {
+        name, kills:0, deaths:0, played:0,
+        streak:0, dmgDone:0, dmgTaken:0, cc:0,
+        hpHealed:0, allyHpHealed:0, fortDmg:0,
+        cannonsLanded:0, objDestroyed:0, cannonDist:0,
+        traps:0, timeDead:0, timeAlive:0
+      };
+      totals[name].kills += k;
+      totals[name].deaths += d;
+      totals[name].played += 1;
+    });
+    // Aggregate extended stats where available
+    const ext = EXTENDED_STATS[m.date];
+    if (ext){
+      ext.forEach(p=>{
+        const [name,,,streak,dmgDone,dmgTaken,cc,hpHealed,allyHpHealed,fortDmg,cannonsLanded,objDestroyed,cannonDist,traps,timeDead,timeAlive] = p;
+        if (!totals[name]) return;
+        totals[name].streak      = Math.max(totals[name].streak, streak ?? 0);
+        totals[name].dmgDone     += dmgDone     ?? 0;
+        totals[name].dmgTaken    += dmgTaken    ?? 0;
+        totals[name].cc          += cc          ?? 0;
+        totals[name].hpHealed    += hpHealed    ?? 0;
+        totals[name].allyHpHealed+= allyHpHealed?? 0;
+        totals[name].fortDmg     += fortDmg     ?? 0;
+        totals[name].cannonsLanded+=cannonsLanded?? 0;
+        totals[name].objDestroyed+= objDestroyed?? 0;
+        totals[name].cannonDist  += cannonDist  ?? 0;
+        totals[name].traps       += traps       ?? 0;
+        totals[name].timeDead    += timeDead    ?? 0;
+        totals[name].timeAlive   += timeAlive   ?? 0;
+      });
+    }
+  });
+  return Object.values(totals);
+}
+
+const wins = MATCHES.filter(m=>m.result==="Victory").length;
+const losses = MATCHES.filter(m=>m.result==="Defeat").length;
+document.getElementById("recordBadge").innerHTML =
+  `<b class="win">${wins}W</b><span class="div">/</span><b class="loss">${losses}L</b><span class="div">·</span>${MATCHES.length} wars logged`;
+
+// ---- Squad Roles (Shotcaller / Defensive / Flex Squad) ----
+// Assignments persist via localStorage in this browser only — there's no
+// backend, so this won't sync across different devices or visitors.
+// If localStorage is unavailable (e.g. a sandboxed preview), it just
+// falls back to in-memory for the current session.
+const ROLE_DEFS = [
+  { key:"shotcaller", label:"Shotcaller" },
+  { key:"defensive",  label:"Defensive"  },
+  { key:"flex",        label:"Flex Squad" },
+  { key:"mainball",    label:"Mainball"   },
+];
+const ROLES_STORAGE_KEY    = "nodeWarSquadRoles";
+const PROFILES_STORAGE_KEY = "nodeWarPlayerProfiles";
+
+function loadPlayerProfiles(){
+  try{ const r=localStorage.getItem(PROFILES_STORAGE_KEY); return r?JSON.parse(r):{}; }
+  catch(e){ return {}; }
+}
+let playerProfiles = loadPlayerProfiles();
+
+// Load dynamic matches FIRST so uploaded wars are included in the roster
+// before we build defaults — fixes both the reload bug and missing Mainball role.
+applyDynamicMatches();
+
+let roster = buildOverall().map(r=>r.name).sort((a,b)=>a.localeCompare(b));
+
+function loadRoleAssignments(){
+  try{
+    const raw = localStorage.getItem(ROLES_STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  }catch(e){ /* storage unavailable — fall back to in-memory */ }
+  return {};
+}
+function saveRoleAssignments(){
+  try{ localStorage.setItem(ROLES_STORAGE_KEY, JSON.stringify(roleAssignments)); }
+  catch(e){ /* storage unavailable — assignments stay in-memory only for this session */ }
+}
+
+let roleAssignments = loadRoleAssignments();
+
+// Assign anyone with no role to Mainball by default.
+// Rebuilds roster from current MATCHES each time so newly-added wars are included.
+function applyMainballDefaults(){
+  const currentRoster = buildOverall().map(r=>r.name);
+  currentRoster.forEach(name=>{
+    if (!roleAssignments[name]) roleAssignments[name] = "mainball";
+  });
+  saveRoleAssignments();
+  roster = currentRoster.sort((a,b)=>a.localeCompare(b));
+}
+applyMainballDefaults();
+let rolesPanelOpen = false;
+
+function renderRolesPanel(){
+  const panel = document.getElementById("rolesPanel");
+  const btn = document.getElementById("rolesEditBtn");
+  btn.textContent = rolesPanelOpen ? "Done" : "Adjust Roles";
+  btn.classList.toggle("active", rolesPanelOpen);
+
+  if (!rolesPanelOpen){
+    panel.innerHTML = "";
+    panel.classList.remove("open");
+    return;
+  }
+
+  // Edit mode: a 4-column drag-and-drop board — Unassigned plus the
+  // three roles. Dragging a chip into a column assigns that role;
+  // dragging it back into Unassigned clears it.
+  const boardCols = [{ key:"", label:"Unassigned" }, ...ROLE_DEFS];
+
+  const boardHTML = boardCols.map(col=>{
+    const names = roster.filter(n => (roleAssignments[n] || "") === col.key);
+    const chipsHTML = names.length
+      ? names.map(n=>`<div class="roles-chip-drag" draggable="true" data-player="${n}">${n}</div>`).join("")
+      : `<div class="roles-dnd-placeholder">Drop here</div>`;
+    const colClass = col.key || "unassigned";
+    return `
+      <div class="roles-dnd-col ${colClass}">
+        <div class="roles-dnd-title">${col.label} (${names.length})</div>
+        <div class="roles-dnd-zone" data-role-zone="${col.key}">${chipsHTML}</div>
+      </div>
+    `;
+  }).join("");
+
+  panel.innerHTML = `
+    <div class="roles-dnd">
+      <div class="roles-dnd-label">Drag a player into a column to assign their role</div>
+      <div class="roles-dnd-board">${boardHTML}</div>
+      <div class="roles-note">Saved in this browser only — won't sync to other devices or other people viewing this page, since the site has no backend.</div>
+    </div>
+  `;
+  requestAnimationFrame(()=>panel.classList.add("open"));
+
+  // Drag handlers
+  panel.querySelectorAll(".roles-chip-drag").forEach(chip=>{
+    chip.addEventListener("dragstart", (e)=>{
+      e.dataTransfer.setData("text/plain", chip.dataset.player);
+      e.dataTransfer.effectAllowed = "move";
+      chip.classList.add("dragging");
+    });
+    chip.addEventListener("dragend", ()=>{
+      chip.classList.remove("dragging");
+    });
+  });
+
+  panel.querySelectorAll(".roles-dnd-zone").forEach(zone=>{
+    zone.addEventListener("dragover", (e)=>{
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      zone.classList.add("drag-over");
+    });
+    zone.addEventListener("dragleave", ()=>{
+      zone.classList.remove("drag-over");
+    });
+    zone.addEventListener("drop", (e)=>{
+      e.preventDefault();
+      zone.classList.remove("drag-over");
+      const player = e.dataTransfer.getData("text/plain");
+      const role = zone.dataset.roleZone;
+      if (!player) return;
+      if (role) roleAssignments[player] = role;
+      else delete roleAssignments[player];
+      saveRoleAssignments();
+      renderRolesPanel();
+      refreshCurrentPanel();
+    });
+  });
+}
+
+document.getElementById("rolesEditBtn").addEventListener("click", ()=>{
+  rolesPanelOpen = !rolesPanelOpen;
+  renderRolesPanel();
+});
+
+renderRolesPanel();
+
+// ---- Campaign strip ----
+const strip = document.getElementById("campaignStrip");
+const weekGroups = [];
+const weekIndex = new Map();
+
+function weekKey(dateStr){
+  const d = new Date(dateStr + "T00:00:00");
+  const day = d.getDay();
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - ((day + 6) % 7));
+  return monday.toISOString().slice(0,10);
+}
+
+function weekLabel(startDate){
+  const start = new Date(startDate + "T00:00:00");
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  const short = { month:"short", day:"numeric" };
+  return `${start.toLocaleDateString("en-US", short)} – ${end.toLocaleDateString("en-US", short)}`;
+}
+
+function buildWeekGroups(){
+  MATCHES.forEach((m,i)=>{
+    const key = weekKey(m.date);
+    if (!weekIndex.has(key)){
+      weekIndex.set(key, { week:key, matches:[] });
+      weekGroups.push(weekIndex.get(key));
+    }
+    weekIndex.get(key).matches.push({ match:m, index:i });
+  });
+}
+
+function makeBanner(outcome, dateLabel, locLabel, resultLabel, key){
+  const b = document.createElement("button");
+  b.className = "tab";
+  b.dataset.outcome = outcome;
+  b.dataset.key = key;
+  b.setAttribute("aria-pressed","false");
+  b.type = "button";
+  b.innerHTML = `
+    <div class="b-date">${dateLabel}</div>
+    <div class="b-loc">${locLabel}</div>
+    <div class="b-result">${resultLabel}</div>
+  `;
+  b.addEventListener("click", ()=>selectMatch(key));
+  return b;
+}
+
+function renderTabs(){
+  strip.innerHTML = "";
+  strip.appendChild(makeBanner("overall","ALL","Record","Overall","overall"));
+
+  // Rebuild weekSelect options
+  const sel = document.getElementById("weekSelect");
+  const prevVal = sel.value;
+  sel.innerHTML = `<option value="">All weeks</option>`;
+  weekGroups.forEach(group=>{
+    const opt = document.createElement("option");
+    opt.value = group.week;
+    opt.textContent = `${weekLabel(group.week)}  (${group.matches.length} match${group.matches.length>1?"es":""})`;
+    sel.appendChild(opt);
+  });
+  if (prevVal && weekGroups.some(g=>g.week===prevVal)) sel.value = prevVal;
+
+  // Only show wars for the selected week (or all if none selected)
+  const selectedWeek = document.getElementById("weekSelect").value;
+  MATCHES.forEach((m, i) => {
+    if (selectedWeek && weekKey(m.date) !== selectedWeek) return;
+    const topLabel = selectedWeek
+      ? m.day
+      : new Date(m.date + "T00:00:00").toLocaleDateString("en-US", { month:"short", day:"numeric" });
+    strip.appendChild(makeBanner(
+      m.result === "Victory" ? "victory" : "defeat",
+      topLabel, m.location,
+      m.result === "Victory" ? "Win" : "Loss",
+      String(i)
+    ));
+  });
+
+  document.querySelectorAll(".tab").forEach(b=>{
+    const active = b.dataset.key === currentMatchKey;
+    b.classList.toggle("active", active);
+    b.setAttribute("aria-pressed", active ? "true" : "false");
+  });
+}
+
+// Week dropdown — filters which wars appear in the strip
+document.getElementById("weekSelect").addEventListener("change", function(){
+  // If the currently selected match is not visible in the new week, reset to overall
+  if (this.value && currentMatchKey !== "overall") {
+    const idx = parseInt(currentMatchKey);
+    if (!isNaN(idx) && MATCHES[idx] && weekKey(MATCHES[idx].date) !== this.value) {
+      selectMatch("overall"); // render the overall panel
+    }
+  }
+  renderTabs(); // always update the strip filter
+});
+
+// ---- Sorting state ----
+let sortState = { key:"kd", dir:"desc" };
+let currentMatchKey = "overall";
+
+// Dynamic matches already applied above — just build the week groups and render
+buildWeekGroups();
+renderTabs();
+
+function sortRows(rows, key, dir){
+  const mult = dir === "asc" ? 1 : -1;
+  return [...rows].sort((a,b)=>{
+    let av = a[key], bv = b[key];
+    if (av === null) av = -Infinity;
+    if (bv === null) bv = -Infinity;
+    if (typeof av === "string") return av.localeCompare(bv) * mult;
+    return (av - bv) * mult;
+  });
+}
+
+const chartColors = [
+  "#E8B857", "#D97E3E", "#B8556E", "#7B5BA8", "#5B7EC3", "#4A9FB8",
+  "#5BC0A8", "#6FBD9C", "#8FD89E", "#B8D886", "#D4C85D", "#E8A648",
+  "#F0956B", "#E57C7D", "#D96B96", "#C376B8", "#8A7FB8", "#6B8EC3"
+];
+
+function compactName(name){
+  return name.length > 13 ? `${name.slice(0, 12)}...` : name;
+}
+
+function renderScoreChart(rows, showHof){
+  const scoreRows = sortRows(rows, "kills", "desc").filter(r=>r.kills > 0);
+  const total = scoreRows.reduce((sum,r)=>sum + r.kills, 0);
+  const maxKills = scoreRows[0]?.kills || 0;
+
+  if (!total){
+    return `
+      <section class="score-chart" aria-label="Score share bar chart">
+        <div class="chart-copy">
+          <div class="chart-title">Score Share</div>
+          <div class="chart-meta">No kills recorded for this view.</div>
+        </div>
+      </section>
+    `;
+  }
+
+  const barHeight = 12;
+  const chartHeight = scoreRows.length * (barHeight + 2) + 12;
+  const barWidth = 140;
+
+  const barsHTML = scoreRows.map((r, i) => {
+    const pct = ((r.kills / total) * 100).toFixed(1);
+    const barLength = (r.kills / maxKills) * barWidth;
+    const color = chartColors[i % chartColors.length];
+    const yPos = i * (barHeight + 2) + 6;
+    return `
+      <g class="bar-group" data-chart-index="${i}" data-name="${r.name}">
+        <rect
+          class="bar"
+          x="0"
+          y="${yPos}"
+          width="${barLength}"
+          height="${barHeight}"
+          fill="${color}"
+          tabindex="0"
+          role="button"
+          data-chart-index="${i}"
+          data-name="${r.name}"
+          data-kills="${r.kills}"
+          data-pct="${pct}"
+          aria-label="${r.name}: ${r.kills} kills, ${pct}% of score">
+        </rect>
+        <text class="bar-label" x="${barLength + 8}" y="${yPos + barHeight - 4}">${r.name}</text>
+        <text class="bar-value" x="${barLength - 6}" y="${yPos + barHeight - 4}">${r.kills}</text>
+      </g>
+    `;
+  }).join("");
+
+  const legendHTML = scoreRows.map((r, i) => {
+    const pct = ((r.kills / total) * 100).toFixed(1);
+    const color = chartColors[i % chartColors.length];
+    return `
+      <button class="legend-item" type="button" data-chart-index="${i}" title="${r.name}: ${r.kills} kills, ${pct}%">
+        <span class="legend-swatch" style="background:${color}"></span>
+        <span class="legend-name">${r.name}</span>
+        <span class="legend-score">${r.kills}</span>
+      </button>
+    `;
+  }).join("");
+
+  const first = scoreRows[0];
+  const firstPct = ((first.kills / total) * 100).toFixed(1);
+
+  return `
+    <section class="score-chart" aria-label="Score share bar chart">
+      <div class="chart-copy">
+        <div class="chart-header">
+          <div class="chart-title">Score Share</div>
+          <button class="chart-toggle" type="button" aria-label="Toggle chart" aria-expanded="true" title="Toggle chart visibility">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+        </div>
+        <div class="chart-meta">${showHof ? "Total kills across all logged wars" : "Kills by family for this war"}</div>
+        <div class="chart-content">
+          <div class="bar-chart-wrap">
+            <svg class="bar-chart" viewBox="0 0 ${barWidth + 100} ${chartHeight}" aria-label="Interactive score share bar chart">
+              <g class="bars">
+                ${barsHTML}
+              </g>
+            </svg>
+          </div>
+          <div class="chart-detail" aria-live="polite">${first.name}: ${first.kills} kills <span class="muted">(${firstPct}% of score)</span></div>
+          <div class="legend">${legendHTML}</div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+function attachScoreChartInteractions(panel){
+  const chart = panel.querySelector(".score-chart");
+  if (!chart) return;
+
+  const toggle = chart.querySelector(".chart-toggle");
+  const bars = [...chart.querySelectorAll(".bar")];
+  const barGroups = [...chart.querySelectorAll(".bar-group")];
+  const legendItems = [...chart.querySelectorAll(".legend-item")];
+  const detail = chart.querySelector(".chart-detail");
+  const tableRows = [...panel.querySelectorAll("tbody tr[data-name]")];
+  const barByName = new Map(bars.map(b=>[b.dataset.name, b]));
+  const groupByName = new Map(barGroups.map(g=>[g.dataset.name, g]));
+
+  if (toggle){
+    toggle.addEventListener("click", ()=>{
+      const isCollapsed = chart.classList.toggle("chart-collapsed");
+      toggle.setAttribute("aria-expanded", !isCollapsed);
+    });
+  }
+
+  function activate(index){
+    const bar = bars[index];
+    if (!bar) return;
+
+    bars.forEach(b=>b.classList.toggle("active", b === bar));
+    barGroups.forEach(g=>g.classList.toggle("active", g === groupByName.get(bar.dataset.name)));
+    legendItems.forEach(item=>item.classList.toggle("active", item.dataset.chartIndex === String(index)));
+    tableRows.forEach(row=>row.classList.toggle("active-chart-row", row.dataset.name === bar.dataset.name));
+
+    const name = bar.dataset.name;
+    const kills = bar.dataset.kills;
+    const pct = bar.dataset.pct;
+    detail.innerHTML = `${name}: ${kills} kills <span class="muted">(${pct}% of score)</span>`;
+  }
+
+  function activateName(name){
+    const bar = barByName.get(name);
+    if (!bar) return;
+    activate(Number(bar.dataset.chartIndex));
+  }
+
+  bars.forEach(bar=>{
+    const index = Number(bar.dataset.chartIndex);
+    bar.addEventListener("mouseenter", ()=>activate(index));
+    bar.addEventListener("focus", ()=>activate(index));
+    bar.addEventListener("click", ()=>activate(index));
+    bar.addEventListener("keydown", event=>{
+      if (event.key === "Enter" || event.key === " "){
+        event.preventDefault();
+        activate(index);
+      }
+    });
+  });
+
+  legendItems.forEach(item=>{
+    const index = Number(item.dataset.chartIndex);
+    item.addEventListener("mouseenter", ()=>activate(index));
+    item.addEventListener("focus", ()=>activate(index));
+    item.addEventListener("click", ()=>activate(index));
+  });
+
+  tableRows.forEach(row=>{
+    row.addEventListener("mouseenter", ()=>activateName(row.dataset.name));
+    row.addEventListener("focusin", ()=>activateName(row.dataset.name));
+  });
+
+  activate(0);
+}
+
+// ---- Render a match or overall panel ----
+function buildPanelData(key){
+  let rows, title, meta, resultClass, resultLabel, showHof = false, extended = null;
+  if (key === "overall"){
+    rows = buildOverall().map(r=>({...r, kd: kd(r.kills, r.deaths), role: roleAssignments[r.name] || "", class: (playerProfiles[r.name]||{}).class||""}));
+    title = "Overall Record";
+    meta = `${MATCHES.length} wars · ${rows.length} families`;
+    resultClass = "overall"; resultLabel = "All Wars";
+    showHof = true;
+    extended = true;
+  } else {
+    const m = MATCHES[Number(key)];
+    const ext = EXTENDED_STATS[m.date];
+    if (ext){
+      extended = true;
+      rows = ext.map(p=>{
+        const [name,kills,deaths,streak,dmgDone,dmgTaken,cc,hpHealed,allyHpHealed,fortDmg,cannonsLanded,objDestroyed,cannonDist,traps,timeDead,timeAlive] = p;
+        return { name,kills,deaths,kd:kd(kills,deaths),role:roleAssignments[name] || "",class:(playerProfiles[name]||{}).class||"",played:undefined,streak,dmgDone,dmgTaken,cc,hpHealed,allyHpHealed,fortDmg,cannonsLanded,objDestroyed,cannonDist,traps,timeDead,timeAlive };
+      });
+    } else {
+      rows = m.players.map(([name,k,d])=>({name, kills:k, deaths:d, kd: kd(k,d), role: roleAssignments[name] || "", class: (playerProfiles[name]||{}).class||""}));
+    }
+    const dt = new Date(m.date + "T00:00:00");
+    title = dt.toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+    meta = `${m.location} · Node War${extended ? " · Extended Stats" : ""}`;
+    resultClass = m.result === "Victory" ? "victory":"defeat";
+    resultLabel = m.result === "Victory" ? "Occupation Success" : "Occupation Failed";
+  }
+  return { rows, title, meta, resultClass, resultLabel, showHof, extended };
+}
+
+function selectMatch(key){
+  currentMatchKey = key;
+
+  document.querySelectorAll(".tab").forEach(b=>{
+    const active = b.dataset.key === key;
+    b.classList.toggle("active", active);
+    b.setAttribute("aria-pressed", active ? "true":"false");
+  });
+
+  const panel = document.getElementById("matchPanel");
+  playerProfiles = loadPlayerProfiles(); // refresh class data
+  const data = buildPanelData(key);
+  document.querySelector("main").classList.toggle("wide", !!data.extended);
+  sortState = { key:"kd", dir:"desc" };
+  renderPanel(panel, data.rows, data.title, data.meta, data.resultClass, data.resultLabel, data.showHof, data.extended);
+}
+
+// Re-renders the currently visible table with fresh role values, without
+// resetting the active tab or the user's current sort — used after a
+// Squad Roles edit so the Role column stays live.
+function refreshCurrentPanel(){
+  const panel = document.getElementById("matchPanel");
+  if (!panel || !panel.querySelector(".panel-header")) return;
+  const data = buildPanelData(currentMatchKey);
+  document.querySelector("main").classList.toggle("wide", !!data.extended);
+  renderPanel(panel, data.rows, data.title, data.meta, data.resultClass, data.resultLabel, data.showHof, data.extended);
+}
+
+function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof, extended){
+  const sorted = sortRows(rows, sortState.key, sortState.dir);
+
+  let hofHTML = "";
+  if (showHof){
+    const top3 = sortRows(rows, "kd", "desc").slice(0,3);
+    hofHTML = `<div class="hof">` + top3.map((r,i)=>`
+      <div class="hof-card" data-rank="${i+1}">
+        <div class="hof-rank">RANK ${i+1}</div>
+        <div class="hof-name">${r.name}</div>
+        <div class="hof-kd">${fmtKD(r.kd)}</div>
+        <div class="hof-sub">${r.kills}K / ${r.deaths}D · ${r.played} wars</div>
+      </div>
+    `).join("") + `</div>`;
+  }
+
+  const cols = extended
+    ? EXTENDED_COLS
+    : showHof
+      ? [["class","Class"],["name","Family"],["role","Role"],["kills","Kills"],["deaths","Deaths"],["kd","K/D"],["played","Wars"]]
+      : [["class","Class"],["name","Family"],["role","Role"],["kills","Kills"],["deaths","Deaths"],["kd","K/D"]];
+
+  const headHTML = cols.map(([key,label])=>{
+    const isSorted = sortState.key === key;
+    const arrow = isSorted ? (sortState.dir === "asc" ? "▲" : "▼") : "";
+    const cls = (key === "name" || key === "role") ? "" : "num";
+    return `<th class="${cls} ${isSorted?'sorted':''}" data-key="${key}">${label}<span class="arrow">${arrow}</span></th>`;
+  }).join("");
+
+  let bodyHTML, tableClass = "", colHTML = "";
+
+  if (extended){
+    tableClass = "extended";
+    colHTML = `<colgroup>${cols.map(([key])=>{
+      if (key === "class") return `<col class="col-class">`;
+      if (key === "name") return `<col class="col-name">`;
+      if (key === "role") return `<col class="col-role">`;
+      return `<col class="col-num">`;
+    }).join("")}</colgroup>`;
+
+    bodyHTML = sorted.map((r,i)=>{
+      const cells = cols.map(([key,label,fmt])=>{
+        if (key === "class") return `<td class="td-class" data-label="${label}">${r.class||""}</td>`;
+        if (key === "name") return `<td data-label="${label}">${r.name}<button class="inspect-btn" data-player="${r.name}" type="button">inspect</button></td>`;
+        if (key === "role") return `<td class="role-cell role-${r.role || 'none'}" data-label="${label}">${fmtRole(r.role)}</td>`;
+        const cls = key === "kd" ? "num kd" : "num";
+        return `<td class="${cls}" data-label="${label}">${fmt(r[key])}</td>`;
+      }).join("");
+      return `<tr data-rank="${i+1}" data-name="${r.name}">${cells}</tr>`;
+    }).join("");
+  } else {
+    bodyHTML = sorted.map((r,i)=>{
+      const cells = [
+        `<td class="rank">${i+1}</td>`,
+        `<td class="td-class" data-label="Class">${r.class||""}</td>`,
+        `<td data-label="Family">${r.name}<button class="inspect-btn" data-player="${r.name}" type="button">inspect</button></td>`,
+        `<td class="role-cell role-${r.role || 'none'}" data-label="Role">${fmtRole(r.role)}</td>`,
+        `<td class="num" data-label="Kills">${r.kills}</td>`,
+        `<td class="num" data-label="Deaths">${r.deaths}</td>`,
+        `<td class="num kd" data-label="K/D">${fmtKD(r.kd)}</td>`,
+      ];
+      if (showHof) cells.push(`<td class="num played" data-label="Wars">${r.played}</td>`);
+      return `<tr data-rank="${i+1}" data-name="${r.name}">${cells.join("")}</tr>`;
+    }).join("");
+  }
+
+  panel.innerHTML = `
+    <div class="panel-header">
+      <div>
+        <div class="panel-title">${title}</div>
+        <div class="panel-meta">${meta}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div class="panel-search-wrap">
+          <span class="panel-search-icon">🔍</span>
+          <input class="panel-search" type="text" placeholder="Search player…" id="panelSearch" autocomplete="off">
+          <button class="panel-search-clear" id="panelSearchClear" type="button">✕</button>
+        </div>
+        <div class="result-pill ${resultClass}">${resultLabel}</div>
+        ${window.PurgeAuth?.state?.isAdmin
+          ? (currentMatchKey === "overall"
+              ? `<button class="clear-wars-btn" id="clearWarsBtn" type="button">Clear Added Wars</button>`
+              : `<button class="clear-wars-btn" id="removeWarBtn" type="button">Remove This War</button>`)
+          : ""}
+      </div>
+    </div>
+    ${hofHTML}
+    <div class="table-scroll ${extended ? 'extended' : ''}">
+      <table class="${tableClass}">
+        ${colHTML}
+        <thead><tr>${extended ? '' : '<th class="rank"></th>'}${headHTML}</tr></thead>
+        <tbody>${bodyHTML}</tbody>
+      </table>
+    </div>
+  `;
+
+  attachScoreChartInteractions(panel);
+
+  // Wire player name search
+  const panelSearch = panel.querySelector("#panelSearch");
+  const panelSearchClear = panel.querySelector("#panelSearchClear");
+  if (panelSearch){
+    function applySearch(term){
+      const q = term.trim().toLowerCase();
+      panel.querySelectorAll("tbody tr[data-name]").forEach(row=>{
+        const name = (row.dataset.name||"").toLowerCase();
+        row.style.display = (!q || name.includes(q)) ? "" : "none";
+      });
+      panelSearchClear.classList.toggle("visible", !!q);
+    }
+    panelSearch.addEventListener("input", ()=>applySearch(panelSearch.value));
+    panelSearchClear.addEventListener("click", ()=>{
+      panelSearch.value = "";
+      applySearch("");
+      panelSearch.focus();
+    });
+  }
+
+  // Wire inspect buttons
+  panel.querySelectorAll(".inspect-btn").forEach(btn=>{
+    btn.addEventListener("click", e=>{
+      e.stopPropagation();
+      openPlayerDrawer(btn.dataset.player);
+    });
+  });
+
+  panel.querySelectorAll("thead th[data-key]").forEach(th=>{
+    th.addEventListener("click", ()=>{
+      const key = th.dataset.key;
+      if (sortState.key === key){
+        sortState.dir = sortState.dir === "asc" ? "desc" : "asc";
+      } else {
+        sortState = { key, dir: key === "name" ? "asc" : "desc" };
+      }
+      renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof, extended);
+    });
+  });
+}
+
+// Initial view
+selectMatch("overall");
+
+// Re-render once we know whether the signed-in user can see admin-only
+// controls (Clear Added Wars / Remove This War) — PurgeAuth.init() resolves
+// after this initial render, so the buttons are hidden until proven authorized.
+window.purgeAuthReady?.then(() => refreshCurrentPanel());
+
+// ================================================================
+// PLAYER INSPECT DRAWER
+// ================================================================
+const playerDrawer   = document.getElementById("playerDrawer");
+const drawerBackdrop = document.getElementById("drawerBackdrop");
+const drawerClose    = document.getElementById("drawerClose");
+const drawerName     = document.getElementById("drawerName");
+const drawerRole     = document.getElementById("drawerRole");
+const drawerSummary  = document.getElementById("drawerSummary");
+const drawerBody     = document.getElementById("drawerBody");
+
+function closePlayerDrawer(){
+  playerDrawer.classList.remove("open");
+  drawerBackdrop.classList.remove("open");
+}
+drawerClose.addEventListener("click", closePlayerDrawer);
+drawerBackdrop.addEventListener("click", closePlayerDrawer);
+document.addEventListener("keydown", e=>{ if (e.key==="Escape") closePlayerDrawer(); });
+
+function openPlayerDrawer(playerName){
+  // Collect all match appearances for this player
+  const appearances = MATCHES.map((m,i)=>{
+    const basic = m.players.find(([n])=>n===playerName);
+    if (!basic) return null;
+    const [,kills,deaths] = basic;
+    const ext = (EXTENDED_STATS[m.date]||[]).find(r=>r[0]===playerName);
+    return { match:m, index:i, kills, deaths, ext };
+  }).filter(Boolean);
+
+  if (!appearances.length){ return; }
+
+  // Overall totals
+  const totalKills  = appearances.reduce((s,a)=>s+a.kills, 0);
+  const totalDeaths = appearances.reduce((s,a)=>s+a.deaths, 0);
+  const overallKD   = totalDeaths === 0 ? totalKills : totalKills/totalDeaths;
+  const warsPlayed  = appearances.length;
+
+  // Role
+  const role = roleAssignments[playerName] || "";
+  const roleLabel = ROLE_LABELS[role] || "Unassigned";
+
+  // Load player profile data (class) from localStorage
+  // Reload profiles fresh in case class was set after page load
+  playerProfiles = loadPlayerProfiles();
+  let profileData = playerProfiles;
+  const playerProfile = profileData[playerName] || {};
+  const playerClass = playerProfile.class || "";
+
+  // Header
+  drawerName.textContent = playerName;
+  drawerRole.textContent = roleLabel;
+  drawerRole.className = `drawer-player-role role-${role||"none"}`;
+  if(playerClass){
+    const cb = drawerName.parentElement.querySelector(".drawer-class-badge") || document.createElement("div");
+    cb.className = "drawer-class-badge";
+    cb.textContent = playerClass;
+    if(!drawerName.parentElement.querySelector(".drawer-class-badge")) drawerName.parentElement.appendChild(cb);
+  } else {
+    const cb = drawerName.parentElement.querySelector(".drawer-class-badge");
+    if(cb) cb.remove();
+  }
+
+  // Profile link
+  const profileLink = document.getElementById("drawerProfileLink");
+  profileLink.innerHTML = `<a href="player.html?name=${encodeURIComponent(playerName)}">View Full Profile →</a>`;
+
+  // Summary bar
+  drawerSummary.innerHTML = `
+    <div class="drawer-stat"><div class="drawer-stat-val">${totalKills}</div><div class="drawer-stat-label">Kills</div></div>
+    <div class="drawer-stat"><div class="drawer-stat-val">${totalDeaths}</div><div class="drawer-stat-label">Deaths</div></div>
+    <div class="drawer-stat"><div class="drawer-stat-val kd">${fmtKD(overallKD)}</div><div class="drawer-stat-label">K/D</div></div>
+    <div class="drawer-stat"><div class="drawer-stat-val">${warsPlayed}</div><div class="drawer-stat-label">Wars</div></div>
+  `;
+
+  // Match cards
+  const matchCards = appearances.map(a=>{
+    const m = a.match;
+    const kd = a.deaths === 0 ? a.kills : a.kills/a.deaths;
+    const dt = new Date(m.date+"T00:00:00");
+    const dateStr = dt.toLocaleDateString("en-US",{weekday:"short",day:"numeric",month:"short"});
+    const resultCls = m.result==="Victory" ? "victory":"defeat";
+
+    let extHTML = "";
+    if (a.ext){
+      const [,,,streak,dmgDone,dmgTaken,cc,hpHealed,allyHpHealed,fortDmg,cannonsLanded,objDestroyed,cannonDist,traps,timeDead,timeAlive] = a.ext;
+      extHTML = `<div class="drawer-extended-grid">
+        <div class="drawer-ext-row"><span class="drawer-ext-label">Streak</span><span class="drawer-ext-val">${streak}</span></div>
+        <div class="drawer-ext-row"><span class="drawer-ext-label">Dmg Done</span><span class="drawer-ext-val">${fmtNum(dmgDone)}</span></div>
+        <div class="drawer-ext-row"><span class="drawer-ext-label">Dmg Taken</span><span class="drawer-ext-val">${fmtNum(dmgTaken)}</span></div>
+        <div class="drawer-ext-row"><span class="drawer-ext-label">CC's</span><span class="drawer-ext-val">${cc}</span></div>
+        <div class="drawer-ext-row"><span class="drawer-ext-label">HP Healed</span><span class="drawer-ext-val">${fmtNum(hpHealed)}</span></div>
+        <div class="drawer-ext-row"><span class="drawer-ext-label">Ally Healed</span><span class="drawer-ext-val">${fmtNum(allyHpHealed)}</span></div>
+        <div class="drawer-ext-row"><span class="drawer-ext-label">Fort Dmg</span><span class="drawer-ext-val">${fmtNum(fortDmg)}</span></div>
+        <div class="drawer-ext-row"><span class="drawer-ext-label">Traps</span><span class="drawer-ext-val">${traps}</span></div>
+        <div class="drawer-ext-row"><span class="drawer-ext-label">Time Dead</span><span class="drawer-ext-val">${fmtTime(timeDead)}</span></div>
+        <div class="drawer-ext-row"><span class="drawer-ext-label">Time Alive</span><span class="drawer-ext-val">${fmtTime(timeAlive)}</span></div>
+      </div>`;
+    }
+
+    return `
+      <div class="drawer-match">
+        <div class="drawer-match-header">
+          <div>
+            <div class="drawer-match-date">${dateStr}</div>
+            <div class="drawer-match-loc">${m.location}</div>
+          </div>
+          <span class="drawer-match-result ${resultCls}">${m.result}</span>
+        </div>
+        <div class="drawer-match-stats">
+          <div class="drawer-match-stat">
+            <div class="drawer-match-stat-val">${a.kills}</div>
+            <div class="drawer-match-stat-label">Kills</div>
+          </div>
+          <div class="drawer-match-stat">
+            <div class="drawer-match-stat-val">${a.deaths}</div>
+            <div class="drawer-match-stat-label">Deaths</div>
+          </div>
+          <div class="drawer-match-stat">
+            <div class="drawer-match-stat-val kd">${fmtKD(kd)}</div>
+            <div class="drawer-match-stat-label">K/D</div>
+          </div>
+        </div>
+        ${extHTML}
+      </div>
+    `;
+  }).join("");
+
+  drawerBody.innerHTML = `
+    <div class="drawer-section-label">War History (${warsPlayed} appearance${warsPlayed!==1?"s":""})</div>
+    ${matchCards}
+  `;
+
+  // Open
+  playerDrawer.classList.add("open");
+  drawerBackdrop.classList.add("open");
+  drawerBody.scrollTop = 0;
+}
+const DYNAMIC_MATCHES_KEY = "nodeWarDynamicMatches";
+const DYNAMIC_EXTENDED_KEY = "nodeWarDynamicExtended";
+
+function loadDynamicMatches(){
+  try{
+    const m = localStorage.getItem(DYNAMIC_MATCHES_KEY);
+    const e = localStorage.getItem(DYNAMIC_EXTENDED_KEY);
+    return {
+      matches: m ? JSON.parse(m) : [],
+      extended: e ? JSON.parse(e) : {}
+    };
+  } catch(err){ return { matches:[], extended:{} }; }
+}
+
+function saveDynamicMatches(matches, extended){
+  try{
+    localStorage.setItem(DYNAMIC_MATCHES_KEY, JSON.stringify(matches));
+    localStorage.setItem(DYNAMIC_EXTENDED_KEY, JSON.stringify(extended));
+  } catch(err){ console.warn("Could not save to localStorage:", err); }
+}
+
+function applyDynamicMatches(){
+  const { matches, extended } = loadDynamicMatches();
+  matches.forEach(m=>{
+    if (!MATCHES.find(e=>e.date===m.date)){
+      MATCHES.push(m);
+    }
+  });
+  Object.assign(EXTENDED_STATS, extended);
+  MATCHES.sort((a,b)=>a.date.localeCompare(b.date));
+}
+
+// ---- Modal wiring ----
+const modal       = document.getElementById("addWarModal");
+const addWarBtn   = document.getElementById("addWarBtn");
+const modalClose  = document.getElementById("modalClose");
+const cancelBtn   = document.getElementById("cancelBtn");
+const backBtn     = document.getElementById("backBtn");
+const extractBtn  = document.getElementById("extractBtn");
+const parseJsonBtn = document.getElementById("parseJsonBtn");
+const confirmBtn  = document.getElementById("confirmBtn");
+const uploadZone  = document.getElementById("uploadZone");
+const screenshotInput = document.getElementById("screenshotInput");
+const uploadPreview = document.getElementById("uploadPreview");
+const previewImg  = document.getElementById("previewImg");
+const uploadStatus  = document.getElementById("uploadStatus");
+const reviewStatus  = document.getElementById("reviewStatus");
+const extractedPreview = document.getElementById("extractedPreview");
+const stepUpload  = document.getElementById("stepUpload");
+const stepReview  = document.getElementById("stepReview");
+const modeScreenshot = document.getElementById("modeScreenshot");
+const modeJson    = document.getElementById("modeJson");
+const screenshotArea = document.getElementById("screenshotArea");
+const jsonInputArea  = document.getElementById("jsonInputArea");
+const jsonTextarea   = document.getElementById("jsonTextarea");
+
+let uploadedImages = [];  // [{base64, mediaType}]
+let extractedData  = null;
+let inputMode = "screenshot"; // "screenshot" | "json"
+
+function setInputMode(mode){
+  inputMode = mode;
+  if (mode === "json"){
+    modeScreenshot.classList.remove("active");
+    modeJson.classList.add("active");
+    screenshotArea.style.display = "none";
+    jsonInputArea.classList.add("visible");
+    extractBtn.style.display = "none";
+    parseJsonBtn.style.display = "";
+    uploadStatus.textContent = "";
+    uploadStatus.className = "modal-status";
+  } else {
+    modeJson.classList.remove("active");
+    modeScreenshot.classList.add("active");
+    jsonInputArea.classList.remove("visible");
+    screenshotArea.style.display = "";
+    parseJsonBtn.style.display = "none";
+    extractBtn.style.display = "";
+  }
+}
+
+modeScreenshot.addEventListener("click", ()=> setInputMode("screenshot"));
+modeJson.addEventListener("click", ()=> setInputMode("json"));
+
+parseJsonBtn.addEventListener("click", ()=>{
+  uploadStatus.className = "modal-status";
+  uploadStatus.textContent = "";
+  let parsed;
+  try {
+    parsed = JSON.parse(jsonTextarea.value.trim());
+  } catch(e){
+    uploadStatus.className = "modal-status error";
+    uploadStatus.textContent = "Invalid JSON — " + e.message;
+    return;
+  }
+  if (!parsed.date || !parsed.location || !parsed.result || !Array.isArray(parsed.players)){
+    uploadStatus.className = "modal-status error";
+    uploadStatus.textContent = "Missing required fields: date, location, result, players[]";
+    return;
+  }
+  // Normalise players — ensure kills/deaths exist, fill missing extended fields with 0
+  parsed.players = parsed.players.map(p=>{
+    if (Array.isArray(p)) return { name:p[0], kills:p[1]||0, deaths:p[2]||0 };
+    return {
+      name: p.name||"Unknown", kills: p.kills||0, deaths: p.deaths||0,
+      streak: p.streak||0, dmgDone: p.dmgDone||0, dmgTaken: p.dmgTaken||0,
+      cc: p.cc||0, hpHealed: p.hpHealed||0, allyHpHealed: p.allyHpHealed||0,
+      fortDmg: p.fortDmg||0, cannonsLanded: p.cannonsLanded||0,
+      objDestroyed: p.objDestroyed||0, cannonDist: p.cannonDist||0,
+      traps: p.traps||0, timeDead: p.timeDead||0, timeAlive: p.timeAlive||0
+    };
+  });
+  if (!parsed.type) parsed.type = "extended";
+  extractedData = parsed;
+  showReviewStep(parsed);
+});
+
+function openModal(){
+  modal.classList.remove("hidden");
+  resetModal();
+}
+function closeModal(){ modal.classList.add("hidden"); }
+
+function resetModal(){
+  uploadedImages = [];
+  extractedData = null;
+  previewImg.src = "";
+  uploadPreview.style.display = "none";
+  uploadStatus.textContent = "";
+  uploadStatus.className = "modal-status";
+  reviewStatus.textContent = "";
+  reviewStatus.className = "modal-status";
+  extractedPreview.innerHTML = "";
+  extractBtn.disabled = true;
+  stepUpload.classList.add("active");
+  stepReview.classList.remove("active");
+  jsonTextarea.value = "";
+  setInputMode("screenshot");
+}
+
+addWarBtn.addEventListener("click", openModal);
+
+document.addEventListener("click", e=>{
+  if (e.target && e.target.id === "clearWarsBtn"){
+    const btn = e.target;
+    if (btn.dataset.confirming === "1"){
+      localStorage.removeItem("nodeWarDynamicMatches");
+      localStorage.removeItem("nodeWarDynamicExtended");
+      location.reload();
+    } else {
+      btn.dataset.confirming = "1";
+      btn.textContent = "Tap again to confirm";
+      btn.style.background = "rgba(178,64,47,0.28)";
+      setTimeout(()=>{
+        btn.dataset.confirming = "";
+        btn.textContent = "Clear Added Wars";
+        btn.style.background = "";
+      }, 3000);
+    }
+  }
+
+  if (e.target && e.target.id === "removeWarBtn"){
+    const btn = e.target;
+    const m = MATCHES[Number(currentMatchKey)];
+    if (!m) return;
+
+    if (btn.dataset.confirming !== "1"){
+      btn.dataset.confirming = "1";
+      btn.textContent = "Tap again to confirm";
+      btn.style.background = "rgba(178,64,47,0.28)";
+      setTimeout(()=>{
+        btn.dataset.confirming = "";
+        btn.textContent = "Remove This War";
+        btn.style.background = "";
+      }, 3000);
+      return;
+    }
+
+    const { matches, extended } = loadDynamicMatches();
+    const isLocal = matches.some(dm => dm.date === m.date);
+
+    if (isLocal){
+      saveDynamicMatches(
+        matches.filter(dm => dm.date !== m.date),
+        Object.fromEntries(Object.entries(extended).filter(([d]) => d !== m.date))
+      );
+      location.reload();
+    } else {
+      btn.dataset.confirming = "";
+      btn.textContent = `Use /removewar ${m.date} in Discord`;
+      btn.style.background = "rgba(178,64,47,0.28)";
+      setTimeout(()=>{
+        btn.textContent = "Remove This War";
+        btn.style.background = "";
+      }, 4000);
+    }
+  }
+});
+modalClose.addEventListener("click", closeModal);
+cancelBtn.addEventListener("click", closeModal);
+backBtn.addEventListener("click", ()=>{
+  stepReview.classList.remove("active");
+  stepUpload.classList.add("active");
+});
+modal.addEventListener("click", e=>{ if (e.target === modal) closeModal(); });
+
+// Drag-over highlight on the upload zone
+uploadZone.addEventListener("dragover", e=>{ e.preventDefault(); uploadZone.classList.add("drag-over"); });
+uploadZone.addEventListener("dragleave", ()=>uploadZone.classList.remove("drag-over"));
+uploadZone.addEventListener("drop", e=>{
+  e.preventDefault();
+  uploadZone.classList.remove("drag-over");
+  handleFiles(e.dataTransfer.files);
+});
+screenshotInput.addEventListener("change", e=>handleFiles(e.target.files));
+
+function handleFiles(files){
+  if (!files.length) return;
+  uploadedImages = [];
+  const readers = Array.from(files).slice(0, 4).map(file=>{
+    return new Promise(resolve=>{
+      const reader = new FileReader();
+      reader.onload = evt=>{
+        const [header, data] = evt.target.result.split(",");
+        const mediaType = header.match(/:(.*?);/)[1];
+        uploadedImages.push({ base64: data, mediaType });
+        resolve();
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+  Promise.all(readers).then(()=>{
+    // Show a preview of the first image
+    previewImg.src = URL.createObjectURL(files[0]);
+    uploadPreview.style.display = "block";
+    uploadStatus.className = "modal-status success";
+    uploadStatus.innerHTML = `${uploadedImages.length} screenshot${uploadedImages.length>1?"s":""} ready`;
+    extractBtn.disabled = false;
+  });
+}
+
+extractBtn.addEventListener("click", ()=>{
+  if (!uploadedImages.length) return;
+  // 📸 auto-extraction needed a server to hold the API key — it ran on the old
+  // Netlify function, which is gone now the site is on GitHub Pages. War OCR is
+  // handled by the Discord bot's /addwar, or use the { } Manual JSON option below.
+  uploadStatus.className = "modal-status error";
+  uploadStatus.innerHTML = `📸 auto-extraction isn't available on this site. Send the screenshots to the Discord bot, or switch to the <b>{ } Manual JSON</b> option.`;
+});
+
+function showReviewStep(d){
+  stepUpload.classList.remove("active");
+  stepReview.classList.add("active");
+
+  const resultClass = d.result==="Victory" ? "ext-green" : "ext-red";
+  const dt = new Date(d.date + "T00:00:00");
+  const dateStr = dt.toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+
+  const playerRows = d.players.map(p=>{
+    if (d.type === "extended"){
+      return `<div><b>${p.name}</b> — ${p.kills}K / ${p.deaths}D · ${p.streak} streak · ${fmtNum(p.dmgDone)} dmg</div>`;
+    }
+    return `<div><b>${p.name}</b> — ${p.kills}K / ${p.deaths}D</div>`;
+  }).join("");
+
+  const alreadyExists = MATCHES.some(m=>m.date===d.date);
+
+  extractedPreview.innerHTML = `
+    <div class="${resultClass}">● ${d.result.toUpperCase()}</div>
+    <div><b>${dateStr}</b></div>
+    <div>${d.location} · Node War · ${d.players.length} players · ${d.type === "extended" ? "Extended stats" : "Basic stats"}</div>
+    <br>
+    ${playerRows}
+    ${alreadyExists ? `<br><span style="color:var(--orange)">⚠ A match on ${d.date} already exists — confirming will overwrite it.</span>` : ""}
+  `;
+  reviewStatus.textContent = "";
+  reviewStatus.className = "modal-status";
+}
+
+confirmBtn.addEventListener("click", ()=>{
+  if (!extractedData) return;
+  const d = extractedData;
+
+  // Build the MATCHES-format object
+  const matchObj = {
+    date: d.date,
+    day: d.day,
+    location: d.location,
+    result: d.result,
+    players: d.players.map(p=>[p.name, p.kills, p.deaths])
+  };
+
+  // Remove any existing entry for this date
+  const idx = MATCHES.findIndex(m=>m.date===d.date);
+  if (idx !== -1) MATCHES.splice(idx, 1);
+  MATCHES.push(matchObj);
+  MATCHES.sort((a,b)=>a.date.localeCompare(b.date));
+
+  // Always save to EXTENDED_STATS
+  EXTENDED_STATS[d.date] = d.players.map(p=>[
+    p.name, p.kills, p.deaths, p.streak??0,
+    p.dmgDone??0, p.dmgTaken??0, p.cc??0,
+    p.hpHealed??0, p.allyHpHealed??0, p.fortDmg??0,
+    p.cannonsLanded??0, p.objDestroyed??0, p.cannonDist??0,
+    p.traps??0, p.timeDead??0, p.timeAlive??0
+  ]);
+
+  // Persist dynamic matches to localStorage
+  const { matches: dynMatches, extended: dynExtended } = loadDynamicMatches();
+  const filtered = dynMatches.filter(m=>m.date!==d.date);
+  filtered.push(matchObj);
+  dynExtended[d.date] = EXTENDED_STATS[d.date];
+  saveDynamicMatches(filtered, dynExtended);
+
+  // Rebuild the week groups and campaign strip, then switch to the new match
+  weekGroups.length = 0;
+  weekIndex.clear();
+  buildWeekGroups();
+  renderTabs();
+  // Apply Mainball to any new players from this war
+  applyMainballDefaults();
+  const newIdx = MATCHES.findIndex(m=>m.date===d.date);
+  selectMatch(String(newIdx));
+
+  closeModal();
+  reviewStatus.className = "modal-status success";
+  reviewStatus.textContent = "Added!";
+});
+</script>
+
+</body>
+</html>

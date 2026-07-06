@@ -16,8 +16,8 @@ Dark-themed static HTML guild management site for a Black Desert Online (BDO) No
 
 | File | Purpose |
 |------|---------|
-| `home.html` | Landing page. Crimson dark theme, logo placeholder, live stats strip, quick-link cards, most recent war panel. |
-| `index.html` | **War Scores page (main page).** Match tabs grouped by week (collapsible). Squad Roles panel with drag-and-drop — scrollable when overflow. + Add War button: 📸 Screenshot mode (inactive on Pages — shows a "use the Discord bot / Manual JSON" message) OR { } Manual JSON paste mode. Player name search. Class column. "Clear Added Wars" double-tap button (overall view; wipes locally-pasted wars only). Per-war "Remove This War" double-tap button (single-match view) — deletes it instantly if it's a locally-pasted war, otherwise points the admin at `/removewar` in Discord since committed wars live in `data.js`. |
+| `index.html` | **Landing page (site root — GitHub Pages serves this at the bare domain URL).** Crimson dark theme, logo placeholder, live stats strip, quick-link cards, most recent war panel. Formerly `home.html` — renamed to `index.html` so the root URL lands on Home instead of War Scores. |
+| `war-scores.html` | **War Scores page.** Match tabs grouped by week (collapsible). Squad Roles panel with drag-and-drop — scrollable when overflow. + Add War button: 📸 Screenshot mode (inactive on Pages — shows a "use the Discord bot / Manual JSON" message) OR { } Manual JSON paste mode. Player name search. Class column. "Clear Added Wars" double-tap button (overall view; wipes locally-pasted wars only). Per-war "Remove This War" double-tap button (single-match view) — deletes it instantly if it's a locally-pasted war, otherwise points the admin at `/removewar` in Discord since committed wars live in `data.js`. Formerly `index.html`. |
 | `players.html` | Roster page. Grid of player cards. Each card has a role dropdown that saves to localStorage instantly and syncs with War Scores. Export/Import JSON. |
 | `player.html` | Individual player profile (`player.html?name=Popspolar`). Class dropdown (31 BDO classes), 3 screenshot slots (Gear / Crystals / Skill-Addons), AP/Awk-AP/DP fields + Gear Score, war history table. **"Read from gear screenshot"** posts the Gear slot image to the Worker's `POST /gear` (Claude vision) and auto-fills AP/Awk-AP/DP → roster Gear Score. Loads `WORKER_URL` (same constant as `signups.html`). |
 | `dashboard.html` | Guild stats. Banner: "Purge Statistics". Win rate ring, streak badge, node location breakdown, top 10 performers (K/D / Kills / Deaths tabs), per-player trend charts, Attendance panel (Most Reliable / Frequent No-Shows, from `attendance.js`, min. 3 sign-ups to qualify). |
@@ -57,7 +57,7 @@ Nav active:    neon purple (not gold)
 - `localStorage["nodeWarDynamicExtended"]` — extended stats from uploads
 - `profiles.js` (`window.GUILD_PROFILES`) — canonical class + gear/crystals/addon screenshot paths per player, written by the bot's `/profile` commands (see below).
 - `localStorage["nodeWarPlayerProfiles"]` — local/legacy class + gear screenshots per player (browser-side, pre-`profiles.js`)
-- `localStorage["nodeWarSquadRoles"]` — role assignments (shared: index.html + players.html)
+- `localStorage["nodeWarSquadRoles"]` — role assignments (shared: war-scores.html + players.html)
 - Export/Import JSON on roster page saves everything to `guild-data.json`
 
 **Function order matters:** `applyDynamicMatches()` must run before `buildOverall()` and `applyMainballDefaults()`.
@@ -137,7 +137,7 @@ Three ways, in rough order of convenience:
 ## Key Rules & Decisions
 
 - **Desktop only** — no mobile layout, do not adjust for mobile
-- War Scores page is `index.html`, not `war-scores.html`
+- War Scores page is `war-scores.html`, not `index.html` — `index.html` is the Home/landing page so the bare site URL lands there
 - New players auto-assigned **Mainball** role until manually changed
 - Screenshot extraction: kills from **score/flag icon column**, NOT fox/wolf icon
 - Class icons rejected — plain mono text used instead
