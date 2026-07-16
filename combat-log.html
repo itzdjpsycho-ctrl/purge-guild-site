@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Combat Log — Purge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:           #08060C;
+    --bg2:          #0C0A12;
+    --panel:        #110D18;
+    --panel-raised: #181222;
+    --hairline:     #2A1F3A;
+    --hairline-soft:#1A1426;
+    --text:         #EDE8E0;
+    --text-muted:   #8A8088;
+    --text-faint:   #4E454A;
+    --crimson:      #6E1FB8;
+    --crimson-mid:  #8B2FD9;
+    --crimson-bright:#AB4DFF;
+    --crimson-glow: #C77DFF;
+    --gold:         #C49A30;
+    --gold-bright:  #E8BC55;
+    --red:           #B2402F;
+    --red-bright:    #D65A45;
+    --green:         #4A9F5D;
+    --green-bright:  #5BC976;
+    --font-display: 'Fraunces', serif;
+    --font-mono:    'IBM Plex Mono', monospace;
+    --font-ui:      'Inter', sans-serif;
+  }
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; }
+
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-ui);
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+
+  body::before{
+    content:"";
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(110,31,184,0.18), transparent 65%),
+      radial-gradient(ellipse 40% 60% at 0% 100%, rgba(100,10,10,0.12), transparent 60%),
+      radial-gradient(ellipse 40% 60% at 100% 80%, rgba(100,10,10,0.08), transparent 60%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
+  }
+
+  nav, header, main, footer{ position:relative; z-index:1; }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--hairline);
+  }
+  .section{ margin-bottom:30px; }
+  .section-label{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.18em;
+    text-transform:uppercase; color:var(--text-faint); margin-bottom:14px;
+  }
+
+  /* ---- Info panel ---- */
+  .info-panel{
+    padding:20px 22px;
+    font-size:13px; line-height:1.7; color:var(--text-muted);
+  }
+  .info-panel a{ color:var(--crimson-glow); text-decoration:none; }
+  .info-panel a:hover{ text-decoration:underline; }
+  .info-panel .warn{
+    margin-top:12px; padding-top:12px; border-top:1px solid var(--hairline-soft);
+    color:var(--gold-bright); font-size:12px;
+    font-family:var(--font-mono);
+  }
+
+  /* ---- Upload zone ---- */
+  .drop-zone{
+    padding:44px 24px;
+    text-align:center;
+    cursor:pointer;
+    transition:background 0.16s ease, border-color 0.16s ease;
+    border:1px dashed var(--hairline);
+    border-radius:12px;
+    background:var(--panel);
+  }
+  .drop-zone:hover, .drop-zone.dragover{
+    background:var(--panel-raised);
+    border-color:var(--crimson);
+  }
+  .drop-zone-icon{ font-size:30px; margin-bottom:10px; opacity:0.7; }
+  .drop-zone-title{
+    font-family:var(--font-display); font-size:16px; font-weight:640; margin-bottom:6px;
+  }
+  .drop-zone-sub{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-faint);
+  }
+  #logFileInput{ display:none; }
+
+  .loaded-file-bar{
+    display:none;
+    align-items:center; justify-content:space-between; gap:12px;
+    padding:12px 18px; margin-top:12px;
+    border-radius:8px; border:1px solid var(--hairline);
+    background:var(--panel-raised);
+    font-family:var(--font-mono); font-size:12px; color:var(--text-muted);
+  }
+  .loaded-file-bar.visible{ display:flex; }
+  .loaded-file-bar b{ color:var(--text); }
+  .reset-btn{
+    background:none; border:1px solid var(--hairline); color:var(--text-muted);
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.04em;
+    padding:6px 14px; border-radius:999px; cursor:pointer;
+    transition:all 0.14s ease;
+  }
+  .reset-btn:hover{ color:var(--red-bright); border-color:var(--red-bright); }
+
+  .empty-state{
+    padding:30px; text-align:center;
+    font-family:var(--font-mono); font-size:12px; color:var(--text-faint);
+  }
+
+  /* ---- Summary stats ---- */
+  .stats-grid{
+    display:grid; grid-template-columns:repeat(5,1fr);
+    gap:1px; background:var(--hairline);
+    border:1px solid var(--hairline); border-radius:12px; overflow:hidden;
+  }
+  .stat-cell{
+    background:var(--panel); padding:18px 12px; text-align:center;
+  }
+  .stat-val{
+    font-family:var(--font-mono); font-size:26px; font-weight:700;
+    line-height:1; color:var(--text);
+  }
+  .stat-val.green{ color:var(--green-bright); }
+  .stat-val.red{ color:var(--red-bright); }
+  .stat-val.gold{ color:var(--gold-bright); }
+  .stat-label{
+    font-family:var(--font-mono); font-size:9px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--text-faint); margin-top:6px;
+  }
+
+  /* ---- Tables ---- */
+  .panel-search-wrap{ position:relative; display:flex; align-items:center; margin-bottom:12px; }
+  .panel-search{
+    background:var(--panel-raised);
+    border:1px solid var(--hairline);
+    border-radius:999px;
+    color:var(--text);
+    font-family:var(--font-mono);
+    font-size:12px;
+    padding:7px 14px 7px 34px;
+    width:200px;
+    outline:none;
+    transition:width 0.2s ease, border-color 0.2s ease;
+  }
+  .panel-search:focus{ border-color:var(--crimson); width:240px; }
+  .panel-search::placeholder{ color:var(--text-faint); }
+  .panel-search-icon{ position:absolute; left:12px; color:var(--text-faint); font-size:13px; }
+
+  .table-scroll{
+    overflow-x:auto; border-radius:12px; border:1px solid var(--hairline);
+    max-height:480px; overflow-y:auto;
+  }
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  thead th{
+    position:sticky; top:0; z-index:1;
+    background:var(--panel-raised);
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--text-faint);
+    text-align:left; padding:10px 14px; border-bottom:1px solid var(--hairline);
+  }
+  tbody td{
+    padding:9px 14px; border-bottom:1px solid var(--hairline-soft);
+    color:var(--text);
+  }
+  tbody tr:hover{ background:rgba(255,255,255,0.02); }
+  tbody tr:last-child td{ border-bottom:none; }
+  td.mono{ font-family:var(--font-mono); font-size:12px; color:var(--text-muted); }
+  td.kills{ color:var(--green-bright); font-family:var(--font-mono); }
+  td.deaths{ color:var(--red-bright); font-family:var(--font-mono); }
+  td.kd{ font-family:var(--font-mono); font-weight:600; }
+  .roster-tag{
+    display:inline-block; margin-left:7px;
+    font-family:var(--font-mono); font-size:9px; letter-spacing:0.06em;
+    color:var(--crimson-glow); background:rgba(110,31,184,0.15);
+    border:1px solid rgba(171,77,255,0.3); border-radius:999px;
+    padding:1px 7px;
+  }
+  .event-kill{ color:var(--green-bright); }
+  .event-death{ color:var(--red-bright); }
+
+  #resultsWrap{ display:none; }
+  #resultsWrap.visible{ display:block; }
+</style>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<div class="app-shell">
+<aside class="app-sidebar">
+  <a class="app-brand" href="index.html">
+    <span class="app-brand-logo">⚔</span>
+    <span class="app-brand-text">
+      <span class="app-brand-name">Purge</span>
+      <span class="app-brand-sub">Node War</span>
+    </span>
+  </a>
+  <div class="side-nav-label">Menu</div>
+  <nav class="side-nav">
+    <a href="index.html"><span class="ico">🏠</span> Home</a>
+    <a href="war-scores.html"><span class="ico">⚔️</span> War Scores</a>
+    <a href="players.html"><span class="ico">👥</span> Roster</a>
+    <a href="dashboard.html"><span class="ico">📊</span> Dashboard</a>
+    <a href="signups.html"><span class="ico">📝</span> Sign Ups</a>
+    <a href="combat-log.html" class="current"><span class="ico">📜</span> Combat Log</a>
+  </nav>
+  <div id="authWidget" class="auth-widget"></div>
+  <div class="app-sidebar-foot">
+    <b>Purge</b> · BDO Guild<br>
+    Node War Log
+  </div>
+</aside>
+
+<main class="app-content">
+
+<div class="page-head">
+  <div class="page-eyebrow">Personal Perspective Data</div>
+  <h1>Combat <span>Log</span></h1>
+  <div class="page-sub">Upload an Ikusa Logger export to see kill/death detail from one player's viewpoint.</div>
+</div>
+
+<div class="section">
+  <div class="panel info-panel">
+    <a href="https://ikusa.site/" target="_blank" rel="noopener">Ikusa</a> is a third-party combat logger some
+    members run alongside BDO — it watches the game's network traffic and writes a plain-text <code>.log</code>
+    file of every kill/death that player's client saw ("PlayerA has killed PlayerB from GuildName"). Drop that
+    file below to parse it — everything happens locally in your browser; nothing is uploaded anywhere.
+    <div class="warn">
+      ⚠ This only reflects one client's view, not a full war roster — it's not a substitute for
+      <code>/addwar</code> or the official War Scores record, just a detail lens on individual engagements.
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-label">Load a Log File</div>
+  <div class="drop-zone" id="dropZone">
+    <div class="drop-zone-icon">📜</div>
+    <div class="drop-zone-title">Drop an Ikusa <code>.log</code> file here</div>
+    <div class="drop-zone-sub">or click to browse · .log / .txt</div>
+  </div>
+  <input type="file" id="logFileInput" accept=".log,.txt">
+  <div class="loaded-file-bar" id="loadedFileBar">
+    <span><b id="loadedFileName"></b> — <span id="loadedFileSummary"></span></span>
+    <button class="reset-btn" id="resetBtn">Clear</button>
+  </div>
+</div>
+
+<div id="resultsWrap">
+
+  <div class="section">
+    <div class="section-label">Session Summary</div>
+    <div class="stats-grid" id="summaryGrid"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Kills / Deaths by Player</div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Player</th><th>Kills</th><th>Deaths</th><th>K/D</th></tr>
+        </thead>
+        <tbody id="aggTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Raw Event Log</div>
+    <div class="panel-search-wrap">
+      <span class="panel-search-icon">🔎</span>
+      <input class="panel-search" type="text" id="eventSearch" placeholder="Search player…" autocomplete="off">
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Time</th><th>Event</th><th>Guild</th></tr>
+        </thead>
+        <tbody id="eventTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div class="section" id="emptyState">
+  <div class="empty-state">No file loaded yet.</div>
+</div>
+
+</main>
+</div><!-- /app-shell -->
+
+<script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script>PurgeAuth.init();</script>
+<script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script>
+/* ================================================================
+   IKUSA LOG PARSER — standalone, client-side only.
+   Format written by github.com/sch-28/ikusa_logger's parser.py:
+     [HH:MM:SS] PlayerOne has killed PlayerTwo from GuildName
+     [HH:MM:SS] PlayerOne died to PlayerTwo from GuildName
+   In both phrasings "from {guild}" describes the second-named player.
+================================================================ */
+const LOG_LINE_RE = /^\[(\d{1,2}:\d{2}:\d{2})\]\s+(\S+)\s+(has killed|died to)\s+(\S+)\s+from\s+(.+?)\s*$/;
+
+let ROSTER_SET = new Set();
+try{ ROSTER_SET = new Set((window.GUILD_DATA && window.GUILD_DATA.rosterMembers) || []); }catch(e){}
+
+function parseIkusaLog(text){
+  const events = [];
+  let skipped = 0;
+  text.split(/\r?\n/).forEach(line=>{
+    line = line.trim();
+    if(!line) return;
+    const m = line.match(LOG_LINE_RE);
+    if(!m){ return; }
+    const [, time, p1, verb, p2, guild] = m;
+    if(p1 === "-1" || p2 === "-1" || guild === "-1"){ skipped++; return; }
+    const isKillPhrasing = verb === "has killed";
+    events.push({
+      time,
+      killer: isKillPhrasing ? p1 : p2,
+      victim: isKillPhrasing ? p2 : p1,
+      guild
+    });
+  });
+  return { events, skipped };
+}
+
+function aggregate(events){
+  const map = new Map();
+  const ensure = name=>{
+    if(!map.has(name)) map.set(name, { name, kills:0, deaths:0 });
+    return map.get(name);
+  };
+  events.forEach(e=>{
+    ensure(e.killer).kills++;
+    ensure(e.victim).deaths++;
+  });
+  return [...map.values()].sort((a,b)=> b.kills - a.kills || a.deaths - b.deaths);
+}
+
+function fmtKD(k,d){ return d===0 ? (k===0?"—":k.toFixed(2)) : (k/d).toFixed(2); }
+
+let currentEvents = [];
+
+function renderResults(events, skipped, fileName){
+  currentEvents = events;
+
+  document.getElementById("emptyState").style.display = events.length ? "none" : "block";
+  document.getElementById("resultsWrap").classList.toggle("visible", events.length > 0);
+
+  const bar = document.getElementById("loadedFileBar");
+  bar.classList.add("visible");
+  document.getElementById("loadedFileName").textContent = fileName;
+  document.getElementById("loadedFileSummary").textContent =
+    events.length
+      ? `${events.length} events parsed${skipped ? `, ${skipped} skipped (corrupted extraction)` : ""}`
+      : "no recognizable Ikusa log lines found";
+
+  if(!events.length) return;
+
+  const uniquePlayers = new Set(events.flatMap(e=>[e.killer, e.victim]));
+  const kills = events.length; // every event is exactly one kill/death pair
+
+  document.getElementById("summaryGrid").innerHTML = `
+    <div class="stat-cell"><div class="stat-val">${events.length}</div><div class="stat-label">Events</div></div>
+    <div class="stat-cell"><div class="stat-val">${uniquePlayers.size}</div><div class="stat-label">Players Seen</div></div>
+    <div class="stat-cell"><div class="stat-val green">${kills}</div><div class="stat-label">Kills Logged</div></div>
+    <div class="stat-cell"><div class="stat-val red">${kills}</div><div class="stat-label">Deaths Logged</div></div>
+    <div class="stat-cell"><div class="stat-val gold">${events[0].time}–${events[events.length-1].time}</div><div class="stat-label">Time Span</div></div>
+  `;
+
+  const agg = aggregate(events);
+  document.getElementById("aggTableBody").innerHTML = agg.map(r=>`
+    <tr>
+      <td>${r.name}${ROSTER_SET.has(r.name) ? '<span class="roster-tag">PURGE</span>' : ""}</td>
+      <td class="kills">${r.kills}</td>
+      <td class="deaths">${r.deaths}</td>
+      <td class="kd">${fmtKD(r.kills, r.deaths)}</td>
+    </tr>
+  `).join("");
+
+  renderEventTable("");
+}
+
+function renderEventTable(filter){
+  const f = filter.trim().toLowerCase();
+  const rows = currentEvents.filter(e =>
+    !f || e.killer.toLowerCase().includes(f) || e.victim.toLowerCase().includes(f)
+  );
+  document.getElementById("eventTableBody").innerHTML = rows.map(e=>`
+    <tr>
+      <td class="mono">${e.time}</td>
+      <td><span class="event-kill">${e.killer}</span> killed <span class="event-death">${e.victim}</span></td>
+      <td class="mono">${e.guild}</td>
+    </tr>
+  `).join("") || `<tr><td colspan="3" class="mono">No matching events.</td></tr>`;
+}
+
+document.getElementById("eventSearch").addEventListener("input", e=>renderEventTable(e.target.value));
+
+/* ---- File loading (click + drag/drop) ---- */
+const dropZone = document.getElementById("dropZone");
+const fileInput = document.getElementById("logFileInput");
+
+function loadFile(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    const { events, skipped } = parseIkusaLog(reader.result);
+    renderResults(events, skipped, file.name);
+  };
+  reader.readAsText(file);
+}
+
+dropZone.addEventListener("click", ()=>fileInput.click());
+fileInput.addEventListener("change", ()=>loadFile(fileInput.files[0]));
+
+["dragover","dragenter"].forEach(evt=>{
+  dropZone.addEventListener(evt, e=>{ e.preventDefault(); dropZone.classList.add("dragover"); });
+});
+["dragleave","drop"].forEach(evt=>{
+  dropZone.addEventListener(evt, e=>{ e.preventDefault(); dropZone.classList.remove("dragover"); });
+});
+dropZone.addEventListener("drop", e=>{
+  const file = e.dataTransfer.files[0];
+  if(file) loadFile(file);
+});
+
+document.getElementById("resetBtn").addEventListener("click", ()=>{
+  currentEvents = [];
+  fileInput.value = "";
+  document.getElementById("loadedFileBar").classList.remove("visible");
+  document.getElementById("resultsWrap").classList.remove("visible");
+  document.getElementById("emptyState").style.display = "block";
+});
+</script>
+</body>
+</html>
