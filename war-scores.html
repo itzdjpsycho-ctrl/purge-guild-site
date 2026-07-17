@@ -1091,6 +1091,32 @@
     margin-top:4px;
   }
 
+  /* Signed Up, Didn't Show (single-war view only) */
+  .noshow-panel{
+    margin:0 28px 4px; padding:14px 16px;
+    background:rgba(178,64,47,0.06); border:1px solid rgba(178,64,47,0.25);
+    border-radius:10px;
+  }
+  .noshow-panel.noshow-panel-clean{
+    background:rgba(91,201,118,0.06); border-color:rgba(91,201,118,0.25);
+  }
+  .noshow-panel-head{
+    display:flex; align-items:center; gap:8px;
+    font-size:12px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase;
+    color:var(--red-bright); margin-bottom:8px;
+  }
+  .noshow-panel-clean .noshow-panel-head{ color:var(--green-bright); }
+  .noshow-panel-list{ display:flex; flex-wrap:wrap; gap:8px; }
+  .noshow-panel-row{
+    display:flex; align-items:center; gap:8px;
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    border-radius:6px; padding:6px 10px; font-size:13px;
+  }
+  .noshow-panel-row .status{
+    font-family:var(--font-mono); font-size:10px; text-transform:uppercase; color:var(--text-faint);
+  }
+  .noshow-panel-empty{ font-family:var(--font-mono); font-size:12px; color:var(--text-faint); }
+
   /* Score share bar chart */
   .score-chart{
     display:grid;
@@ -1604,6 +1630,7 @@
 <script>window.purgeAuthReady = PurgeAuth.init();</script>
 <!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
 <script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script>document.write('<scr'+'ipt src="attendance.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>
 /* ================================================================
    MATCH DATA
@@ -1617,6 +1644,13 @@
 const GUILD_NAME = "Node War Log"; // shown in the page title only
 
 const MATCHES = window.GUILD_DATA.matches;
+
+// Sign-up vs. actual-attendance data, computed by the bot after every
+// /addwar (see attendance.js / bot/src/lib/attendance.js). byWar[date] is
+// only present for war dates that had matching sign-up data — its absence
+// means "no sign-up data for this war", distinct from "zero no-shows".
+const NOSHOW_BY_WAR = (window.GUILD_ATTENDANCE && window.GUILD_ATTENDANCE.byWar) || {};
+const NOSHOW_STATUS_LABELS = { in: "In", late: "Late", bench: "Bench" };
 
 /* ================================================================
    EXTENDED STATS — richer per-player columns for matches where we
@@ -2153,7 +2187,7 @@ function attachScoreChartInteractions(panel){
 
 // ---- Render a match or overall panel ----
 function buildPanelData(key){
-  let rows, title, meta, resultClass, resultLabel, showHof = false, extended = null;
+  let rows, title, meta, resultClass, resultLabel, showHof = false, extended = null, noShowWar;
   if (key === "overall"){
     rows = buildOverall().map(r=>({...r, kd: kd(r.kills, r.deaths), role: roleAssignments[r.name] || "", class: (playerProfiles[r.name]||{}).class||""}));
     title = "Overall Record";
@@ -2178,8 +2212,9 @@ function buildPanelData(key){
     meta = `${m.location} · Node War${extended ? " · Extended Stats" : ""}`;
     resultClass = m.result === "Victory" ? "victory":"defeat";
     resultLabel = m.result === "Victory" ? "Occupation Success" : "Occupation Failed";
+    noShowWar = NOSHOW_BY_WAR[m.date]; // undefined if no sign-up data exists for this war
   }
-  return { rows, title, meta, resultClass, resultLabel, showHof, extended };
+  return { rows, title, meta, resultClass, resultLabel, showHof, extended, noShowWar };
 }
 
 function selectMatch(key){
@@ -2196,7 +2231,7 @@ function selectMatch(key){
   const data = buildPanelData(key);
   document.querySelector("main").classList.toggle("wide", !!data.extended);
   sortState = { key:"kd", dir:"desc" };
-  renderPanel(panel, data.rows, data.title, data.meta, data.resultClass, data.resultLabel, data.showHof, data.extended);
+  renderPanel(panel, data.rows, data.title, data.meta, data.resultClass, data.resultLabel, data.showHof, data.extended, data.noShowWar);
 }
 
 // Re-renders the currently visible table with fresh role values, without
@@ -2207,10 +2242,10 @@ function refreshCurrentPanel(){
   if (!panel || !panel.querySelector(".panel-header")) return;
   const data = buildPanelData(currentMatchKey);
   document.querySelector("main").classList.toggle("wide", !!data.extended);
-  renderPanel(panel, data.rows, data.title, data.meta, data.resultClass, data.resultLabel, data.showHof, data.extended);
+  renderPanel(panel, data.rows, data.title, data.meta, data.resultClass, data.resultLabel, data.showHof, data.extended, data.noShowWar);
 }
 
-function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof, extended){
+function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof, extended, noShowWar){
   const sorted = sortRows(rows, sortState.key, sortState.dir);
 
   let hofHTML = "";
@@ -2224,6 +2259,29 @@ function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof
         <div class="hof-sub">${r.kills}K / ${r.deaths}D · ${r.played} wars</div>
       </div>
     `).join("") + `</div>`;
+  }
+
+  let noShowHTML = "";
+  if (noShowWar){
+    if (noShowWar.noShows.length){
+      noShowHTML = `
+        <div class="noshow-panel">
+          <div class="noshow-panel-head"><span class="icon">🚫</span> Signed Up, Didn't Show (${noShowWar.noShows.length})</div>
+          <div class="noshow-panel-list">
+            ${noShowWar.noShows.map(ns=>`
+              <div class="noshow-panel-row">
+                <span class="name">${ns.name}</span>
+                <span class="status">${NOSHOW_STATUS_LABELS[ns.status] || ns.status}</span>
+              </div>`).join("")}
+          </div>
+        </div>`;
+    } else {
+      noShowHTML = `
+        <div class="noshow-panel noshow-panel-clean">
+          <div class="noshow-panel-head"><span class="icon">✅</span> Signed Up, Didn't Show</div>
+          <div class="noshow-panel-empty">Everyone who signed up showed up.</div>
+        </div>`;
+    }
   }
 
   const cols = extended
@@ -2297,6 +2355,7 @@ function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof
       </div>
     </div>
     ${hofHTML}
+    ${noShowHTML}
     <div class="table-scroll ${extended ? 'extended' : ''}">
       <table class="${tableClass}">
         ${colHTML}
@@ -2344,13 +2403,34 @@ function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof
       } else {
         sortState = { key, dir: key === "name" ? "asc" : "desc" };
       }
-      renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof, extended);
+      renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof, extended, noShowWar);
     });
   });
 }
 
+// Deep link support: war-scores.html?war=YYYY-MM-DD jumps straight to that
+// war's tab (used by the Dashboard's no-show drilldown links). Individual
+// war tabs only render once their week is picked in the dropdown, so this
+// has to set that first. Falls back to the overall view if the date isn't
+// found (e.g. a stale link to a war removed later).
+function applyDeepLinkFromURL(){
+  const warDate = new URLSearchParams(window.location.search).get("war");
+  if (!warDate) return false;
+
+  const idx = MATCHES.findIndex(m => m.date === warDate);
+  if (idx === -1) return false;
+
+  document.getElementById("weekSelect").value = weekKey(MATCHES[idx].date);
+  renderTabs();
+  selectMatch(String(idx));
+  document.getElementById("matchPanel")?.scrollIntoView({ behavior:"smooth", block:"start" });
+  return true;
+}
+
 // Initial view
-selectMatch("overall");
+if (!applyDeepLinkFromURL()) {
+  selectMatch("overall");
+}
 
 // Re-render once we know whether the signed-in user can see admin-only
 // controls (Clear Added Wars / Remove This War) — PurgeAuth.init() resolves

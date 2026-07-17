@@ -257,6 +257,28 @@
   .flag-col.noshow   .flag-col-head{ color:var(--red-bright); }
   .flag-row .rate{ font-family:var(--font-mono); font-size:12px; color:var(--text-faint); }
 
+  /* No-show drilldown (Frequent No-Shows list only) */
+  .flag-item{ border-bottom:1px solid var(--hairline-soft); }
+  .flag-item:last-child{ border-bottom:none; }
+  .flag-item .flag-row{ border-bottom:none; cursor:pointer; }
+  .flag-expand-btn{
+    background:none; border:none; color:var(--text-faint); font-size:11px;
+    cursor:pointer; padding:2px 4px; transition:transform 0.16s ease, color 0.16s ease;
+  }
+  .flag-expand-btn[aria-expanded="true"]{ transform:rotate(180deg); color:var(--text); }
+  .flag-detail{
+    padding:2px 16px 10px 16px; display:flex; flex-direction:column; gap:4px;
+  }
+  .flag-detail[hidden]{ display:none; }
+  .flag-detail-item{
+    display:flex; justify-content:space-between; gap:10px;
+    font-family:var(--font-mono); font-size:11px; color:var(--text-muted);
+    text-decoration:none; padding:3px 6px; border-radius:6px;
+    transition:background 0.14s ease, color 0.14s ease;
+  }
+  .flag-detail-item:hover{ background:rgba(255,255,255,0.05); color:var(--red-bright); }
+  .flag-detail-empty{ font-family:var(--font-mono); font-size:11px; color:var(--text-faint); padding:3px 6px; }
+
   /* TREND SECTION */
   .trend-controls{
     display:flex; align-items:center; gap:12px;
@@ -804,11 +826,16 @@ function renderFlags(){
 renderFlags();
 
 /* ---- Attendance ---- */
+function fmtShortDate(dateStr){
+  return new Date(dateStr+"T00:00:00").toLocaleDateString("en-US",{weekday:"short",day:"numeric",month:"short"});
+}
+
 function renderAttendance(){
   const MIN_SIGNUPS = 3; // enough sign-ups on record before a rate means anything
   const attendance = typeof window.GUILD_ATTENDANCE === "object" ? window.GUILD_ATTENDANCE : {};
+  const playersAttendance = attendance.players || {};
   const profiles = window.GUILD_PROFILES || {};
-  const qualified = Object.entries(attendance)
+  const qualified = Object.entries(playersAttendance)
     .map(([name,a])=>({name, ...a}))
     .filter(a=>a.signups >= MIN_SIGNUPS && !(profiles[a.name] && profiles[a.name].vacation));
 
@@ -821,10 +848,43 @@ function renderAttendance(){
   const reliable = [...qualified].sort((a,b)=>b.rate-a.rate || b.signups-a.signups).slice(0,5);
   fill("attendReliableList", reliable.map(pctRow), "Not enough sign-up history yet.");
 
+  const noShowRow = (a, i) => {
+    const detailId = `noshow-detail-${i}`;
+    const wars = a.noShowWars || [];
+    const items = wars.length
+      ? wars.map(w=>`
+          <a class="flag-detail-item" href="war-scores.html?war=${encodeURIComponent(w.date)}">
+            <span class="flag-detail-date">${fmtShortDate(w.date)}</span>
+            <span class="flag-detail-loc">${w.location}</span>
+          </a>`).join("")
+      : `<div class="flag-detail-empty">No specific wars on record.</div>`;
+    return `
+      <div class="flag-item">
+        <div class="flag-row noshow-row" data-target="${detailId}">
+          <span class="name">${a.name}</span>
+          <span class="rate">${Math.round(a.rate*100)}% (${a.attended}/${a.signups})</span>
+          <button class="flag-expand-btn" type="button" aria-expanded="false" aria-controls="${detailId}" aria-label="Show no-show wars for ${a.name}">▾</button>
+        </div>
+        <div class="flag-detail" id="${detailId}" hidden>${items}</div>
+      </div>`;
+  };
+
   const noShows = [...qualified].sort((a,b)=>a.rate-b.rate || b.signups-a.signups).slice(0,5);
-  fill("attendNoShowList", noShows.map(pctRow), "Not enough sign-up history yet.");
+  fill("attendNoShowList", noShows.map(noShowRow), "Not enough sign-up history yet.");
 }
 renderAttendance();
+
+// Expand/collapse a no-show player's specific wars (event delegation — the
+// list is only ever rebuilt by renderAttendance(), called once on load).
+document.getElementById("attendNoShowList").addEventListener("click", (e)=>{
+  const row = e.target.closest(".noshow-row");
+  if (!row) return;
+  const detail = document.getElementById(row.dataset.target);
+  const expandBtn = row.querySelector(".flag-expand-btn");
+  const wasHidden = detail.hidden;
+  detail.hidden = !wasHidden;
+  expandBtn.setAttribute("aria-expanded", String(wasHidden));
+});
 
 /* ================================================================
    TREND CHARTS — pure canvas, no library needed
