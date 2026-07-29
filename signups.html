@@ -200,6 +200,18 @@
   }
   .board-section-count{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:0; text-transform:none; color:var(--text-muted); }
   .board-section-status .board-section-head{ opacity:0.75; }
+
+  /* Total — Core + Support combined, above the board */
+  .board-total{
+    display:flex; align-items:center; gap:12px;
+    background:var(--panel); border:1px solid var(--hairline); border-radius:12px;
+    padding:11px 16px; margin:0 0 18px;
+  }
+  .board-total-label{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.16em; text-transform:uppercase;
+    color:var(--crimson-bright);
+  }
+  .board-total-count{ font-family:var(--font-mono); font-size:15px; font-weight:700; color:var(--gold-bright); }
   .board-grid{ display:grid; gap:12px; }
   .board-grid.cols-4{ grid-template-columns:repeat(4, 1fr); }
   .board-grid.cols-3{ grid-template-columns:repeat(3, 1fr); }
@@ -414,6 +426,11 @@
 </div>
 
 <div class="board-hint">Drag a roster name into a role to sign them up · drag chips between columns to reassign · use each chip's controls for status &amp; class.</div>
+
+<div class="board-total">
+  <span class="board-total-label">Total</span>
+  <span class="board-total-count" id="boardTotalCount">0/0</span>
+</div>
 
 <!-- Editable board + roster tray -->
 <div class="board-wrap">
@@ -700,6 +717,7 @@ function render(){
   const g = arrange();
   const core = roleGroupHTML(SIGNUP_ROLES.filter(r => r.group === "core"), g);
   const support = roleGroupHTML(SIGNUP_ROLES.filter(r => r.group === "support"), g);
+  byId("boardTotalCount").textContent = `${core.fillSum + support.fillSum}/${core.capSum + support.capSum}`;
   const statusHtml =
     colHTML("🪑 Bench", null, "bench", g.benchNoRole, false, true) +
     colHTML("⚖️ Tentative", null, "tentative", g.tentative, false, true) +
