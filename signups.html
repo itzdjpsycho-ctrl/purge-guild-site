@@ -158,11 +158,12 @@
     padding:7px 9px; border-radius:8px; outline:none; margin-bottom:12px;
   }
   .tray-guest:focus{ border-color:var(--crimson); }
-  .tray-list{ display:flex; flex-wrap:wrap; gap:6px; }
+  .tray-list{ display:grid; grid-template-columns:repeat(2, 1fr); gap:6px; }
   .tray-bubble{
-    font-family:var(--font-ui); font-size:12px; padding:5px 11px; border-radius:999px;
+    font-family:var(--font-ui); font-size:12px; padding:5px 8px; border-radius:999px;
     background:var(--panel-raised); border:1px solid var(--hairline); color:var(--text);
-    cursor:grab; user-select:none; white-space:nowrap;
+    cursor:grab; user-select:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    text-align:center;
     transition:opacity 0.14s, border-color 0.14s, transform 0.14s;
   }
   .tray-bubble:hover{ border-color:var(--crimson); color:var(--crimson-glow); transform:translateY(-1px); }
@@ -753,7 +754,7 @@ function refreshTray(){
     list.innerHTML = `<div class="tray-empty">Everyone's on the sheet.</div>`;
     return;
   }
-  list.innerHTML = names.map(n => `<div class="tray-bubble" draggable="true" data-roster="${escapeHtml(n)}">${escapeHtml(n)}</div>`).join("");
+  list.innerHTML = names.map(n => `<div class="tray-bubble" draggable="true" data-roster="${escapeHtml(n)}" title="${escapeHtml(n)}">${escapeHtml(n)}</div>`).join("");
   list.querySelectorAll(".tray-bubble").forEach(b => {
     b.addEventListener("dragstart", e => {
       e.dataTransfer.setData("text/plain", "new:" + b.dataset.roster);
