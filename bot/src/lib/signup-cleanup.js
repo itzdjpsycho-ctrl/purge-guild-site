@@ -1,5 +1,6 @@
 import { listAll, markAutoDeleted } from "./signups.js";
 import { parseWarStart } from "./wartime.js";
+import { clearState } from "./worker.js";
 
 const HOURS_AFTER_START = 4;
 // If the free-text time field can't be parsed, fall back to the end of the
@@ -41,6 +42,9 @@ export async function sweepExpiredSignups(client) {
         continue;
       }
     }
+    // The Discord message is gone either way — wipe the Worker's cached
+    // /state so the website's Sign Ups page stops showing this stale sheet.
+    await clearState(s.messageId);
     markAutoDeleted(s.messageId);
   }
 }

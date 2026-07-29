@@ -61,6 +61,13 @@ export async function pushState(signup) {
   return send("/state", "POST", sanitizeSignup(signup));
 }
 
+/** Clear the website's live-view state after a sign-up's Discord message is
+ *  gone (auto-expiry cleanup) so the site stops showing a stale sheet. The
+ *  Worker only clears if its stored state still points at this messageId. */
+export async function clearState(messageId) {
+  return send("/state/clear", "POST", { messageId });
+}
+
 /** Tell the Worker which channel to post sheets into. */
 export async function pushConfig(channelId) {
   return send("/config", "POST", { channelId });

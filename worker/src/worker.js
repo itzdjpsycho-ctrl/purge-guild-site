@@ -11,6 +11,7 @@
 //   Website  ──POST /war (public, origin-locked)──────►  Claude vision reads a war result screenshot
 //   Website  ──GET  /state (public, sanitized)──────►  live view
 //   Bot      ──POST /state,/config,/links (x-bot-secret)──►  live state + channel + link map
+//   Bot      ──POST /state/clear (x-bot-secret)──────►  wipe live state after auto-deleting a sheet
 //   Bot      ──GET  /posted (x-bot-secret)─────────►   hydrate offline-posted sheets
 //
 // Secrets (wrangler secret put): DISCORD_BOT_TOKEN, ADMIN_POST_PASSWORD, BOT_PUSH_SECRET,
@@ -451,6 +452,21 @@ export default {
         const posted = await getPosted(env);
         const idx = posted.findIndex((p) => p.messageId === state.messageId);
         if (idx >= 0) { posted[idx].signup = state; await env.SIGNUPS_KV.put("posted", JSON.stringify(posted)); }
+      }
+      return json({ ok: true }, 200, request);
+    }
+
+    // Bot → clear the live-view state after deleting a sign-up's Discord
+    // message (auto-expiry cleanup), so the website stops showing a stale
+    // sheet. Only clears if the stored state still points at that same
+    // message — guards against a race with a newer sheet already posted.
+    if (path === "/state/clear" && method === "POST") {
+      if (!botAuthed) return json({ error: "Bad secret." }, 401, request);
+      const body = await readJson(request);
+      const raw = await env.SIGNUPS_KV.get("state");
+      const current = raw ? JSON.parse(raw) : null;
+      if (!body?.messageId || !current || current.messageId === body.messageId) {
+        await env.SIGNUPS_KV.put("state", JSON.stringify({}));
       }
       return json({ ok: true }, 200, request);
     }
