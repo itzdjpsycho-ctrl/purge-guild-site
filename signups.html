@@ -75,19 +75,21 @@
     font-family:var(--font-mono); font-size:9.5px; letter-spacing:0.16em;
     text-transform:uppercase; color:var(--text-faint);
   }
-  .field input, .field textarea{
+  .field input, .field textarea, .field select{
     background:var(--panel-raised); border:1px solid var(--hairline);
     color:var(--text); font-family:var(--font-ui); font-size:13px;
     padding:9px 11px; border-radius:8px; outline:none;
     transition:border-color 0.16s;
   }
-  .field input:focus, .field textarea:focus{ border-color:var(--crimson); }
+  .field input:focus, .field textarea:focus, .field select:focus{ border-color:var(--crimson); }
   .field textarea{ resize:vertical; min-height:46px; }
 
   /* Toolbar */
   .signup-toolbar{
     display:flex; align-items:center; gap:12px; flex-wrap:wrap;
     margin:22px 0 18px;
+    background:var(--panel); border:1px solid var(--hairline); border-radius:12px;
+    padding:11px 14px;
   }
   .conn{
     display:flex; align-items:center; gap:8px;
@@ -97,6 +99,8 @@
   .conn .dot.on{ background:var(--green-bright); box-shadow:0 0 10px rgba(91,201,118,0.6); }
   .conn .dot.off{ background:var(--red-bright); box-shadow:0 0 10px rgba(214,90,69,0.5); }
   .toolbar-spacer{ flex:1; }
+  .toolbar-group{ display:flex; align-items:center; gap:8px; }
+  .toolbar-divider{ width:1px; height:22px; background:var(--hairline); margin:0 4px; flex:none; }
 
   /* Officers panel (admin-only) */
   .officers-panel{
@@ -132,6 +136,8 @@
     color:var(--text); font-family:var(--font-ui); font-size:13px;
     padding:8px 11px; border-radius:8px; outline:none;
   }
+  .officer-role{ opacity:0.65; }
+  .officers-empty{ font-family:var(--font-mono); font-size:11px; color:var(--text-faint); }
 
   /* Hint + board/tray layout */
   .board-hint{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint); margin-bottom:14px; line-height:1.6; }
@@ -164,19 +170,35 @@
   .tray-bubble.dragging{ opacity:0.35; }
   .tray-empty{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint); }
 
-  /* Board */
-  .board{
-    flex:1; min-width:0;
-    display:grid;
-    grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));
-    gap:14px;
+  /* Board — a vertical stack of labeled sections, each its own grid */
+  .board{ flex:1; min-width:0; display:flex; flex-direction:column; gap:24px; }
+  .board-section-head{
+    display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.16em; text-transform:uppercase;
+    color:var(--text-faint); margin-bottom:10px; padding-bottom:7px;
+    border-bottom:1px solid var(--hairline-soft);
   }
-  .col{
+  .board-section-count{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:0; text-transform:none; color:var(--text-muted); }
+  .board-section-status .board-section-head{ opacity:0.75; }
+  .board-grid{ display:grid; gap:12px; }
+  .board-grid.cols-4{ grid-template-columns:repeat(4, 1fr); }
+  .board-grid.cols-3{ grid-template-columns:repeat(3, 1fr); }
+  .board-grid.cols-support{ grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); }
+  .board-section-intake .zone{ flex-direction:row; flex-wrap:wrap; }
+  .board-section-intake .chip{ width:212px; flex:none; }
+
+  /* Board columns — flattened (no notch clutter, this page has 15+ of these) */
+  #board .col{
     background:var(--panel); border:1px solid var(--hairline);
-    border-radius:12px; padding:11px; display:flex; flex-direction:column; gap:8px;
-    min-height:120px;
+    border-radius:10px; padding:11px; display:flex; flex-direction:column; gap:8px;
+    min-height:100px;
+    clip-path:none; box-shadow:none;
   }
+  #board .col::before{ content:none; }
+  #board .col:hover{ border-color:rgba(255,255,255,0.16); }
   .col.special{ background:rgba(110,31,184,0.05); }
+  .col.muted{ background:rgba(255,255,255,0.015); border-style:dashed; }
+  .col.muted .col-head{ color:var(--text-muted); }
   .col-head{
     display:flex; align-items:center; justify-content:space-between; gap:6px;
     font-family:var(--font-mono); font-size:11px; letter-spacing:0.03em;
@@ -198,8 +220,8 @@
 
   .chip{
     background:var(--panel-raised); border:1px solid var(--hairline);
-    border-radius:9px; padding:8px 9px; cursor:grab;
-    display:flex; flex-direction:column; gap:7px; user-select:none;
+    border-radius:8px; padding:7px 8px; cursor:grab;
+    display:flex; flex-direction:column; gap:6px; user-select:none;
     transition:opacity 0.15s, border-color 0.15s;
   }
   .chip:hover{ border-color:rgba(255,255,255,0.2); }
@@ -233,15 +255,25 @@
   .cls-btn:hover{ border-color:rgba(255,255,255,0.22); color:var(--text); }
   .cls-btn.on{ background:rgba(110,31,184,0.22); color:var(--crimson-glow); border-color:var(--crimson); }
 
-  /* Live view */
-  .live{
+  /* Sync bar — compact status readout, expands to the full Discord snapshot
+     on demand instead of permanently duplicating the editable board below it. */
+  .sync-bar{
     background:var(--panel); border:1px solid var(--hairline);
-    border-radius:14px; padding:18px; margin-top:30px;
+    border-radius:12px; padding:4px 16px; margin-top:26px;
   }
-  .live-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; }
-  .live-title{ font-family:var(--font-mono); font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--crimson-bright); }
-  .live-stamp{ font-family:var(--font-mono); font-size:10px; color:var(--text-faint); }
-  .live-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:12px; }
+  .sync-bar summary{
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    padding:12px 0; cursor:pointer; list-style:none;
+  }
+  .sync-bar summary::-webkit-details-marker{ display:none; }
+  .sync-title{ font-family:var(--font-mono); font-size:11px; letter-spacing:0.14em; text-transform:uppercase; color:var(--crimson-bright); flex:none; }
+  .sync-summary{ font-family:var(--font-mono); font-size:11.5px; color:var(--text-muted); flex:1; min-width:0; }
+  .sync-stamp{ font-family:var(--font-mono); font-size:10px; color:var(--text-faint); flex:none; }
+  .sync-toggle{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint); flex:none; }
+  .sync-toggle::after{ content:"Show snapshot ▾"; }
+  details[open] .sync-toggle::after{ content:"Hide snapshot ▴"; }
+  .sync-body{ padding:2px 0 16px; border-top:1px solid var(--hairline-soft); }
+  .live-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:12px; margin-top:14px; }
   .live-col{ background:var(--panel-raised); border:1px solid var(--hairline-soft); border-radius:9px; padding:10px; }
   .live-col h4{ font-family:var(--font-mono); font-size:10.5px; color:var(--text); margin-bottom:6px; }
   .live-col .ln{ font-family:var(--font-mono); font-size:11px; color:var(--text-muted); line-height:1.7; }
@@ -314,7 +346,7 @@
   <div class="field"><label>Time</label><input type="text" id="fTime" placeholder="11:00 PM EST"></div>
   <div class="field"><label>Node / Location</label><input type="text" id="fLocation" placeholder="Mediah"></div>
   <div class="field"><label>Status</label>
-    <select id="fStatus" style="background:var(--panel-raised);border:1px solid var(--hairline);color:var(--text);font-family:var(--font-ui);font-size:13px;padding:9px 11px;border-radius:8px;outline:none;">
+    <select id="fStatus">
       <option value="open">Open</option>
       <option value="closed">Closed</option>
     </select>
@@ -338,14 +370,19 @@
 <div class="signup-toolbar">
   <div class="conn"><span class="dot" id="connDot"></span><span id="connText">Checking relay…</span></div>
   <div class="toolbar-spacer"></div>
-  <button class="btn" id="refreshBtn" type="button">↻ Refresh live view</button>
-  <button class="btn" id="adoptBtn" type="button">⇩ Edit Live Sheet</button>
-  <button class="btn" id="clearBtn" type="button">Clear draft</button>
-  <button class="btn purple" id="repostBtn" type="button" disabled>Re-post edits</button>
-  <button class="btn gold" id="postBtn" type="button">Post to Discord</button>
+  <div class="toolbar-group">
+    <button class="btn" id="refreshBtn" type="button">↻ Refresh</button>
+    <button class="btn" id="adoptBtn" type="button">⇩ Edit Live Sheet</button>
+  </div>
+  <div class="toolbar-divider"></div>
+  <div class="toolbar-group">
+    <button class="btn" id="clearBtn" type="button">Clear draft</button>
+    <button class="btn purple" id="repostBtn" type="button" disabled>Re-post edits</button>
+    <button class="btn gold" id="postBtn" type="button">Post to Discord</button>
+  </div>
 </div>
 
-<div class="board-hint">Drag a name from the roster on the right straight into a role column. Move chips between columns to re-assign · use each chip's selectors for status &amp; class.</div>
+<div class="board-hint">Drag a roster name into a role to sign them up · drag chips between columns to reassign · use each chip's controls for status &amp; class.</div>
 
 <!-- Editable board + roster tray -->
 <div class="board-wrap">
@@ -357,14 +394,16 @@
   </aside>
 </div>
 
-<!-- Live Discord state -->
-<div class="live">
-  <div class="live-head">
-    <div class="live-title">What Discord shows right now</div>
-    <div class="live-stamp" id="liveStamp">—</div>
-  </div>
-  <div id="liveBody"><div class="live-empty">Loading live sign-up state…</div></div>
-</div>
+<!-- Discord sync status — compact by default, expands to the full snapshot -->
+<details class="sync-bar">
+  <summary>
+    <span class="sync-title">Discord sheet</span>
+    <span class="sync-summary" id="liveSummary">Loading live sign-up state…</span>
+    <span class="sync-stamp" id="liveStamp">—</span>
+    <span class="sync-toggle"></span>
+  </summary>
+  <div class="sync-body" id="liveBody"><div class="live-empty">Loading live sign-up state…</div></div>
+</details>
 
 </main>
 </div><!-- /app-shell -->
@@ -583,7 +622,7 @@ function chipHTML(e){
     ${classCtrl}
   </div>`;
 }
-function colHTML(title, capObj, zone, chips, special){
+function colHTML(title, capObj, zone, chips, special, muted){
   const inner = chips.length ? chips.map(chipHTML).join("") : `<div class="zone-empty">drop here</div>`;
   let capHtml = "";
   if(capObj){
@@ -591,10 +630,31 @@ function colHTML(title, capObj, zone, chips, special){
     capHtml = `<span class="cap${full?" full":""}">${capObj.fill}/</span>` +
       `<input class="cap-input" type="number" min="0" max="99" data-cap="${capObj.role}" value="${capObj.cap}" title="People per platoon">`;
   }
-  return `<div class="col${special?" special":""}">
+  return `<div class="col${special?" special":""}${muted?" muted":""}">
     <div class="col-head"><span>${title}</span><span class="cap-wrap">${capHtml}</span></div>
     <div class="zone" data-zone="${zone}">${inner}</div>
   </div>`;
+}
+// Renders a group of roles as columns, marking waitlisted overflow, and
+// returns the combined fill/cap so the section header can show a total.
+function roleGroupHTML(roles, g){
+  let fillSum = 0, capSum = 0, html = "";
+  for(const r of roles){
+    const fill = roleFill(r.id);
+    const cap = capFor(r.id);
+    fillSum += fill; capSum += cap;
+    // Beyond cap, "in"/"late" chips are marked waitlisted (struck through) —
+    // mirrors the bot embed / live view, purely computed from sign-up order.
+    let activeSeen = 0;
+    for(const e of g.byRole[r.id]){
+      if(e.status === "in" || e.status === "late"){
+        activeSeen++;
+        e.waitlisted = cap && activeSeen > cap;
+      }
+    }
+    html += colHTML(`${r.emoji} ${r.label}`, { fill, cap, role: r.id }, r.id, g.byRole[r.id], false);
+  }
+  return { html, fillSum, capSum };
 }
 function render(){
   // details inputs
@@ -607,26 +667,27 @@ function render(){
   byId("postBtn").textContent = model.messageId ? "Post as new" : "Post to Discord";
 
   const g = arrange();
-  let html = "";
-  html += colHTML("🎯 Unassigned", null, "", g.unassigned, true);
-  for(const r of SIGNUP_ROLES){
-    const fill = roleFill(r.id);
-    const cap = capFor(r.id);
-    // Beyond cap, "in"/"late" chips are marked waitlisted (struck through) —
-    // mirrors the bot embed / live view, purely computed from sign-up order.
-    let activeSeen = 0;
-    for(const e of g.byRole[r.id]){
-      if(e.status === "in" || e.status === "late"){
-        activeSeen++;
-        e.waitlisted = cap && activeSeen > cap;
-      }
-    }
-    html += colHTML(`${r.emoji} ${r.label}`, { fill, cap, role: r.id }, r.id, g.byRole[r.id], false);
-  }
-  html += colHTML("🪑 Bench", null, "bench", g.benchNoRole, true);
-  html += colHTML("⚖️ Tentative", null, "tentative", g.tentative, true);
-  html += colHTML("🚫 Absence", null, "absence", g.absence, true);
-  byId("board").innerHTML = html;
+  const core = roleGroupHTML(SIGNUP_ROLES.filter(r => r.group === "core"), g);
+  const support = roleGroupHTML(SIGNUP_ROLES.filter(r => r.group === "support"), g);
+  const statusHtml =
+    colHTML("🪑 Bench", null, "bench", g.benchNoRole, false, true) +
+    colHTML("⚖️ Tentative", null, "tentative", g.tentative, false, true) +
+    colHTML("🚫 Absence", null, "absence", g.absence, false, true);
+
+  byId("board").innerHTML = `
+    <div class="board-section board-section-intake">${colHTML("🎯 Unassigned", null, "", g.unassigned, true)}</div>
+    <div class="board-section">
+      <div class="board-section-head"><span>Core Roles</span><span class="board-section-count">${core.fillSum}/${core.capSum}</span></div>
+      <div class="board-grid cols-4">${core.html}</div>
+    </div>
+    <div class="board-section">
+      <div class="board-section-head"><span>Support Roles</span><span class="board-section-count">${support.fillSum}/${support.capSum}</span></div>
+      <div class="board-grid cols-support">${support.html}</div>
+    </div>
+    <div class="board-section board-section-status">
+      <div class="board-section-head"><span>Not Deployed</span></div>
+      <div class="board-grid cols-3">${statusHtml}</div>
+    </div>`;
   wireBoard();
 }
 
@@ -840,14 +901,20 @@ async function fetchLive(){
 function nameLine(e, waitlisted){ const late = e.status==="late"?" ⏰":""; const wl = waitlisted?" ⏳":""; const cls = e.cls?` · ${e.cls}`:""; return `<div class="ln${(e.status==="bench"||waitlisted)?" bench":""}">\`${String(e.num).padStart(2," ")}\` ${escapeHtml(e.name)}${late}${wl}${cls}</div>`; }
 async function loadLive(){
   let state;
-  try{ state = await fetchLive(); }catch(e){ setConn(false); byId("liveBody").innerHTML = `<div class="live-empty">Relay not reachable. Posting won't work until it's up.</div>`; return; }
+  try{ state = await fetchLive(); }catch(e){ setConn(false); byId("liveSummary").textContent = "Relay not reachable — posting won't work until it's up."; byId("liveBody").innerHTML = `<div class="live-empty">Relay not reachable. Posting won't work until it's up.</div>`; return; }
   if(!state || !state.messageId){
     byId("liveStamp").textContent = "—";
+    byId("liveSummary").textContent = "No sign-up posted to Discord yet.";
     byId("liveBody").innerHTML = `<div class="live-empty">No sign-up posted to Discord yet.</div>`;
     return;
   }
   byId("liveStamp").textContent = "updated " + (state.updatedAt ? new Date(state.updatedAt).toLocaleTimeString() : "—");
   const entries = (state.entries || []).slice().sort((a,b)=>a.num-b.num);
+  const placed = entries.filter(e=>e.status==="in"||e.status==="late").length;
+  const bench = entries.filter(e=>e.status==="bench").length;
+  const tentative = entries.filter(e=>e.status==="tentative").length;
+  byId("liveSummary").textContent =
+    `📍 ${state.location||"TBD"} · 📅 ${state.date||"TBD"} · 🕐 ${state.time||"TBD"} — ${entries.length} signed up (${placed} placed, ${bench} bench, ${tentative} tentative)${state.status==="closed"?" · CLOSED":""}`;
   const byRole = Object.fromEntries(SIGNUP_ROLES.map(r=>[r.id,[]]));
   const extra = { Unassigned:[], Bench:[], Tentative:[], Absence:[] };
   for(const e of entries){
@@ -858,9 +925,6 @@ async function loadLive(){
     else extra.Unassigned.push(e);
   }
   let html = "";
-  const head = `<div class="live-col" style="grid-column:1/-1;background:transparent;border:none;padding:0;">
-    <div class="ln">📍 ${escapeHtml(state.location||"TBD")} · 📅 ${escapeHtml(state.date||"TBD")} · 🕐 ${escapeHtml(state.time||"TBD")}${state.status==="closed"?" · <b style='color:var(--red-bright)'>CLOSED</b>":""}</div>
-  </div>`;
   const lcaps = state.caps || {};
   for(const r of SIGNUP_ROLES){
     const list = byRole[r.id];
@@ -880,7 +944,7 @@ async function loadLive(){
     if(!list.length) continue;
     html += `<div class="live-col"><h4>${title} (${list.length})</h4>${list.map(nameLine).join("")}</div>`;
   }
-  byId("liveBody").innerHTML = head + html;
+  byId("liveBody").innerHTML = html || `<div class="live-empty">No entries yet.</div>`;
   reconcileBoard(state);
 }
 
@@ -944,9 +1008,9 @@ function renderOfficers(list){
         const label = o.familyName || `Unlinked (${o.discordId})`;
         const roleLabel = PurgeAuth.ROLE_LABELS[o.role] || o.role;
         const canRemove = myRank > (PurgeAuth.ROLE_RANK[o.role] || 0);
-        return `<span class="officer-chip">${label} <span style="opacity:0.65;">(${roleLabel})</span>${canRemove ? `<button type="button" data-remove="${o.familyName||""}">&times;</button>` : ""}</span>`;
+        return `<span class="officer-chip">${label} <span class="officer-role">(${roleLabel})</span>${canRemove ? `<button type="button" data-remove="${o.familyName||""}">&times;</button>` : ""}</span>`;
       }).join("")
-    : `<span style="font-family:var(--font-mono);font-size:11px;color:var(--text-faint);">No officers yet — add one below.</span>`;
+    : `<span class="officers-empty">No officers yet — add one below.</span>`;
   byId("officersList").querySelectorAll("[data-remove]").forEach(btn => {
     btn.addEventListener("click", () => { if(btn.dataset.remove) removeOfficer(btn.dataset.remove); });
   });
