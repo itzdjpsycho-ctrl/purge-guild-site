@@ -102,6 +102,25 @@
   .toolbar-group{ display:flex; align-items:center; gap:8px; }
   .toolbar-divider{ width:1px; height:22px; background:var(--hairline); margin:0 4px; flex:none; }
 
+  /* Role-cap presets (admin-only) */
+  .presets-bar{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    background:var(--panel); border:1px solid var(--hairline); border-radius:12px;
+    padding:11px 14px; margin:0 0 18px;
+  }
+  .presets-label{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--crimson-bright); flex:none;
+  }
+  .presets-bar select, .presets-bar input[type="text"]{
+    background:var(--panel-raised); border:1px solid var(--hairline); color:var(--text);
+    font-family:var(--font-ui); font-size:12.5px; padding:7px 10px; border-radius:8px; outline:none;
+  }
+  .presets-bar select:focus, .presets-bar input[type="text"]:focus{ border-color:var(--crimson); }
+  .presets-bar select{ max-width:200px; }
+  .presets-bar input[type="text"]{ width:160px; }
+  .presets-spacer{ flex:1; }
+
   /* Officers panel (admin-only) */
   .officers-panel{
     background:var(--panel); border:1px solid var(--hairline); border-radius:12px;
@@ -381,6 +400,17 @@
     <button class="btn purple" id="repostBtn" type="button" disabled>Re-post edits</button>
     <button class="btn gold" id="postBtn" type="button">Post to Discord</button>
   </div>
+</div>
+
+<!-- Role-cap presets (only shown to a signed-in officer) -->
+<div class="presets-bar" id="presetsBar" style="display:none;">
+  <span class="presets-label">Role Presets</span>
+  <select id="presetSelect"><option value="">— choose a preset —</option></select>
+  <button class="btn" id="presetLoadBtn" type="button">Load</button>
+  <button class="btn" id="presetDeleteBtn" type="button">Delete</button>
+  <div class="presets-spacer"></div>
+  <input type="text" id="presetNameInput" placeholder="Preset name…">
+  <button class="btn purple" id="presetSaveBtn" type="button">Save current caps</button>
 </div>
 
 <div class="board-hint">Drag a roster name into a role to sign them up · drag chips between columns to reassign · use each chip's controls for status &amp; class.</div>
@@ -1051,10 +1081,73 @@ byId("officerAddBtn").addEventListener("click", () => {
   officerOp(name, "add", byId("officerRoleSelect").value);
   input.value = "";
 });
+// ---- Role-cap presets (shared across officers via the Worker) ----
+// A preset snapshots every role's current cap (not just overrides) so
+// loading one is a complete, deterministic replacement of model.caps.
+function currentCapsSnapshot(){
+  const out = {};
+  for(const r of SIGNUP_ROLES) out[r.id] = capFor(r.id);
+  return out;
+}
+let presetsCache = [];
+function renderPresetOptions(list){
+  presetsCache = list;
+  const sel = byId("presetSelect");
+  const prev = sel.value;
+  sel.innerHTML = `<option value="">— choose a preset —</option>` +
+    list.map(p => `<option value="${escapeHtml(p.name)}">${escapeHtml(p.name)}</option>`).join("");
+  if(list.some(p => p.name === prev)) sel.value = prev;
+}
+async function loadPresets(){
+  try{
+    const res = await fetch(`${WORKER_URL}/presets`, { headers: PurgeAuth.headers() });
+    if(!res.ok) return;
+    const data = await res.json();
+    renderPresetOptions(data.presets || []);
+  }catch(e){}
+}
+async function presetOp(action, name, caps){
+  try{
+    const res = await fetch(`${WORKER_URL}/presets`, {
+      method:"POST",
+      headers:{ "content-type":"application/json", ...PurgeAuth.headers() },
+      body: JSON.stringify({ action, name, caps }),
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok){ toast(data.error || "Couldn't update presets", "error"); return null; }
+    renderPresetOptions(data.presets || []);
+    return data;
+  }catch(e){ toast("Couldn't reach the relay", "error"); return null; }
+}
+byId("presetSaveBtn").addEventListener("click", async () => {
+  const input = byId("presetNameInput");
+  const name = input.value.trim();
+  if(!name) { toast("Name the preset first", "error"); return; }
+  const saved = await presetOp("save", name, currentCapsSnapshot());
+  if(saved){ byId("presetSelect").value = name; input.value = ""; toast(`Saved preset "${name}"`, "success"); }
+});
+byId("presetLoadBtn").addEventListener("click", () => {
+  const name = byId("presetSelect").value;
+  if(!name){ toast("Choose a preset to load", "error"); return; }
+  const preset = presetsCache.find(p => p.name === name);
+  if(!preset){ toast("Preset not found — try refreshing", "error"); return; }
+  model.caps = { ...preset.caps };
+  save(); render();
+  enqueueOp({ type:"caps", caps: model.caps });
+  toast(`Loaded preset "${name}"`, "success");
+});
+byId("presetDeleteBtn").addEventListener("click", () => {
+  const name = byId("presetSelect").value;
+  if(!name){ toast("Choose a preset to delete", "error"); return; }
+  if(!confirm(`Delete the preset "${name}"? This can't be undone.`)) return;
+  presetOp("delete", name);
+});
 window.purgeAuthReady?.then((state) => {
   if(state?.isAdmin){
     byId("officersPanel").style.display = "";
     loadOfficers();
+    byId("presetsBar").style.display = "";
+    loadPresets();
   }
 });
 byId("refreshBtn").addEventListener("click", async () => {

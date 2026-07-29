@@ -6,6 +6,7 @@
 //                                                            a KV-backed session)
 //   Website  ──POST /auth/logout─────────────────────────►  no-op (client just discards its token)
 //   Website  ──GET/POST /officers (session-or-password)──►  manage who's an officer, by family name
+//   Website  ──GET/POST /presets (session-or-password)──►  save/load named role-cap presets
 //   Website  ──POST /post,/edit,/op (session-or-password)──► posts to Discord as the bot
 //   Website  ──POST /profile-op (session: admin or own familyName)──► queue a profile edit
 //   Website  ──POST /war (public, origin-locked)──────►  Claude vision reads a war result screenshot
@@ -19,7 +20,7 @@
 // Vars: DISCORD_CLIENT_ID, GUILD_ID (checked at login — see auth.js isGuildMember; NOT a secret).
 // Officers aren't Discord roles — they're a plain list of Discord ids in KV ("officers"),
 // managed from the website itself (bootstrap the first one with ADMIN_POST_PASSWORD).
-// KV binding: SIGNUPS_KV.  Keys: "config", "state", "posted", "links", "officers".
+// KV binding: SIGNUPS_KV.  Keys: "config", "state", "posted", "links", "officers", "presets".
 
 import { postMessage, patchMessage } from "./discord.js";
 import { readGearStats } from "./gear.js";
@@ -274,6 +275,41 @@ export default {
         : officers.filter((o) => o.discordId !== discordId);
       await env.SIGNUPS_KV.put("officers", JSON.stringify(next));
       return json({ ok: true, officers: withFamilyNames(next, links) }, 200, request);
+    }
+
+    // ---- role-cap presets, shared across officers — each war may need a
+    // different number of each role, so officers save/load named cap sets
+    // instead of retyping them. Gated the same as /officers (admin-tier). ----
+    if (path === "/presets" && method === "GET") {
+      if (!(await isAdminRequest(request, env))) return json({ error: "Not signed in as an officer." }, 401, request);
+      const raw = await env.SIGNUPS_KV.get("presets");
+      return json({ presets: raw ? JSON.parse(raw) : [] }, 200, request);
+    }
+
+    if (path === "/presets" && method === "POST") {
+      if (!(await isAdminRequest(request, env))) return json({ error: "Not signed in as an officer." }, 401, request);
+      const body = await readJson(request);
+      if (!body?.name || (body.action !== "save" && body.action !== "delete")) {
+        return json({ error: "name + action(save|delete) required." }, 400, request);
+      }
+      const raw = await env.SIGNUPS_KV.get("presets");
+      const presets = raw ? JSON.parse(raw) : [];
+      const lc = body.name.trim().toLowerCase();
+      const idx = presets.findIndex((p) => p.name.toLowerCase() === lc);
+
+      if (body.action === "delete") {
+        if (idx >= 0) presets.splice(idx, 1);
+      } else {
+        if (!body.caps || typeof body.caps !== "object") {
+          return json({ error: "caps required to save." }, 400, request);
+        }
+        const item = { name: body.name.trim(), caps: body.caps, updatedAt: new Date().toISOString() };
+        if (idx >= 0) presets[idx] = item;
+        else presets.push(item);
+      }
+      presets.sort((a, b) => a.name.localeCompare(b.name));
+      await env.SIGNUPS_KV.put("presets", JSON.stringify(presets));
+      return json({ ok: true, presets }, 200, request);
     }
 
     // ---- bot → push the private Discord-id <-> family-name link map (bot-secret gated) ----
