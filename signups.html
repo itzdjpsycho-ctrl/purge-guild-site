@@ -6,34 +6,10 @@
 <title>Sign Ups — Node War Log</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:            #08060C;
-    --bg2:           #0C0A12;
-    --panel:         #110D18;
-    --panel-raised:  #181222;
-    --hairline:      #2A1F3A;
-    --hairline-soft: #1A1426;
-    --text:          #EDE8E0;
-    --text-muted:    #8A8088;
-    --text-faint:    #4E454A;
-    --crimson:       #6E1FB8;
-    --crimson-mid:   #8B2FD9;
-    --crimson-bright:#AB4DFF;
-    --crimson-glow:  #C77DFF;
-    --gold:          #C49A30;
-    --gold-bright:   #E8BC55;
-    --red:           #B2402F;
-    --red-bright:    #D65A45;
-    --green:         #4A9F5D;
-    --green-bright:  #5BC976;
-    --bronze:        #8C6A3F;
-    --orange:        #E0793C;
-    --font-display:  'Fraunces', serif;
-    --font-mono:     'IBM Plex Mono', monospace;
-    --font-ui:       'Inter', sans-serif;
-  }
+  /* Design tokens live in app.css now (single canonical :root, loaded after
+     this inline block so it wins the cascade) — not redefined per-page. */
   *{ box-sizing:border-box; margin:0; padding:0; }
   html{ scroll-behavior:smooth; }
   body{
@@ -43,31 +19,20 @@
   body::before{
     content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
     background:
-      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(110,31,184,0.18), transparent 65%),
-      radial-gradient(ellipse 40% 60% at 0% 100%, rgba(100,10,10,0.12), transparent 60%),
-      radial-gradient(ellipse 40% 60% at 100% 80%, rgba(100,10,10,0.08), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(110,31,184,0.16), transparent 65%),
+      radial-gradient(ellipse 35% 45% at 100% 100%, rgba(63,224,208,0.07), transparent 60%),
       repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
   }
   main, header, footer, nav{ position:relative; z-index:1; }
 
-  .btn{
-    font-family:var(--font-mono); font-size:12px; letter-spacing:0.04em;
-    padding:8px 16px; border-radius:999px; cursor:pointer;
-    border:1px solid var(--hairline); background:var(--panel);
-    color:var(--text-muted); transition:all 0.16s ease;
-  }
-  .btn:hover{ color:var(--text); border-color:rgba(255,255,255,0.18); }
-  .btn:disabled{ opacity:0.4; cursor:not-allowed; }
-  .btn.gold{ color:var(--gold-bright); border-color:var(--gold); background:rgba(217,164,65,0.1); }
-  .btn.gold:hover{ background:rgba(217,164,65,0.18); box-shadow:0 0 16px rgba(217,164,65,0.12); }
-  .btn.purple{ color:var(--crimson-glow); border-color:var(--crimson); background:rgba(110,31,184,0.16); }
-  .btn.purple:hover:not(:disabled){ background:rgba(110,31,184,0.28); box-shadow:0 0 16px rgba(110,31,184,0.2); }
+  /* .btn is now defined once in app.css */
 
   /* Details inputs */
   .details{
     display:grid; grid-template-columns:repeat(4, 1fr); gap:14px;
     background:var(--panel); border:1px solid var(--hairline);
-    border-radius:14px; padding:18px;
+    clip-path:polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+    padding:18px;
   }
   .field{ display:flex; flex-direction:column; gap:6px; }
   .field.wide{ grid-column:1 / -1; }
@@ -123,7 +88,8 @@
 
   /* Officers panel (admin-only) */
   .officers-panel{
-    background:var(--panel); border:1px solid var(--hairline); border-radius:16px;
+    background:var(--panel); border:1px solid var(--hairline);
+    clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
     padding:14px 16px; margin:0 0 18px;
   }
   .officers-head{
@@ -132,17 +98,7 @@
   }
   .officers-head .officers-sub{ text-transform:none; letter-spacing:0; color:var(--text-faint); font-size:10.5px; }
   .officers-list{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
-  .officer-chip{
-    display:flex; align-items:center; gap:6px;
-    font-family:var(--font-mono); font-size:11.5px; color:var(--crimson-glow);
-    background:rgba(110,31,184,0.16); border:1px solid var(--crimson); border-radius:999px;
-    padding:5px 6px 5px 12px;
-  }
-  .officer-chip button{
-    background:none; border:none; color:inherit; cursor:pointer; font-size:13px; line-height:1;
-    padding:2px 6px; border-radius:50%;
-  }
-  .officer-chip button:hover{ background:rgba(255,255,255,0.12); }
+  /* .officer-chip is now defined once in app.css */
   .officers-add{ display:flex; gap:8px; }
   .officers-add input{
     background:var(--panel-raised); border:1px solid var(--hairline);
@@ -164,7 +120,8 @@
 
   .roster-tray{
     width:210px; flex:none; position:sticky; top:16px;
-    background:var(--panel); border:1px solid var(--hairline); border-radius:16px;
+    background:var(--panel); border:1px solid var(--hairline);
+    clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
     padding:12px; max-height:calc(100vh - 32px); overflow-y:auto;
   }
   .tray-head{

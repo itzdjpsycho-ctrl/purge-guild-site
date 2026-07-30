@@ -6,37 +6,12 @@
 <title>Node War Log</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   /* ============================================================
-     DESIGN TOKENS
+     DESIGN TOKENS — now canonical in app.css (loaded after this
+     inline block so it wins the cascade); not redefined per-page.
      ============================================================ */
-  :root{
-    --bg:            #08060C;
-    --bg2:           #0C0A12;
-    --panel:         #110D18;
-    --panel-raised:  #181222;
-    --hairline:      #2A1F3A;
-    --hairline-soft: #1A1426;
-    --text:          #EDE8E0;
-    --text-muted:    #8A8088;
-    --text-faint:    #4E454A;
-    --crimson:       #6E1FB8;
-    --crimson-mid:   #8B2FD9;
-    --crimson-bright:#AB4DFF;
-    --crimson-glow:  #C77DFF;
-    --gold:          #C49A30;
-    --gold-bright:   #E8BC55;
-    --red:           #B2402F;
-    --red-bright:    #D65A45;
-    --green:         #4A9F5D;
-    --green-bright:  #5BC976;
-    --bronze:        #8C6A3F;
-    --orange:        #E0793C;
-    --font-display:  'Fraunces', serif;
-    --font-mono:     'IBM Plex Mono', monospace;
-    --font-ui:       'Inter', sans-serif;
-  }
 
   *{ box-sizing:border-box; margin:0; padding:0; }
 
@@ -56,9 +31,8 @@
     content:"";
     position:fixed; inset:0; pointer-events:none; z-index:0;
     background:
-      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(110,31,184,0.18), transparent 65%),
-      radial-gradient(ellipse 40% 60% at 0% 100%, rgba(100,10,10,0.12), transparent 60%),
-      radial-gradient(ellipse 40% 60% at 100% 80%, rgba(100,10,10,0.08), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(110,31,184,0.16), transparent 65%),
+      radial-gradient(ellipse 35% 45% at 100% 100%, rgba(63,224,208,0.07), transparent 60%),
       repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
   }
 
@@ -161,8 +135,8 @@
   }
   .drawer-player-name{
     font-family:var(--font-display);
-    font-size:22px;
-    font-weight:640;
+    font-size:24px;
+    font-weight:700;
   }
   .drawer-player-role{
     font-family:var(--font-mono);
@@ -204,7 +178,7 @@
     overflow:hidden;
     background:var(--panel);
     border:1px solid var(--hairline);
-    border-radius:16px;
+    clip-path:polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
     padding:24px 14px;
     text-align:center;
   }
@@ -370,23 +344,24 @@
     color:var(--crimson-bright);
     background:rgba(110,31,184,0.12);
     border:1px solid var(--crimson);
-    border-radius:999px;
+    clip-path:polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
     padding:7px 16px;
     cursor:pointer;
     transition:background 0.16s ease, box-shadow 0.16s ease;
     white-space:nowrap;
   }
-  .add-war-btn:hover{ background:rgba(110,31,184,0.22); box-shadow:0 0 16px rgba(110,31,184,0.2); }
+  .add-war-btn:hover{ background:rgba(110,31,184,0.22); box-shadow:0 0 10px rgba(171,77,255,0.4), inset 0 0 0 1px rgba(171,77,255,0.5); }
 
   .clear-wars-btn{
     font-family:var(--font-mono); font-size:12px; letter-spacing:0.04em;
     color:var(--red-bright); background:rgba(178,64,47,0.08);
-    border:1px solid rgba(178,64,47,0.3); border-radius:999px;
+    border:1px solid rgba(178,64,47,0.3);
+    clip-path:polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
     padding:7px 16px; cursor:pointer;
     transition:background 0.16s ease, box-shadow 0.16s ease;
     white-space:nowrap;
   }
-  .clear-wars-btn:hover{ background:rgba(178,64,47,0.16); box-shadow:0 0 16px rgba(178,64,47,0.12); }
+  .clear-wars-btn:hover{ background:rgba(178,64,47,0.16); box-shadow:0 0 10px rgba(214,90,69,0.35), inset 0 0 0 1px rgba(214,90,69,0.4); }
 
   .modal-backdrop{
     position:fixed;
@@ -404,10 +379,10 @@
   .modal{
     background:var(--panel);
     border:1px solid var(--hairline);
-    border-radius:14px;
+    clip-path:polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
     width:100%;
     max-width:560px;
-    box-shadow:0 40px 90px rgba(0,0,0,0.6);
+    box-shadow:0 0 0 1px rgba(171,77,255,0.25), 0 40px 90px rgba(0,0,0,0.6);
     overflow:hidden;
   }
   .modal-header{
@@ -419,8 +394,8 @@
   }
   .modal-title{
     font-family:var(--font-display);
-    font-size:19px;
-    font-weight:620;
+    font-size:21px;
+    font-weight:700;
   }
   .modal-close{
     background:none;
@@ -441,7 +416,7 @@
 
   .upload-zone{
     border:2px dashed var(--hairline);
-    border-radius:10px;
+    clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
     padding:40px 24px;
     text-align:center;
     cursor:pointer;
@@ -603,7 +578,7 @@
     margin:0 auto 0;
     background:var(--panel);
     border:1px solid var(--hairline);
-    border-radius:10px;
+    clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
     overflow:hidden;
     max-height:0;
     opacity:0;
@@ -930,7 +905,7 @@
     max-width:180px;
     background:var(--panel);
     border:1px solid rgba(255,255,255,0.08);
-    border-radius:999px;
+    clip-path:polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
     cursor:pointer;
     font-family:var(--font-mono);
     color:var(--text-muted);
@@ -1037,8 +1012,8 @@
 
   .panel-title{
     font-family:var(--font-display);
-    font-size:24px;
-    font-weight:620;
+    font-size:26px;
+    font-weight:700;
   }
   .panel-meta{
     font-family:var(--font-mono);
@@ -1070,7 +1045,7 @@
   .hof-card{
     background:var(--panel-raised);
     border:1px solid var(--hairline);
-    border-radius:12px;
+    clip-path:polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
     padding:18px 16px;
     position:relative;
   }
@@ -1085,8 +1060,8 @@
   .hof-card[data-rank="3"] .hof-rank{ color:var(--bronze); }
   .hof-name{
     font-family:var(--font-display);
-    font-size:19px;
-    font-weight:600;
+    font-size:20px;
+    font-weight:700;
     margin-top:6px;
   }
   .hof-kd{
@@ -1269,8 +1244,8 @@
   }
   .chart-title{
     font-family:var(--font-display);
-    font-size:12px;
-    font-weight:620;
+    font-size:13px;
+    font-weight:700;
   }
   .chart-meta{
     margin-top:2px;

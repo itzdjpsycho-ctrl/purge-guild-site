@@ -6,34 +6,10 @@
 <title>Player Profile — Node War Log</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..900&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:            #08060C;
-    --bg2:           #0C0A12;
-    --panel:         #110D18;
-    --panel-raised:  #181222;
-    --hairline:      #2A1F3A;
-    --hairline-soft: #1A1426;
-    --text:          #EDE8E0;
-    --text-muted:    #8A8088;
-    --text-faint:    #4E454A;
-    --crimson:       #6E1FB8;
-    --crimson-mid:   #8B2FD9;
-    --crimson-bright:#AB4DFF;
-    --crimson-glow:  #C77DFF;
-    --gold:          #C49A30;
-    --gold-bright:   #E8BC55;
-    --red:           #B2402F;
-    --red-bright:    #D65A45;
-    --green:         #4A9F5D;
-    --green-bright:  #5BC976;
-    --bronze:        #8C6A3F;
-    --orange:        #E0793C;
-    --font-display:  'Fraunces', serif;
-    --font-mono:     'IBM Plex Mono', monospace;
-    --font-ui:       'Inter', sans-serif;
-  }
+  /* Design tokens live in app.css now (single canonical :root, loaded after
+     this inline block so it wins the cascade) — not redefined per-page. */
   *{ box-sizing:border-box; margin:0; padding:0; }
   html{ scroll-behavior:smooth; }
   body{
@@ -45,9 +21,8 @@
     content:"";
     position:fixed; inset:0; pointer-events:none; z-index:0;
     background:
-      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(110,31,184,0.18), transparent 65%),
-      radial-gradient(ellipse 40% 60% at 0% 100%, rgba(100,10,10,0.12), transparent 60%),
-      radial-gradient(ellipse 40% 60% at 100% 80%, rgba(100,10,10,0.08), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(110,31,184,0.16), transparent 65%),
+      radial-gradient(ellipse 35% 45% at 100% 100%, rgba(63,224,208,0.07), transparent 60%),
       repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
   }
   main, header, footer, nav, .profile-hero{ position:relative; z-index:1; }
@@ -75,7 +50,8 @@
   /* Identity block */
   .hero-identity{
     background:var(--panel); border:1px solid var(--hairline);
-    border-radius:14px; overflow:hidden; min-width:220px; max-width:260px;
+    clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+    overflow:hidden; min-width:220px; max-width:260px;
   }
   .hero-role-strip{
     height:4px; background:var(--hairline);
@@ -94,7 +70,7 @@
     text-transform:uppercase; color:var(--text-faint); margin-bottom:6px;
   }
   .hero-name{
-    font-family:var(--font-display); font-size:24px; font-weight:680;
+    font-family:var(--font-display); font-size:26px; font-weight:700;
     word-break:break-all;
   }
   .hero-role-label{
@@ -197,7 +173,8 @@
   }
   .hero-stat{
     position:relative; overflow:hidden;
-    background:var(--panel); border:1px solid var(--hairline); border-radius:14px;
+    background:var(--panel); border:1px solid var(--hairline);
+    clip-path:polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
     padding:14px 6px; text-align:center;
   }
   .hero-stat::before{
@@ -228,7 +205,8 @@
 
   .screenshot-slot{
     background:var(--panel); border:1px solid var(--hairline);
-    border-radius:16px; overflow:hidden;
+    clip-path:polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+    overflow:hidden;
     display:flex; flex-direction:column;
   }
   .slot-label{
