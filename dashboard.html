@@ -90,25 +90,32 @@
     font-family:var(--font-mono); font-size:10px; letter-spacing:0.18em;
     text-transform:uppercase; color:var(--text-faint); margin-bottom:14px;
   }
-  .section{ margin-bottom:32px; }
-
   /* PANEL */
   .panel{
     background:var(--panel); border:1px solid var(--hairline);
-    border-radius:12px; overflow:hidden;
+    overflow:hidden;
   }
   .panel-pad{ padding:22px 24px; }
 
   /* STAT GRID — top summary row */
   .stat-grid{
     display:grid; grid-template-columns:repeat(5,1fr);
-    gap:1px; background:var(--hairline-soft);
-    border:1px solid var(--hairline); border-radius:12px; overflow:hidden;
-    margin-bottom:32px;
+    gap:16px;
+    margin-bottom:42px;
   }
   .stat-card{
-    background:var(--panel); padding:20px 16px; text-align:center;
+    position:relative; overflow:hidden;
+    background:var(--panel); border:1px solid var(--hairline); border-radius:16px;
+    padding:24px 20px; text-align:center;
   }
+  .stat-card::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:3px;
+    background:transparent;
+  }
+  .stat-card.accent-gold::before{ background:var(--gold-bright); }
+  .stat-card.accent-green::before{ background:var(--green-bright); }
+  .stat-card.accent-red::before{ background:var(--red-bright); }
+  .stat-card.accent-purple::before{ background:var(--crimson-bright); }
   .stat-val{
     font-family:var(--font-mono); font-size:28px; font-weight:700; color:var(--text);
     line-height:1;
@@ -172,7 +179,7 @@
   .node-record .l{ color:var(--red-bright); }
 
   /* TWO-COL LAYOUT */
-  .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:32px; }
+  .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:42px; }
 
   /* TOP PERFORMERS */
   .perf-tabs{
@@ -218,7 +225,7 @@
   }
   .weekly-grid{
     display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-    gap:14px; margin-bottom:32px;
+    gap:14px; margin-bottom:42px;
   }
 
   /* FLAGS SECTION */
@@ -227,7 +234,7 @@
   }
   .flag-col{
     background:var(--panel); border:1px solid var(--hairline);
-    border-radius:10px; overflow:hidden;
+    border-radius:16px; overflow:hidden;
   }
   .flag-col-head{
     display:flex; align-items:center; gap:8px;
@@ -557,23 +564,23 @@ const topKD = overall.filter(r=>r.played>0).sort((a,b)=>{
 const topKills = overall.sort((a,b)=>b.kills-a.kills)[0];
 
 document.getElementById("statGrid").innerHTML = `
-  <div class="stat-card">
+  <div class="stat-card accent-purple">
     <div class="stat-val">${total}</div>
     <div class="stat-label">Wars Logged</div>
   </div>
-  <div class="stat-card">
+  <div class="stat-card accent-green">
     <div class="stat-val green">${wins}</div>
     <div class="stat-label">Victories</div>
   </div>
-  <div class="stat-card">
+  <div class="stat-card accent-red">
     <div class="stat-val red">${losses}</div>
     <div class="stat-label">Defeats</div>
   </div>
-  <div class="stat-card">
+  <div class="stat-card accent-gold">
     <div class="stat-val gold">${winPct}%</div>
     <div class="stat-label">Win Rate</div>
   </div>
-  <div class="stat-card">
+  <div class="stat-card accent-purple">
     <div class="stat-val">${overall.filter(r=>r.played>0).length}</div>
     <div class="stat-label">Active Players</div>
   </div>

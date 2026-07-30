@@ -137,16 +137,23 @@
   }
   .stats-grid{
     display:grid; grid-template-columns:repeat(5,1fr);
-    gap:1px; background:var(--hairline);
-    border:1px solid var(--hairline); border-radius:12px; overflow:hidden;
+    gap:16px;
   }
   .stat-cell{
-    background:var(--panel); padding:20px 14px; text-align:center;
+    position:relative; overflow:hidden;
+    background:var(--panel); border:1px solid var(--hairline); border-radius:16px;
+    padding:24px 20px; text-align:center;
     transition:background 0.16s;
   }
+  .stat-cell::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:3px;
+    background:transparent;
+  }
+  .stat-cell.accent-gold::before{ background:var(--gold-bright); }
+  .stat-cell.accent-purple::before{ background:var(--crimson-bright); }
   .stat-cell:hover{ background:var(--panel-raised); }
   .stat-val{
-    font-family:var(--font-mono); font-size:30px; font-weight:700;
+    font-family:var(--font-mono); font-size:28px; font-weight:700;
     line-height:1; color:var(--text);
   }
   .stat-val.red{ color:var(--crimson-bright); }
@@ -168,7 +175,7 @@
   .link-card{
     background:var(--panel);
     border:1px solid var(--hairline);
-    border-radius:12px;
+    border-radius:16px;
     padding:24px 20px;
     text-decoration:none;
     display:block;
@@ -218,7 +225,7 @@
   .recent-panel{
     background:var(--panel);
     border:1px solid var(--hairline);
-    border-radius:12px; overflow:hidden;
+    border-radius:16px; overflow:hidden;
   }
   .recent-header{
     padding:18px 22px;
@@ -353,11 +360,11 @@
 <!-- STATS -->
 <div class="stats-strip">
   <div class="stats-grid" id="statsGrid">
-    <div class="stat-cell"><div class="stat-val muted">—</div><div class="stat-label">Wars</div></div>
-    <div class="stat-cell"><div class="stat-val muted">—</div><div class="stat-label">Victories</div></div>
-    <div class="stat-cell"><div class="stat-val muted">—</div><div class="stat-label">Defeats</div></div>
-    <div class="stat-cell"><div class="stat-val muted">—</div><div class="stat-label">Win Rate</div></div>
-    <div class="stat-cell"><div class="stat-val muted">—</div><div class="stat-label">Members</div></div>
+    <div class="stat-cell accent-purple"><div class="stat-val muted">—</div><div class="stat-label">Wars</div></div>
+    <div class="stat-cell accent-gold"><div class="stat-val muted">—</div><div class="stat-label">Victories</div></div>
+    <div class="stat-cell accent-purple"><div class="stat-val muted">—</div><div class="stat-label">Defeats</div></div>
+    <div class="stat-cell accent-gold"><div class="stat-val muted">—</div><div class="stat-label">Win Rate</div></div>
+    <div class="stat-cell accent-purple"><div class="stat-val muted">—</div><div class="stat-label">Members</div></div>
   </div>
 </div>
 
@@ -454,11 +461,11 @@ const memberCount  = allMembers.size;
 
 /* ---- Stats grid ---- */
 document.getElementById("statsGrid").innerHTML = `
-  <div class="stat-cell"><div class="stat-val">${total}</div><div class="stat-label">Wars</div></div>
-  <div class="stat-cell"><div class="stat-val gold">${wins}</div><div class="stat-label">Victories</div></div>
-  <div class="stat-cell"><div class="stat-val red">${losses}</div><div class="stat-label">Defeats</div></div>
-  <div class="stat-cell"><div class="stat-val ${winPct>=50?'gold':'red'}">${winPct}%</div><div class="stat-label">Win Rate</div></div>
-  <div class="stat-cell"><div class="stat-val">${memberCount}</div><div class="stat-label">Members</div></div>
+  <div class="stat-cell accent-purple"><div class="stat-val">${total}</div><div class="stat-label">Wars</div></div>
+  <div class="stat-cell accent-gold"><div class="stat-val gold">${wins}</div><div class="stat-label">Victories</div></div>
+  <div class="stat-cell accent-purple"><div class="stat-val red">${losses}</div><div class="stat-label">Defeats</div></div>
+  <div class="stat-cell ${winPct>=50?'accent-gold':'accent-purple'}"><div class="stat-val ${winPct>=50?'gold':'red'}">${winPct}%</div><div class="stat-label">Win Rate</div></div>
+  <div class="stat-cell accent-purple"><div class="stat-val">${memberCount}</div><div class="stat-label">Members</div></div>
 `;
 
 /* ---- Most recent war ---- */

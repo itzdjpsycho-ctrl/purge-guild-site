@@ -194,19 +194,32 @@
   .drawer-summary{
     display:grid;
     grid-template-columns:repeat(4, 1fr);
-    gap:1px;
-    background:var(--hairline-soft);
+    gap:12px;
+    padding:18px 20px;
     border-bottom:1px solid var(--hairline-soft);
     flex-shrink:0;
   }
   .drawer-stat{
+    position:relative;
+    overflow:hidden;
     background:var(--panel);
-    padding:14px 12px;
+    border:1px solid var(--hairline);
+    border-radius:16px;
+    padding:24px 14px;
     text-align:center;
   }
+  .drawer-stat::before{
+    content:"";
+    position:absolute; top:0; left:0; right:0; height:3px;
+    background:transparent;
+  }
+  .drawer-stat.accent-green::before{ background:var(--green-bright); }
+  .drawer-stat.accent-red::before{ background:var(--red-bright); }
+  .drawer-stat.accent-gold::before{ background:var(--gold-bright); }
+  .drawer-stat.accent-purple::before{ background:var(--crimson-bright); }
   .drawer-stat-val{
     font-family:var(--font-mono);
-    font-size:20px;
+    font-size:28px;
     font-weight:600;
     color:var(--text);
   }
@@ -284,7 +297,7 @@
   }
   .drawer-match-stat-val{
     font-family:var(--font-mono);
-    font-size:15px;
+    font-size:17px;
     font-weight:600;
     color:var(--text);
   }
@@ -1009,7 +1022,6 @@
   .panel{
     background:var(--panel);
     border:1px solid var(--hairline);
-    border-radius:10px;
     overflow:hidden;
   }
 
@@ -1058,7 +1070,7 @@
   .hof-card{
     background:var(--panel-raised);
     border:1px solid var(--hairline);
-    border-radius:8px;
+    border-radius:12px;
     padding:18px 16px;
     position:relative;
   }
@@ -1331,7 +1343,7 @@
     text-transform:uppercase;
     color:var(--text-faint);
     font-weight:500;
-    padding:10px 12px;
+    padding:12px 14px;
     border-bottom:1px solid var(--hairline);
     cursor:pointer;
     user-select:none;
@@ -1344,7 +1356,7 @@
   thead th:first-child, tbody td:first-child{ padding-left:14px; }
 
   tbody td{
-    padding:11px 12px;
+    padding:13px 14px;
     border-bottom:1px solid var(--hairline-soft);
     font-size:14px;
   }
@@ -2505,10 +2517,10 @@ function openPlayerDrawer(playerName){
 
   // Summary bar
   drawerSummary.innerHTML = `
-    <div class="drawer-stat"><div class="drawer-stat-val">${totalKills}</div><div class="drawer-stat-label">Kills</div></div>
-    <div class="drawer-stat"><div class="drawer-stat-val">${totalDeaths}</div><div class="drawer-stat-label">Deaths</div></div>
-    <div class="drawer-stat"><div class="drawer-stat-val kd">${fmtKD(overallKD)}</div><div class="drawer-stat-label">K/D</div></div>
-    <div class="drawer-stat"><div class="drawer-stat-val">${warsPlayed}</div><div class="drawer-stat-label">Wars</div></div>
+    <div class="drawer-stat accent-green"><div class="drawer-stat-val">${totalKills}</div><div class="drawer-stat-label">Kills</div></div>
+    <div class="drawer-stat accent-red"><div class="drawer-stat-val">${totalDeaths}</div><div class="drawer-stat-label">Deaths</div></div>
+    <div class="drawer-stat accent-gold"><div class="drawer-stat-val kd">${fmtKD(overallKD)}</div><div class="drawer-stat-label">K/D</div></div>
+    <div class="drawer-stat accent-purple"><div class="drawer-stat-val">${warsPlayed}</div><div class="drawer-stat-label">Wars</div></div>
   `;
 
   // Match cards
