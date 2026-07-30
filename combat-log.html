@@ -284,7 +284,7 @@
     <label class="dedup-toggle">
       <input type="checkbox" id="dedupToggle" checked>
       Collapse duplicate rebroadcasts
-      <span class="dedup-hint">(same kill logged twice within ~10s — a known packet-logger artifact)</span>
+      <span class="dedup-hint">(same kill logged twice within ~15s — a known packet-logger artifact)</span>
     </label>
     <span class="dedup-count" id="dedupCount"></span>
   </div>
@@ -435,16 +435,18 @@ function aggregateByGuild(events){
 
 function fmtKD(k,d){ return d===0 ? (k===0?"—":k.toFixed(2)) : (k/d).toFixed(2); }
 
-const DEDUP_WINDOW_SECONDS = 10;
+const DEDUP_WINDOW_SECONDS = 15;
 function timeToSeconds(t){ const [h,m,s] = t.split(":").map(Number); return h*3600 + m*60 + s; }
 
 /* Packet-sniffing combat loggers sometimes rebroadcast the same real kill
    as two near-identical lines a few seconds apart (same killer, victim,
    guild). Collapses any such repeat that recurs within DEDUP_WINDOW_SECONDS
    of the prior occurrence of that exact matchup — verified against a real
-   export where every duplicate pair was 1-7s apart, well under BDO's
-   node-war respawn timer, so a same-matchup repeat that fast is far more
-   likely a rebroadcast than two genuine kills. */
+   export (cross-checked line-by-line against the in-game war board) where
+   duplicate pairs ranged 1-11s apart, well under BDO's node-war respawn
+   timer, so a same-matchup repeat that fast is far more likely a
+   rebroadcast than two genuine kills. Widening past 15s stopped catching
+   anything further in that export, so this margin isn't just padding. */
 function dedupeEvents(events, windowSeconds = DEDUP_WINDOW_SECONDS){
   const lastSeen = new Map();
   const deduped = [];
