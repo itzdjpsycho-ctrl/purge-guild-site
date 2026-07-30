@@ -290,6 +290,15 @@
   </div>
 
   <div class="section">
+    <div class="section-label">Player Lookup</div>
+    <div class="panel-search-wrap">
+      <span class="panel-search-icon">🔎</span>
+      <input class="panel-search" type="text" id="playerSearch" placeholder="Search player name…" autocomplete="off" style="width:280px">
+    </div>
+    <div class="dedup-hint" style="margin-top:6px;">Filters every table below to this player (or anyone matching).</div>
+  </div>
+
+  <div class="section">
     <div class="section-label">Session Summary</div>
     <div class="stats-grid" id="summaryGrid"></div>
   </div>
@@ -320,10 +329,6 @@
 
   <div class="section">
     <div class="section-label">Raw Event Log</div>
-    <div class="panel-search-wrap">
-      <span class="panel-search-icon">🔎</span>
-      <input class="panel-search" type="text" id="eventSearch" placeholder="Search player…" autocomplete="off">
-    </div>
     <div class="table-scroll">
       <table>
         <thead>
@@ -489,19 +494,31 @@ function updateView(){
     ? (removed ? `${removed} duplicate line${removed === 1 ? "" : "s"} collapsed` : "no duplicates found")
     : "";
 
-  const events = currentEvents;
+  renderFilteredViews();
+}
+
+/* Player Lookup filters every table below to just the events that player
+   was involved in (as killer or victim) — since "guild" always names the
+   other side of the event, re-aggregating that filtered subset by guild
+   naturally becomes that player's own kills/deaths against each guild. */
+function renderFilteredViews(){
+  const search = document.getElementById("playerSearch").value.trim().toLowerCase();
+  const events = search
+    ? currentEvents.filter(e => e.killer.toLowerCase().includes(search) || e.victim.toLowerCase().includes(search))
+    : currentEvents;
+
   const uniquePlayers = new Set(events.flatMap(e=>[e.killer, e.victim]));
   const totalKills = events.filter(e=>e.isKillPhrasing).length;
   const totalDeaths = events.length - totalKills;
 
-  document.getElementById("summaryGrid").innerHTML = `
+  document.getElementById("summaryGrid").innerHTML = events.length ? `
     <div class="stat-cell"><div class="stat-val">${events.length}</div><div class="stat-label">Events</div></div>
     <div class="stat-cell"><div class="stat-val">${uniquePlayers.size}</div><div class="stat-label">Players Seen</div></div>
     <div class="stat-cell"><div class="stat-val green">${totalKills}</div><div class="stat-label">Kills Logged</div></div>
     <div class="stat-cell"><div class="stat-val red">${totalDeaths}</div><div class="stat-label">Deaths Logged</div></div>
     <div class="stat-cell"><div class="stat-val gold">${fmtKD(totalKills, totalDeaths)}</div><div class="stat-label">Overall K/D</div></div>
     <div class="stat-cell"><div class="stat-val gold">${events[0].time}–${events[events.length-1].time}</div><div class="stat-label">Time Span</div></div>
-  `;
+  ` : `<div class="stat-cell" style="grid-column:1/-1;"><div class="stat-label">No matching events</div></div>`;
 
   const guildAgg = aggregateByGuild(events);
   document.getElementById("guildTableBody").innerHTML = guildAgg.map(r=>`
@@ -511,7 +528,7 @@ function updateView(){
       <td class="deaths">${r.deaths}</td>
       <td class="kd">${fmtKD(r.kills, r.deaths)}</td>
     </tr>
-  `).join("");
+  `).join("") || `<tr><td colspan="4" class="mono">No matching events.</td></tr>`;
 
   const agg = aggregate(events);
   document.getElementById("aggTableBody").innerHTML = agg.map(r=>`
@@ -521,17 +538,9 @@ function updateView(){
       <td class="deaths">${r.deaths}</td>
       <td class="kd">${fmtKD(r.kills, r.deaths)}</td>
     </tr>
-  `).join("");
+  `).join("") || `<tr><td colspan="4" class="mono">No matching players.</td></tr>`;
 
-  renderEventTable(document.getElementById("eventSearch").value);
-}
-
-function renderEventTable(filter){
-  const f = filter.trim().toLowerCase();
-  const rows = currentEvents.filter(e =>
-    !f || e.killer.toLowerCase().includes(f) || e.victim.toLowerCase().includes(f)
-  );
-  document.getElementById("eventTableBody").innerHTML = rows.map(e=>`
+  document.getElementById("eventTableBody").innerHTML = events.map(e=>`
     <tr>
       <td class="mono">${e.time}</td>
       <td>
@@ -544,7 +553,7 @@ function renderEventTable(filter){
   `).join("") || `<tr><td colspan="3" class="mono">No matching events.</td></tr>`;
 }
 
-document.getElementById("eventSearch").addEventListener("input", e=>renderEventTable(e.target.value));
+document.getElementById("playerSearch").addEventListener("input", renderFilteredViews);
 document.getElementById("dedupToggle").addEventListener("change", ()=>{ if(rawEvents.length) updateView(); });
 
 /* ---- File loading (click + drag/drop) ---- */
@@ -579,6 +588,7 @@ document.getElementById("resetBtn").addEventListener("click", ()=>{
   rawEvents = [];
   currentEvents = [];
   fileInput.value = "";
+  document.getElementById("playerSearch").value = "";
   document.getElementById("loadedFileBar").classList.remove("visible");
   document.getElementById("resultsWrap").classList.remove("visible");
   document.getElementById("emptyState").style.display = "block";
