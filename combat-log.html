@@ -127,7 +127,7 @@
 
   /* ---- Summary stats ---- */
   .stats-grid{
-    display:grid; grid-template-columns:repeat(5,1fr);
+    display:grid; grid-template-columns:repeat(6,1fr);
     gap:1px; background:var(--hairline);
     border:1px solid var(--hairline); border-radius:12px; overflow:hidden;
   }
@@ -195,6 +195,19 @@
   }
   .event-kill{ color:var(--green-bright); }
   .event-death{ color:var(--red-bright); }
+  .char-tag{ color:var(--text-faint); font-size:11px; }
+
+  .dedup-toggle{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:var(--font-mono); font-size:12px; color:var(--text-muted);
+    cursor:pointer; user-select:none;
+  }
+  .dedup-toggle input{ accent-color:var(--crimson); cursor:pointer; }
+  .dedup-hint{ color:var(--text-faint); font-size:11px; }
+  .dedup-count{
+    display:block; margin-top:6px;
+    font-family:var(--font-mono); font-size:11px; color:var(--gold-bright);
+  }
 
   #resultsWrap{ display:none; }
   #resultsWrap.visible{ display:block; }
@@ -233,15 +246,17 @@
 <div class="page-head">
   <div class="page-eyebrow">Personal Perspective Data</div>
   <h1>Combat <span>Log</span></h1>
-  <div class="page-sub">Upload an Ikusa Logger export to see kill/death detail from one player's viewpoint.</div>
+  <div class="page-sub">Upload an Ikusa or CoGM Logger export to see kill/death detail from one player's viewpoint.</div>
 </div>
 
 <div class="section">
   <div class="panel info-panel">
-    <a href="https://ikusa.site/" target="_blank" rel="noopener">Ikusa</a> is a third-party combat logger some
-    members run alongside BDO — it watches the game's network traffic and writes a plain-text <code>.log</code>
-    file of every kill/death that player's client saw ("PlayerA has killed PlayerB from GuildName"). Drop that
-    file below to parse it — everything happens locally in your browser; nothing is uploaded anywhere.
+    <a href="https://ikusa.site/" target="_blank" rel="noopener">Ikusa</a> and CoGM Logger are third-party combat
+    loggers some members run alongside BDO — they watch the game's network traffic and write a plain-text
+    <code>.log</code> file of every kill/death that player's client saw ("PlayerA has killed PlayerB from
+    GuildName"). CoGM's export additionally tags each side with its in-game character name in parentheses — both
+    formats are recognized automatically. Drop a file below to parse it — everything happens locally in your
+    browser; nothing is uploaded anywhere.
     <div class="warn">
       ⚠ This only reflects one client's view, not a full war roster — it's not a substitute for
       <code>/addwar</code> or the official War Scores record, just a detail lens on individual engagements.
@@ -253,7 +268,7 @@
   <div class="section-label">Load a Log File</div>
   <div class="drop-zone" id="dropZone">
     <div class="drop-zone-icon">📜</div>
-    <div class="drop-zone-title">Drop an Ikusa <code>.log</code> file here</div>
+    <div class="drop-zone-title">Drop an Ikusa or CoGM Logger <code>.log</code> file here</div>
     <div class="drop-zone-sub">or click to browse · .log / .txt</div>
   </div>
   <input type="file" id="logFileInput" accept=".log,.txt">
@@ -266,8 +281,29 @@
 <div id="resultsWrap">
 
   <div class="section">
+    <label class="dedup-toggle">
+      <input type="checkbox" id="dedupToggle" checked>
+      Collapse duplicate rebroadcasts
+      <span class="dedup-hint">(same kill logged twice within ~10s — a known packet-logger artifact)</span>
+    </label>
+    <span class="dedup-count" id="dedupCount"></span>
+  </div>
+
+  <div class="section">
     <div class="section-label">Session Summary</div>
     <div class="stats-grid" id="summaryGrid"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Kills / Deaths by Guild</div>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Guild</th><th>Kills</th><th>Deaths</th><th>K/D</th></tr>
+        </thead>
+        <tbody id="guildTableBody"></tbody>
+      </table>
+    </div>
   </div>
 
   <div class="section">
@@ -312,13 +348,26 @@
 <script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>
 /* ================================================================
-   IKUSA LOG PARSER — standalone, client-side only.
-   Format written by github.com/sch-28/ikusa_logger's parser.py:
+   COMBAT LOG PARSER — standalone, client-side only. Recognizes two
+   third-party BDO combat-logger formats sharing the same base grammar:
      [HH:MM:SS] PlayerOne has killed PlayerTwo from GuildName
      [HH:MM:SS] PlayerOne died to PlayerTwo from GuildName
    In both phrasings "from {guild}" describes the second-named player.
+   (Ikusa format: github.com/sch-28/ikusa_logger's parser.py.)
+
+   CoGM Logger writes the same line plus a trailing "(charTwo,charOne)" —
+   the in-game character name for each side, in reverse of the sentence
+   order — e.g.:
+     [11:02:04] HaterApproved died to Brumba from Glacia (Sinful_Ranger,ItzFrosty)
+   Here "Sinful_Ranger" is Brumba's character name and "ItzFrosty" is
+   HaterApproved's, confirmed by cross-referencing repeat appearances of
+   the same family name across many lines in a sample export. The paren
+   group is optional in the regex so plain Ikusa lines still match.
+
+   CoGM exports also sometimes wrap a line right before " from ..." with
+   a stray newline (garbled capture) — those are rejoined before parsing.
 ================================================================ */
-const LOG_LINE_RE = /^\[(\d{1,2}:\d{2}:\d{2})\]\s+(\S+)\s+(has killed|died to)\s+(\S+)\s+from\s+(.+?)\s*$/;
+const LOG_LINE_RE = /^\[(\d{1,2}:\d{2}:\d{2})\]\s+(\S+)\s+(has killed|died to)\s+(\S+)\s+from\s+([^()]+?)\s*(?:\(([^,()]+)\s*,\s*([^()]+)\))?\s*$/;
 
 let ROSTER_SET = new Set();
 try{ ROSTER_SET = new Set((window.GUILD_DATA && window.GUILD_DATA.rosterMembers) || []); }catch(e){}
@@ -326,19 +375,24 @@ try{ ROSTER_SET = new Set((window.GUILD_DATA && window.GUILD_DATA.rosterMembers)
 function parseIkusaLog(text){
   const events = [];
   let skipped = 0;
-  text.split(/\r?\n/).forEach(line=>{
+  const joined = text.replace(/\r\n/g, "\n").replace(/\n[ \t]*(from\s)/g, " $1");
+  joined.split(/\n/).forEach(line=>{
     line = line.trim();
     if(!line) return;
     const m = line.match(LOG_LINE_RE);
-    if(!m){ return; }
-    const [, time, p1, verb, p2, guild] = m;
+    if(!m){ skipped++; return; }
+    const [, time, p1, verb, p2, guildRaw, charOfP2, charOfP1] = m;
+    const guild = guildRaw.trim();
     if(p1 === "-1" || p2 === "-1" || guild === "-1"){ skipped++; return; }
     const isKillPhrasing = verb === "has killed";
     events.push({
       time,
       killer: isKillPhrasing ? p1 : p2,
       victim: isKillPhrasing ? p2 : p1,
-      guild
+      killerChar: (isKillPhrasing ? charOfP1 : charOfP2)?.trim(),
+      victimChar: (isKillPhrasing ? charOfP2 : charOfP1)?.trim(),
+      guild,
+      isKillPhrasing // true: the guild-tagged side (P2) was killed. false: the guild-tagged side killed P1.
     });
   });
   return { events, skipped };
@@ -357,12 +411,58 @@ function aggregate(events){
   return [...map.values()].sort((a,b)=> b.kills - a.kills || a.deaths - b.deaths);
 }
 
+/* Guild is always attached to the second-named player in the raw line
+   (see LOG_LINE_RE comment above), so isKillPhrasing tells us which side
+   of the event that guild-tagged player was on: victim (a kill against
+   that guild) or killer (a death to that guild). */
+function aggregateByGuild(events){
+  const map = new Map();
+  const ensure = guild=>{
+    if(!map.has(guild)) map.set(guild, { guild, kills:0, deaths:0 });
+    return map.get(guild);
+  };
+  events.forEach(e=>{
+    const row = ensure(e.guild);
+    if(e.isKillPhrasing) row.kills++; else row.deaths++;
+  });
+  return [...map.values()].sort((a,b)=> (b.kills+b.deaths) - (a.kills+a.deaths));
+}
+
 function fmtKD(k,d){ return d===0 ? (k===0?"—":k.toFixed(2)) : (k/d).toFixed(2); }
 
+const DEDUP_WINDOW_SECONDS = 10;
+function timeToSeconds(t){ const [h,m,s] = t.split(":").map(Number); return h*3600 + m*60 + s; }
+
+/* Packet-sniffing combat loggers sometimes rebroadcast the same real kill
+   as two near-identical lines a few seconds apart (same killer, victim,
+   guild). Collapses any such repeat that recurs within DEDUP_WINDOW_SECONDS
+   of the prior occurrence of that exact matchup — verified against a real
+   export where every duplicate pair was 1-7s apart, well under BDO's
+   node-war respawn timer, so a same-matchup repeat that fast is far more
+   likely a rebroadcast than two genuine kills. */
+function dedupeEvents(events, windowSeconds = DEDUP_WINDOW_SECONDS){
+  const lastSeen = new Map();
+  const deduped = [];
+  let removed = 0;
+  events.forEach(e=>{
+    const key = `${e.killer}|${e.victim}|${e.guild}|${e.isKillPhrasing}`;
+    const sec = timeToSeconds(e.time);
+    const prevSec = lastSeen.get(key);
+    lastSeen.set(key, sec);
+    if(prevSec !== undefined && Math.abs(sec - prevSec) <= windowSeconds){
+      removed++;
+      return;
+    }
+    deduped.push(e);
+  });
+  return { deduped, removed };
+}
+
+let rawEvents = [];
 let currentEvents = [];
 
 function renderResults(events, skipped, fileName){
-  currentEvents = events;
+  rawEvents = events;
 
   document.getElementById("emptyState").style.display = events.length ? "none" : "block";
   document.getElementById("resultsWrap").classList.toggle("visible", events.length > 0);
@@ -375,18 +475,43 @@ function renderResults(events, skipped, fileName){
       ? `${events.length} events parsed${skipped ? `, ${skipped} skipped (corrupted extraction)` : ""}`
       : "no recognizable Ikusa log lines found";
 
-  if(!events.length) return;
+  if(!events.length){ currentEvents = []; return; }
 
+  updateView();
+}
+
+function updateView(){
+  const dedupOn = document.getElementById("dedupToggle").checked;
+  const { deduped, removed } = dedupOn ? dedupeEvents(rawEvents) : { deduped: rawEvents, removed: 0 };
+  currentEvents = deduped;
+
+  document.getElementById("dedupCount").textContent = dedupOn
+    ? (removed ? `${removed} duplicate line${removed === 1 ? "" : "s"} collapsed` : "no duplicates found")
+    : "";
+
+  const events = currentEvents;
   const uniquePlayers = new Set(events.flatMap(e=>[e.killer, e.victim]));
-  const kills = events.length; // every event is exactly one kill/death pair
+  const totalKills = events.filter(e=>e.isKillPhrasing).length;
+  const totalDeaths = events.length - totalKills;
 
   document.getElementById("summaryGrid").innerHTML = `
     <div class="stat-cell"><div class="stat-val">${events.length}</div><div class="stat-label">Events</div></div>
     <div class="stat-cell"><div class="stat-val">${uniquePlayers.size}</div><div class="stat-label">Players Seen</div></div>
-    <div class="stat-cell"><div class="stat-val green">${kills}</div><div class="stat-label">Kills Logged</div></div>
-    <div class="stat-cell"><div class="stat-val red">${kills}</div><div class="stat-label">Deaths Logged</div></div>
+    <div class="stat-cell"><div class="stat-val green">${totalKills}</div><div class="stat-label">Kills Logged</div></div>
+    <div class="stat-cell"><div class="stat-val red">${totalDeaths}</div><div class="stat-label">Deaths Logged</div></div>
+    <div class="stat-cell"><div class="stat-val gold">${fmtKD(totalKills, totalDeaths)}</div><div class="stat-label">Overall K/D</div></div>
     <div class="stat-cell"><div class="stat-val gold">${events[0].time}–${events[events.length-1].time}</div><div class="stat-label">Time Span</div></div>
   `;
+
+  const guildAgg = aggregateByGuild(events);
+  document.getElementById("guildTableBody").innerHTML = guildAgg.map(r=>`
+    <tr>
+      <td>${r.guild}</td>
+      <td class="kills">${r.kills}</td>
+      <td class="deaths">${r.deaths}</td>
+      <td class="kd">${fmtKD(r.kills, r.deaths)}</td>
+    </tr>
+  `).join("");
 
   const agg = aggregate(events);
   document.getElementById("aggTableBody").innerHTML = agg.map(r=>`
@@ -398,7 +523,7 @@ function renderResults(events, skipped, fileName){
     </tr>
   `).join("");
 
-  renderEventTable("");
+  renderEventTable(document.getElementById("eventSearch").value);
 }
 
 function renderEventTable(filter){
@@ -409,13 +534,18 @@ function renderEventTable(filter){
   document.getElementById("eventTableBody").innerHTML = rows.map(e=>`
     <tr>
       <td class="mono">${e.time}</td>
-      <td><span class="event-kill">${e.killer}</span> killed <span class="event-death">${e.victim}</span></td>
+      <td>
+        <span class="event-kill">${e.killer}</span>${e.killerChar ? ` <span class="char-tag">(${e.killerChar})</span>` : ""}
+        killed
+        <span class="event-death">${e.victim}</span>${e.victimChar ? ` <span class="char-tag">(${e.victimChar})</span>` : ""}
+      </td>
       <td class="mono">${e.guild}</td>
     </tr>
   `).join("") || `<tr><td colspan="3" class="mono">No matching events.</td></tr>`;
 }
 
 document.getElementById("eventSearch").addEventListener("input", e=>renderEventTable(e.target.value));
+document.getElementById("dedupToggle").addEventListener("change", ()=>{ if(rawEvents.length) updateView(); });
 
 /* ---- File loading (click + drag/drop) ---- */
 const dropZone = document.getElementById("dropZone");
@@ -446,6 +576,7 @@ dropZone.addEventListener("drop", e=>{
 });
 
 document.getElementById("resetBtn").addEventListener("click", ()=>{
+  rawEvents = [];
   currentEvents = [];
   fileInput.value = "";
   document.getElementById("loadedFileBar").classList.remove("visible");
