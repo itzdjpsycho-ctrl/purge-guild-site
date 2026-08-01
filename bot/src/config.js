@@ -32,6 +32,11 @@ export const MVP_WEIGHTS = {
 /** Public site base URL — used to link/preview uploaded screenshots. */
 export const SITE_URL = process.env.SITE_URL || "https://itzdjpsycho-ctrl.github.io/purge-guild-site";
 
+/** Official Pearl Abyss guild profile page — source of truth for /roster sync. */
+export const GUILD_PROFILE_URL =
+  process.env.GUILD_PROFILE_URL ||
+  "https://www.naeu.playblackdesert.com/en-us/Adventure/Guild/GuildProfile?guildName=Purge&region=NA";
+
 /**
  * Cloudflare Worker relay that bridges the website's "Sign Ups" page to Discord.
  * OPTIONAL — if `WORKER_URL` is unset, all Worker calls become no-ops, so the

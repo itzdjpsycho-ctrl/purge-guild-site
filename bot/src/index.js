@@ -7,6 +7,7 @@ import * as profile from "./commands/profile.js";
 import * as addwar from "./commands/addwar.js";
 import * as removewar from "./commands/removewar.js";
 import * as balance from "./commands/balance.js";
+import * as roster from "./commands/roster.js";
 import { syncFromWorker, applyOps } from "./lib/worker-sync.js";
 import { applyProfileOps } from "./lib/profile-sync.js";
 import { workerEnabled, pushLinks } from "./lib/worker.js";
@@ -16,7 +17,7 @@ import { allLinks } from "./lib/links.js";
 assertConfig();
 
 const commands = new Collection();
-for (const cmd of [mvp, stats, signup, profile, addwar, removewar, balance]) commands.set(cmd.data.name, cmd);
+for (const cmd of [mvp, stats, signup, profile, addwar, removewar, balance, roster]) commands.set(cmd.data.name, cmd);
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -60,6 +61,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (interaction.isButton() && interaction.customId.startsWith("removewar:")) {
       return await removewar.handleComponent(interaction);
+    }
+
+    if (interaction.isButton() && interaction.customId.startsWith("roster:")) {
+      return await roster.handleComponent(interaction);
     }
 
     // Balanced War Builder: buttons + the "add guilds" modal submit.

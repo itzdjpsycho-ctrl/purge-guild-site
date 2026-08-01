@@ -8,6 +8,7 @@ Discord bot for the **Purge** BDO Node War guild. Three features:
 | `/stats <player> [date]` | everyone | Full **extended stats** for a player. No date = career summary; with a date = that war's 16-column breakdown. |
 | `/signup …` | admins post · everyone signs | Posts an **editable Node War sign-up sheet** with role columns (Frontliner, Ranged, Skirmisher, Caster, Shai, Trooper, Defense, Flex, Scout, Elephant, Shotcaller — each with a capacity), numbered slots, class picker, and Tentative/Absence lists. Members self-pick a role + class and set availability; admins can place/override/bench. |
 | `/balance` | everyone | **Balanced War Builder.** Opens a panel: tap **➕ Add Guilds** to paste guilds one per line as `Name seed` (seed **1 = strongest … 10 = weakest**), then **🎲 Balance Teams** to split them into two skill-even sides. Re-roll for a different equally-balanced split. |
+| `/roster sync` | admins | Pulls the current member list off the **official Pearl Abyss guild page** (`GUILD_PROFILE_URL` in `config.js`), previews the +joining / −leaving diff, then on confirm replaces `rosterMembers` in `data.js` and publishes. War history is untouched — a former member who played wars still shows up on the site. Uses a real headless browser (Playwright) since the page is JS-rendered and sits behind bot-protection that blocks plain HTTP fetches. |
 
 Both data commands read the shared **`../data.json`** at the repo root — the same source the website uses, so the bot is always in sync.
 
@@ -39,6 +40,7 @@ notepad .env      # paste your token / IDs
 ### 4. Install + register commands
 ```powershell
 npm install
+npx playwright install chromium   # one-time — headless browser used by /roster sync
 npm run deploy    # registers /mvp, /stats, /signup to your server (instant)
 ```
 

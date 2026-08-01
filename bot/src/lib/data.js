@@ -152,6 +152,26 @@ export function removeWar(date) {
   return { removed: true, location: match.location };
 }
 
+/**
+ * Replace rosterMembers wholesale (e.g. from /roster sync). Does not touch
+ * matches/extendedStats — anyone with war history still shows up on the site
+ * even if they've since left the guild (buildRoster() unions both sources).
+ * @returns {{added:string[], removed:string[]}} diff vs. the previous list.
+ */
+export function setRosterMembers(names) {
+  const data = loadData();
+  const before = new Set(data.rosterMembers);
+  const after = [...new Set(names)].sort((a, b) => a.localeCompare(b));
+  const afterSet = new Set(after);
+
+  const added = after.filter((n) => !before.has(n));
+  const removed = data.rosterMembers.filter((n) => !afterSet.has(n));
+
+  data.rosterMembers = after;
+  saveData(data);
+  return { added, removed };
+}
+
 /** List of all distinct player names (for autocomplete), sorted. */
 export function allPlayerNames() {
   const set = new Set();

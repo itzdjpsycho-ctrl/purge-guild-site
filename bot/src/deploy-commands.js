@@ -7,10 +7,11 @@ import * as profile from "./commands/profile.js";
 import * as addwar from "./commands/addwar.js";
 import * as removewar from "./commands/removewar.js";
 import * as balance from "./commands/balance.js";
+import * as roster from "./commands/roster.js";
 
 assertConfig();
 
-const body = [mvp, stats, signup, profile, addwar, removewar, balance].map((c) => c.data.toJSON());
+const body = [mvp, stats, signup, profile, addwar, removewar, balance, roster].map((c) => c.data.toJSON());
 const rest = new REST().setToken(TOKEN);
 
 try {
