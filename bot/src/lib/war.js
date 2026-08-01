@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, basename, extname } from "node:path";
+import { PNG } from "pngjs";
 import { ANTHROPIC_API_KEY, VISION_MODEL } from "../config.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -16,7 +17,26 @@ function displayName(slug) {
   return SLUG_TO_NAME[slug] || slug[0].toUpperCase() + slug.slice(1);
 }
 
-// Reference icon images (class glyph, white-on-transparent), loaded once and
+// The source icons are white glyphs on a TRANSPARENT background. Sending
+// them to the vision API as-is renders them flattened onto white by
+// default — i.e. a white glyph on white, essentially invisible. Composite
+// each one onto solid black first so the glyph is actually legible.
+function flattenOnBlack(buffer) {
+  const png = PNG.sync.read(buffer);
+  const { data } = png;
+  for (let i = 0; i < data.length; i += 4) {
+    const alpha = data[i + 3] / 255;
+    data[i] = Math.round(data[i] * alpha);       // R over black
+    data[i + 1] = Math.round(data[i + 1] * alpha); // G over black
+    data[i + 2] = Math.round(data[i + 2] * alpha); // B over black
+    data[i + 3] = 255;                             // now fully opaque
+  }
+  // Write back the SAME png object (data was mutated in place) — constructing
+  // a fresh `new PNG({width,height,data})` here silently drops the pixels.
+  return PNG.sync.write(png);
+}
+
+// Reference icon images (class glyph, flattened onto black), loaded once and
 // reused across calls — these get attached to every /addwar vision request
 // so the model matches against the ACTUAL icon art instead of relying purely
 // on trained memory of what each class looks like. Missing entirely if
@@ -29,7 +49,7 @@ function loadClassIcons() {
       .filter((f) => f.toLowerCase().endsWith(".png"))
       .map((f) => ({
         name: displayName(basename(f, extname(f))),
-        base64: readFileSync(join(CLASS_ICONS_DIR, f)).toString("base64"),
+        base64: flattenOnBlack(readFileSync(join(CLASS_ICONS_DIR, f))).toString("base64"),
       }));
   } catch {
     classIconCache = [];
