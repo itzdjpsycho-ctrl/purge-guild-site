@@ -65,7 +65,10 @@ function previewEmbed(war, replaced) {
   const top = [...war.players]
     .sort((a, b) => (b.kills || 0) - (a.kills || 0))
     .slice(0, 5)
-    .map((p) => `**${p.name}** — ${p.kills || 0}K / ${p.deaths || 0}D`)
+    .map((p) => {
+      const cls = p.class ? ` (${p.class}${p.classMode ? " " + p.classMode : ""})` : "";
+      return `**${p.name}**${cls} — ${p.kills || 0}K / ${p.deaths || 0}D`;
+    })
     .join("\n");
 
   const embed = new EmbedBuilder()

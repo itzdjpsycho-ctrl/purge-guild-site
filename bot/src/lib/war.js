@@ -11,10 +11,18 @@ Look at the screenshot(s) carefully and extract ALL of the following:
 3. LOCATION — the node name shown in the centre top e.g. "Calpheon", "Ulukita", "Serendia"
 4. RESULT — either "Victory" or "Defeat" (Occupation Success = Victory, Occupation Failed = Defeat)
 5. PLAYERS — every row in the table. The columns are always:
-   Family Name, Kills, Deaths, Streaks, Damage Done, Damage Taken, CC's, HP Healed, Ally HP Healed, Fort Damage, Cannons Landed, Objects Destroyed, Cannon Distance, Traps Triggered, Time Dead, Time Alive
+   Family Name, Class icon, Kills, Deaths, Streaks, Damage Done, Damage Taken, CC's, HP Healed, Ally HP Healed, Fort Damage, Cannons Landed, Objects Destroyed, Cannon Distance, Traps Triggered, Time Dead, Time Alive
    - Numbers like "1.3M" = 1300000, "471.9K" = 471900, "62672" = 62672
    - Times like "04:35" = 275 seconds, "34:33" = 2073 seconds (MM:SS to total seconds)
    - Extract ALL players visible across all screenshots provided
+6. CLASS — each row has a small class glyph icon right after the Family Name, identifying
+   which of the 31 Black Desert classes that player is: Warrior, Ranger, Sorceress, Berserker,
+   Tamer, Musa, Maehwa, Valkyrie, Kunoichi, Ninja, Wizard, Witch, Dark Knight, Striker, Mystic,
+   Lahn, Archer, Shai, Guardian, Nova, Sage, Corsair, Hashashin, Drakania, Woosa, Maegu,
+   Scholar, Dosa, Deadeye, Wukong, Seraph. Match the glyph shape to the class it represents.
+7. CLASS MODE — right next to the class glyph is a second small icon colored either BLUE
+   (Succession — output "S") or RED (Awakening — output "A"). If you can't tell the color
+   clearly, output "" for that player rather than guessing.
 
 Respond with ONLY valid JSON — no markdown fences, no explanation — in exactly this format:
 {
@@ -24,11 +32,11 @@ Respond with ONLY valid JSON — no markdown fences, no explanation — in exact
   "result": "Victory",
   "type": "extended",
   "players": [
-    {"name":"PlayerName","kills":17,"deaths":12,"streak":3,"dmgDone":471900,"dmgTaken":434700,"cc":60,"hpHealed":255500,"allyHpHealed":32633,"fortDmg":282500,"cannonsLanded":0,"objDestroyed":0,"cannonDist":0,"traps":0,"timeDead":275,"timeAlive":2073}
+    {"name":"PlayerName","class":"Warrior","classMode":"S","kills":17,"deaths":12,"streak":3,"dmgDone":471900,"dmgTaken":434700,"cc":60,"hpHealed":255500,"allyHpHealed":32633,"fortDmg":282500,"cannonsLanded":0,"objDestroyed":0,"cannonDist":0,"traps":0,"timeDead":275,"timeAlive":2073}
   ]
 }
 
-Always set "type" to "extended". Every player must include all stat fields — use 0 if a value is genuinely zero in the screenshot.`;
+Always set "type" to "extended". Every player must include all stat fields — use 0 if a value is genuinely zero in the screenshot. If the class glyph or mode icon isn't visible/legible for a player, use "" for that field rather than guessing.`;
 
 /**
  * Extract a war result from one or more screenshots via Claude vision.
