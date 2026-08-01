@@ -148,6 +148,11 @@ async function getProfileOps(env) {
   try { return raw ? JSON.parse(raw) : []; } catch { return []; }
 }
 
+async function getWarOps(env) {
+  const raw = await env.SIGNUPS_KV.get("warops");
+  try { return raw ? JSON.parse(raw) : []; } catch { return []; }
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -473,6 +478,26 @@ export default {
       return json({ ok: true }, 200, request);
     }
 
+    // ---- website → war op (remove a war from data.js) — officer-gated ----
+    // Queued for the bot to apply (only it holds git write access); see
+    // bot/src/lib/war-sync.js applyWarOps().
+    if (path === "/war-op" && method === "POST") {
+      if (!(await isAdminRequest(request, env))) {
+        return json({ error: "Not signed in as an officer." }, 401, request);
+      }
+      const body = await readJson(request);
+      const opType = body?.op?.type;
+      if (opType === "removeWar" && !body?.op?.date) {
+        return json({ error: "op.date required for removeWar." }, 400, request);
+      }
+      if (!opType) return json({ error: "op.type required." }, 400, request);
+
+      const ops = await getWarOps(env);
+      ops.push({ op: body.op, at: new Date().toISOString() });
+      await env.SIGNUPS_KV.put("warops", JSON.stringify(ops.slice(-200)));
+      return json({ ok: true }, 200, request);
+    }
+
     // ---- bot → state / config / posted / ops (bot-secret gated) ----
     const botAuthed = request.headers.get("x-bot-secret") === env.BOT_PUSH_SECRET;
 
@@ -533,6 +558,14 @@ export default {
       if (!botAuthed) return json({ error: "Bad secret." }, 401, request);
       const ops = await getProfileOps(env);
       if (ops.length) await env.SIGNUPS_KV.put("profileops", "[]");
+      return json({ ops }, 200, request);
+    }
+
+    // Drain the pending war-op queue for the bot to apply.
+    if (path === "/war-ops" && method === "GET") {
+      if (!botAuthed) return json({ error: "Bad secret." }, 401, request);
+      const ops = await getWarOps(env);
+      if (ops.length) await env.SIGNUPS_KV.put("warops", "[]");
       return json({ ops }, 200, request);
     }
 

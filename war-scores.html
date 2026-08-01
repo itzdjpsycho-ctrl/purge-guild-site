@@ -2735,7 +2735,7 @@ function resetModal(){
 
 addWarBtn.addEventListener("click", openModal);
 
-document.addEventListener("click", e=>{
+document.addEventListener("click", async e=>{
   if (e.target && e.target.id === "clearWarsBtn"){
     const btn = e.target;
     if (btn.dataset.confirming === "1"){
@@ -2781,13 +2781,34 @@ document.addEventListener("click", e=>{
       );
       location.reload();
     } else {
-      btn.dataset.confirming = "";
-      btn.textContent = `Use /removewar ${m.date} in Discord`;
+      // Committed war — only the bot can write to data.js. Queue the removal
+      // with the Worker; the bot drains + applies it (~10s) and pushes, same
+      // plumbing as gear-score reads and profile edits. Requires the bot to
+      // be running (same requirement as today, just without opening Discord).
+      btn.disabled = true;
+      btn.textContent = "Removing…";
       btn.style.background = "rgba(178,64,47,0.28)";
-      setTimeout(()=>{
-        btn.textContent = "Remove This War";
-        btn.style.background = "";
-      }, 4000);
+      try{
+        const res = await fetch(`${WORKER_URL}/war-op`, {
+          method:"POST",
+          headers:{ "content-type":"application/json", ...PurgeAuth.headers() },
+          body: JSON.stringify({ op:{ type:"removeWar", date:m.date } }),
+        });
+        if (!res.ok){
+          const body = await res.json().catch(()=>({}));
+          throw new Error(body.error || `HTTP ${res.status}`);
+        }
+        btn.textContent = "Queued — live in ~1 min";
+        setTimeout(()=>{ location.reload(); }, 4000);
+      } catch(err){
+        btn.disabled = false;
+        btn.textContent = `Couldn't queue removal — ${err.message}`;
+        btn.style.background = "rgba(178,64,47,0.28)";
+        setTimeout(()=>{
+          btn.textContent = "Remove This War";
+          btn.style.background = "";
+        }, 5000);
+      }
     }
   }
 });

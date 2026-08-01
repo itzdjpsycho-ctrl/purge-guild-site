@@ -98,3 +98,10 @@ export async function fetchProfileOps() {
   if (!r.ok) return [];
   return Array.isArray(r.data?.ops) ? r.data.ops : [];
 }
+
+/** Drain pending website war-ops (e.g. "Remove This War" on War Scores). */
+export async function fetchWarOps() {
+  const r = await send("/war-ops", "GET");
+  if (!r.ok) return [];
+  return Array.isArray(r.data?.ops) ? r.data.ops : [];
+}
