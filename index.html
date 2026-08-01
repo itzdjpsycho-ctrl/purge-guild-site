@@ -86,6 +86,16 @@
     width:100%; height:auto;
     filter:saturate(0.86) brightness(0.96) contrast(1.02);
   }
+  /* Recolors the purple art toward teal — mix-blend-mode:color swaps hue+
+     saturation but keeps the original luminosity, so lighting/shading detail
+     survives instead of just sitting a flat wash on top. */
+  .hero-banner-recolor{
+    position:absolute; inset:0;
+    background:#1EC2C9;
+    mix-blend-mode:color;
+    opacity:0.62;
+    pointer-events:none;
+  }
   /* Cyan wash unifies the image's hue with the surrounding shell */
   .hero-banner-tint{
     position:absolute; inset:0;
@@ -354,6 +364,7 @@
     <div class="hero-banner-glow"></div>
     <div class="hero-banner-inner">
       <img src="assets/branding/purge-banner.png" alt="Purge — Purge the Weak, Remain Supreme" class="hero-banner-img">
+      <div class="hero-banner-recolor"></div>
       <div class="hero-banner-tint"></div>
       <div class="hero-banner-sheen"></div>
     </div>
