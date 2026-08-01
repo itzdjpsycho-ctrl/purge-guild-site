@@ -103,6 +103,7 @@
   }
   .class-select:hover{ border-color:rgba(255,255,255,0.2); }
   .class-select:focus{ border-color:var(--gold); box-shadow:0 0 0 2px rgba(217,164,65,0.12); }
+  #classIconBadge .class-icon{ display:block; opacity:0.92; }
 
   /* ---- Gear Score ---- */
   .hero-gear{
@@ -418,6 +419,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="flags.js"></script>
+<script src="class-icons.js"></script>
 <script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>PurgeAuth.init();</script>
 <!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
@@ -651,6 +653,7 @@ function renderHero(profile, role, totalKills, totalDeaths, kdVal, profiles){
       </div>
       <div class="hero-class-row">
         <span class="class-label">Class</span>
+        <span id="classIconBadge">${ClassIcons.img(profile.class, {size:20})}</span>
         <select class="class-select" id="classSelect">
           <option value="">Unknown</option>
           ${classOptions}
@@ -711,6 +714,7 @@ function renderHero(profile, role, totalKills, totalDeaths, kdVal, profiles){
     profiles[playerName].class = this.value;
     saveProfiles(profiles);
     publishOwnEdit(playerName, { type:"setClass", className: this.value });
+    document.getElementById("classIconBadge").innerHTML = ClassIcons.img(this.value, {size:20});
     showToast("Class saved", "success");
   });
 

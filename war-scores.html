@@ -335,6 +335,7 @@
     color:var(--text-muted);
     margin-top:3px;
   }
+  .drawer-class-badge .class-icon{ margin-right:5px; opacity:0.85; vertical-align:-2px; }
 
 
   .add-war-btn{
@@ -1356,6 +1357,7 @@
     letter-spacing:0.02em;
     white-space:nowrap;
   }
+  td.td-class .class-icon{ margin-right:5px; opacity:0.85; vertical-align:-2px; }
 
   /* ---- Panel search ---- */
   .panel-search-wrap{
@@ -1623,6 +1625,8 @@
 <!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
 <script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>document.write('<scr'+'ipt src="attendance.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script>document.write('<scr'+'ipt src="profiles.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script src="class-icons.js"></script>
 <script>
 /* ================================================================
    MATCH DATA
@@ -1769,8 +1773,15 @@ const ROLES_STORAGE_KEY    = "nodeWarSquadRoles";
 const PROFILES_STORAGE_KEY = "nodeWarPlayerProfiles";
 
 function loadPlayerProfiles(){
-  try{ const r=localStorage.getItem(PROFILES_STORAGE_KEY); return r?JSON.parse(r):{}; }
-  catch(e){ return {}; }
+  // Shared layer: profiles published by the Discord bot (class + screenshots).
+  const base = (window.GUILD_PROFILES) ? JSON.parse(JSON.stringify(window.GUILD_PROFILES)) : {};
+  let local = {};
+  try{ const r=localStorage.getItem(PROFILES_STORAGE_KEY); if(r) local=JSON.parse(r); }catch(e){}
+  // Local browser edits override the shared layer, per player.
+  const out = {...base};
+  for(const k in local){ out[k] = {...(out[k]||{}), ...local[k]}; }
+  for(const k in out){ for(const f in out[k]){ if(out[k][f] === null) delete out[k][f]; } }
+  return out;
 }
 let playerProfiles = loadPlayerProfiles();
 
@@ -2302,7 +2313,7 @@ function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof
 
     bodyHTML = sorted.map((r,i)=>{
       const cells = cols.map(([key,label,fmt])=>{
-        if (key === "class") return `<td class="td-class" data-label="${label}">${r.class||""}</td>`;
+        if (key === "class") return `<td class="td-class" data-label="${label}" title="${r.class||""}">${ClassIcons.img(r.class, {size:15})}</td>`;
         if (key === "name") return `<td data-label="${label}">${r.name}<button class="inspect-btn" data-player="${r.name}" type="button">inspect</button></td>`;
         if (key === "role") return `<td class="role-cell role-${r.role || 'none'}" data-label="${label}">${fmtRole(r.role)}</td>`;
         const cls = key === "kd" ? "num kd" : "num";
@@ -2314,7 +2325,7 @@ function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof
     bodyHTML = sorted.map((r,i)=>{
       const cells = [
         `<td class="rank">${i+1}</td>`,
-        `<td class="td-class" data-label="Class">${r.class||""}</td>`,
+        `<td class="td-class" data-label="Class">${ClassIcons.img(r.class, {size:13})}${r.class||""}</td>`,
         `<td data-label="Family">${r.name}<button class="inspect-btn" data-player="${r.name}" type="button">inspect</button></td>`,
         `<td class="role-cell role-${r.role || 'none'}" data-label="Role">${fmtRole(r.role)}</td>`,
         `<td class="num" data-label="Kills">${r.kills}</td>`,
@@ -2484,7 +2495,7 @@ function openPlayerDrawer(playerName){
   if(playerClass){
     const cb = drawerName.parentElement.querySelector(".drawer-class-badge") || document.createElement("div");
     cb.className = "drawer-class-badge";
-    cb.textContent = playerClass;
+    cb.innerHTML = ClassIcons.img(playerClass, {size:13}) + playerClass;
     if(!drawerName.parentElement.querySelector(".drawer-class-badge")) drawerName.parentElement.appendChild(cb);
   } else {
     const cb = drawerName.parentElement.querySelector(".drawer-class-badge");

@@ -186,6 +186,7 @@
   }
   .pill-kd{ background:rgba(217,164,65,0.18); color:var(--gold-bright); }
   .pill-class{ background:rgba(44,147,176,0.16); color:var(--crimson-glow); border:1px solid rgba(95,220,245,0.3); }
+  .class-icon{ margin-right:5px; opacity:0.92; vertical-align:-2px; }
   .pill-role{ background:rgba(0,0,0,0.3); border:1px solid transparent; }
   .pill-role.role-shotcaller{ color:var(--orange); border-color:rgba(224,121,60,0.4); }
   .pill-role.role-defensive{ color:var(--green-bright); border-color:rgba(91,201,118,0.4); }
@@ -467,6 +468,7 @@
 </div>
 
 <script src="flags.js"></script>
+<script src="class-icons.js"></script>
 <script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>window.purgeAuthReady = PurgeAuth.init();</script>
 <!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
@@ -701,7 +703,7 @@ function render(){
               ${lastSeen ? `<div class="card-updated-rel">${lastSeen}</div>` : ""}
               <div class="card-pills">
                 <span class="pill pill-kd">${fmtKD(kdVal)} KDR</span>
-                <span class="pill pill-class">${classStr || "Unknown Class"}</span>
+                <span class="pill pill-class">${ClassIcons.img(classStr, {size:13})}${classStr || "Unknown Class"}</span>
               </div>
               ${role ? `<div class="card-pills"><span class="pill pill-role role-${role}">${ROLE_LABELS[role]||role}</span></div>` : ""}
               <div class="card-trend ${trendClass}">${trendLabel}</div>
@@ -854,7 +856,7 @@ function openCompareModal(){
     players.map(p=>`
       <div class="compare-head-cell">
         <div class="compare-head-name">${p.name}</div>
-        <div class="compare-head-class">${p.class}</div>
+        <div class="compare-head-class">${ClassIcons.img(p.class, {size:13})}${p.class}</div>
       </div>
     `).join("");
 
