@@ -9,6 +9,7 @@
 //   Website  ──GET/POST /presets (session-or-password)──►  save/load named role-cap presets
 //   Website  ──POST /post,/edit,/op (session-or-password)──► posts to Discord as the bot
 //   Website  ──POST /profile-op (session: admin or own familyName)──► queue a profile edit
+//   Website  ──POST /merge-op (officer-only)──────►  queue a player-name merge (character rename)
 //   Website  ──POST /war (public, origin-locked)──────►  Claude vision reads a war result screenshot
 //   Website  ──GET  /state (public, sanitized)──────►  live view
 //   Bot      ──POST /state,/config,/links (x-bot-secret)──►  live state + channel + link map
@@ -150,6 +151,11 @@ async function getProfileOps(env) {
 
 async function getWarOps(env) {
   const raw = await env.SIGNUPS_KV.get("warops");
+  try { return raw ? JSON.parse(raw) : []; } catch { return []; }
+}
+
+async function getMergeOps(env) {
+  const raw = await env.SIGNUPS_KV.get("mergeops");
   try { return raw ? JSON.parse(raw) : []; } catch { return []; }
 }
 
@@ -498,6 +504,28 @@ export default {
       return json({ ok: true }, 200, request);
     }
 
+    // ---- website → merge op (combine two names' entire history, e.g. a
+    // character rename) — officer-gated. Queued for the bot to apply (only it
+    // holds git write access); see bot/src/lib/merge-sync.js applyMergeOps().
+    if (path === "/merge-op" && method === "POST") {
+      if (!(await isAdminRequest(request, env))) {
+        return json({ error: "Not signed in as an officer." }, 401, request);
+      }
+      const body = await readJson(request);
+      const op = body?.op;
+      if (op?.type !== "mergeNames" || !op.from || !op.to) {
+        return json({ error: "op.type 'mergeNames' + op.from + op.to required." }, 400, request);
+      }
+      if (String(op.from).toLowerCase() === String(op.to).toLowerCase()) {
+        return json({ error: "from and to must be different names." }, 400, request);
+      }
+
+      const ops = await getMergeOps(env);
+      ops.push({ op, at: new Date().toISOString() });
+      await env.SIGNUPS_KV.put("mergeops", JSON.stringify(ops.slice(-200)));
+      return json({ ok: true }, 200, request);
+    }
+
     // ---- bot → state / config / posted / ops (bot-secret gated) ----
     const botAuthed = request.headers.get("x-bot-secret") === env.BOT_PUSH_SECRET;
 
@@ -566,6 +594,14 @@ export default {
       if (!botAuthed) return json({ error: "Bad secret." }, 401, request);
       const ops = await getWarOps(env);
       if (ops.length) await env.SIGNUPS_KV.put("warops", "[]");
+      return json({ ops }, 200, request);
+    }
+
+    // Drain the pending merge-op queue for the bot to apply.
+    if (path === "/merge-ops" && method === "GET") {
+      if (!botAuthed) return json({ error: "Bad secret." }, 401, request);
+      const ops = await getMergeOps(env);
+      if (ops.length) await env.SIGNUPS_KV.put("mergeops", "[]");
       return json({ ops }, 200, request);
     }
 

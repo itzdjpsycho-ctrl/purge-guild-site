@@ -11,6 +11,7 @@ import * as roster from "./commands/roster.js";
 import { syncFromWorker, applyOps } from "./lib/worker-sync.js";
 import { applyProfileOps } from "./lib/profile-sync.js";
 import { applyWarOps } from "./lib/war-sync.js";
+import { applyMergeOps } from "./lib/merge-sync.js";
 import { workerEnabled, pushLinks } from "./lib/worker.js";
 import { sweepExpiredSignups } from "./lib/signup-cleanup.js";
 import { allLinks } from "./lib/links.js";
@@ -42,6 +43,8 @@ client.once(Events.ClientReady, async (c) => {
     setInterval(() => applyProfileOps(), 10_000);
     // Apply website war-ops (e.g. "Remove This War" on War Scores).
     setInterval(() => applyWarOps(), 10_000);
+    // Apply website merge-ops (e.g. "Merge Stats" on the Roster page).
+    setInterval(() => applyMergeOps(), 10_000);
     // Re-sync the Discord-id <-> family-name link map in case the Worker's KV
     // was ever cleared/redeployed while this map only changed via /profile.
     pushLinks(allLinks()).catch(() => {});

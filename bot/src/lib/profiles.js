@@ -120,6 +120,46 @@ export function removeImage(name, slotKey) {
   return prev;
 }
 
+/**
+ * Combine two players' profiles into one (e.g. a character rename). If
+ * toName has no existing profile, fromName's profile just moves to the
+ * toName key. If both exist, fields merge with the newer `updatedAt`
+ * profile winning per-field conflicts and the older one filling any gaps.
+ * Any screenshot path that loses out to the other profile's value is
+ * reported back in `orphanedAssets` — deleting the actual file is left to
+ * the caller (merge-sync.js), same split as removeImage()/profile-sync.js.
+ * @returns {{merged:boolean, orphanedAssets:string[]}}
+ */
+export function mergeProfiles(fromName, toName) {
+  const profiles = loadProfiles();
+  const from = profiles[fromName];
+  if (!from) return { merged: false, orphanedAssets: [] };
+
+  const to = profiles[toName];
+  const orphanedAssets = [];
+  let mergedProfile;
+
+  if (!to) {
+    mergedProfile = from;
+  } else {
+    const fromNewer = new Date(from.updatedAt || 0) > new Date(to.updatedAt || 0);
+    const primary = fromNewer ? from : to;
+    const secondary = fromNewer ? to : from;
+    mergedProfile = { ...secondary, ...primary };
+    for (const slotKey of Object.values(SLOT_KEYS)) {
+      const kept = mergedProfile[slotKey];
+      for (const p of [from[slotKey], to[slotKey]]) {
+        if (p && p !== kept) orphanedAssets.push(p);
+      }
+    }
+  }
+  mergedProfile.updatedAt = new Date().toISOString();
+  profiles[toName] = mergedProfile;
+  delete profiles[fromName];
+  writeProfiles(profiles);
+  return { merged: true, orphanedAssets };
+}
+
 export function unlink(userId) {
   const owned = findByDiscord(userId);
   if (!owned) return null;

@@ -105,3 +105,10 @@ export async function fetchWarOps() {
   if (!r.ok) return [];
   return Array.isArray(r.data?.ops) ? r.data.ops : [];
 }
+
+/** Drain pending website merge-ops (e.g. a character-rename "Merge Stats"). */
+export async function fetchMergeOps() {
+  const r = await send("/merge-ops", "GET");
+  if (!r.ok) return [];
+  return Array.isArray(r.data?.ops) ? r.data.ops : [];
+}

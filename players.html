@@ -346,6 +346,27 @@
     cursor:pointer; line-height:1; background:none; border:none;
   }
   .compare-close:hover{ color:var(--text); }
+
+  .merge-field{ margin-bottom:14px; }
+  .merge-field label{
+    display:block; font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.06em;
+    text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;
+  }
+  .merge-hint{ text-transform:none; letter-spacing:0; color:var(--text-faint); font-size:10px; }
+  .merge-field input{
+    width:100%; background:var(--panel-raised); border:1px solid var(--hairline);
+    color:var(--text); font-family:var(--font-mono); font-size:13px;
+    padding:9px 12px; border-radius:8px; outline:none; transition:border-color 0.16s ease;
+  }
+  .merge-field input:focus{ border-color:var(--crimson); }
+  .merge-preview{
+    margin:16px 0; padding:12px 14px; border-radius:8px;
+    background:var(--panel-raised); border:1px solid var(--hairline-soft);
+    font-family:var(--font-mono); font-size:11.5px; color:var(--text-muted);
+    line-height:1.7; min-height:20px;
+  }
+  .merge-preview.warn{ color:var(--red-bright); }
+  .merge-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:6px; }
   .compare-heads{ display:grid; gap:0; margin-top:6px; }
   .compare-head-cell{ padding:0 14px 16px; text-align:center; }
   .compare-head-cell:first-child{ visibility:hidden; }
@@ -438,6 +459,7 @@
   </div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;">
     <button class="btn" id="compareBtn" type="button">⇄ Compare</button>
+    <button class="btn" id="mergeStatsBtn" type="button" style="display:none;">🔀 Merge Stats</button>
     <button class="btn" id="importBtn" type="button">Import JSON</button>
     <button class="btn gold" id="exportBtn" type="button">Export JSON</button>
   </div>
@@ -465,6 +487,31 @@
     <h1 style="font-family:var(--font-display);font-size:26px;font-weight:700;">Player Comparison</h1>
     <div class="compare-heads" id="compareHeads"></div>
     <div class="compare-grid" id="compareGrid"></div>
+  </div>
+</div>
+
+<div class="compare-modal" id="mergeModal">
+  <div class="compare-panel" style="max-width:520px;">
+    <button class="compare-close" id="mergeCloseBtn" type="button" aria-label="Close">✕</button>
+    <div class="page-eyebrow">Officer Tools</div>
+    <h1 style="font-family:var(--font-display);font-size:24px;font-weight:700;margin:6px 0 4px;">Merge Stats</h1>
+    <p style="font-family:var(--font-mono);font-size:11.5px;color:var(--text-faint);margin-bottom:20px;line-height:1.6;">
+      Combines two names' entire war history into one — use this for character renames. The old name's wars, gear profile, and roster entry all move to the name you keep.
+    </p>
+    <div class="merge-field">
+      <label>Old name <span class="merge-hint">(merged away, removed from roster)</span></label>
+      <input type="text" id="mergeFromInput" list="mergeNameList" placeholder="Family name…" autocomplete="off">
+    </div>
+    <div class="merge-field">
+      <label>Keep this name <span class="merge-hint">(receives the combined history)</span></label>
+      <input type="text" id="mergeToInput" list="mergeNameList" placeholder="Family name…" autocomplete="off">
+    </div>
+    <datalist id="mergeNameList"></datalist>
+    <div class="merge-preview" id="mergePreview">Pick both names to see a preview.</div>
+    <div class="merge-actions">
+      <button class="btn" id="mergeCancelBtn" type="button">Cancel</button>
+      <button class="btn gold" id="mergeConfirmBtn" type="button" disabled>Merge Stats</button>
+    </div>
   </div>
 </div>
 
@@ -1026,9 +1073,106 @@ document.getElementById("officerAddBtn").addEventListener("click", () => {
   officerOp(name, "add", document.getElementById("officerRoleSelect").value);
   input.value = "";
 });
+// ---- Merge Stats (officer-only — combine two names' entire history) ----
+function allKnownNames(){
+  return [...new Set([
+    ...ROSTER_MEMBERS,
+    ...getAllMatches().flatMap(m=>m.players.map(p=>p[0])),
+  ])].sort((a,b)=>a.localeCompare(b));
+}
+function warCountFor(name){
+  return getAllMatches().filter(m=>m.players.some(([n])=>n===name)).length;
+}
+function updateMergePreview(){
+  const from = document.getElementById("mergeFromInput").value.trim();
+  const to   = document.getElementById("mergeToInput").value.trim();
+  const preview = document.getElementById("mergePreview");
+  const confirmBtn = document.getElementById("mergeConfirmBtn");
+  const known = new Set(allKnownNames());
+
+  if(!from || !to){
+    preview.textContent = "Pick both names to see a preview.";
+    preview.className = "merge-preview";
+    confirmBtn.disabled = true;
+    return;
+  }
+  if(from.toLowerCase() === to.toLowerCase()){
+    preview.textContent = "Pick two different names.";
+    preview.className = "merge-preview warn";
+    confirmBtn.disabled = true;
+    return;
+  }
+  if(!known.has(from) || !known.has(to)){
+    preview.textContent = "Both names must match an existing roster member or war participant exactly.";
+    preview.className = "merge-preview warn";
+    confirmBtn.disabled = true;
+    return;
+  }
+  const fromWars = warCountFor(from);
+  const toWars = warCountFor(to);
+  preview.textContent = `${from} (${fromWars} war${fromWars!==1?"s":""}) will be merged into ${to} (${toWars} war${toWars!==1?"s":""}). ${from} will no longer appear anywhere as a separate name — this can't be undone from the website.`;
+  preview.className = "merge-preview";
+  confirmBtn.disabled = false;
+}
+function openMergeModal(){
+  document.getElementById("mergeNameList").innerHTML = allKnownNames().map(n=>`<option value="${n}">`).join("");
+  document.getElementById("mergeFromInput").value = "";
+  document.getElementById("mergeToInput").value = "";
+  updateMergePreview();
+  document.getElementById("mergeModal").classList.add("show");
+}
+function closeMergeModal(){
+  document.getElementById("mergeModal").classList.remove("show");
+}
+document.getElementById("mergeStatsBtn").addEventListener("click", openMergeModal);
+document.getElementById("mergeCloseBtn").addEventListener("click", closeMergeModal);
+document.getElementById("mergeCancelBtn").addEventListener("click", closeMergeModal);
+document.getElementById("mergeModal").addEventListener("click", e=>{
+  if(e.target.id === "mergeModal") closeMergeModal();
+});
+document.getElementById("mergeFromInput").addEventListener("input", updateMergePreview);
+document.getElementById("mergeToInput").addEventListener("input", updateMergePreview);
+
+document.getElementById("mergeConfirmBtn").addEventListener("click", async ()=>{
+  const btn = document.getElementById("mergeConfirmBtn");
+  const from = document.getElementById("mergeFromInput").value.trim();
+  const to   = document.getElementById("mergeToInput").value.trim();
+
+  if(btn.dataset.confirming !== "1"){
+    btn.dataset.confirming = "1";
+    btn.textContent = "Tap again to confirm";
+    setTimeout(()=>{
+      if(btn.dataset.confirming === "1"){ btn.dataset.confirming = ""; btn.textContent = "Merge Stats"; }
+    }, 3000);
+    return;
+  }
+
+  btn.disabled = true;
+  btn.dataset.confirming = "";
+  btn.textContent = "Merging…";
+  try{
+    const res = await fetch(`${WORKER_URL}/merge-op`, {
+      method:"POST",
+      headers:{ "content-type":"application/json", ...PurgeAuth.headers() },
+      body: JSON.stringify({ op:{ type:"mergeNames", from, to } }),
+    });
+    if(!res.ok){
+      const body = await res.json().catch(()=>({}));
+      throw new Error(body.error || `HTTP ${res.status}`);
+    }
+    btn.textContent = "Queued — live in ~1 min";
+    setTimeout(()=>{ location.reload(); }, 4000);
+  }catch(err){
+    btn.disabled = false;
+    btn.textContent = `Couldn't queue merge — ${err.message}`;
+    setTimeout(()=>{ btn.textContent = "Merge Stats"; updateMergePreview(); }, 5000);
+  }
+});
+
 window.purgeAuthReady?.then((state) => {
   if(state?.isAdmin){
     document.getElementById("officersPanel").style.display = "";
+    document.getElementById("mergeStatsBtn").style.display = "";
     loadOfficers();
   }
   render(); // re-render cards now that we know who can toggle Exception/Vacation

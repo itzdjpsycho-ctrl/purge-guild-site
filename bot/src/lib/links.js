@@ -63,3 +63,27 @@ export function unlink(userId) {
   writeAll(map);
   return had;
 }
+
+/**
+ * Repoint any link whose family name matches fromName (case-insensitive) to
+ * toName instead — used by "Merge Stats" (a character rename) so the same
+ * person's /profile commands and My Stats page keep working under their new
+ * name. Skips a user whose link already points at fromName if toName is
+ * already claimed by a DIFFERENT user, leaving both links untouched for an
+ * officer to reconcile manually via /profile unlink + register.
+ * @returns {boolean} whether anything changed.
+ */
+export function renameLink(fromName, toName) {
+  const map = readAll();
+  const fromLower = fromName.toLowerCase();
+  const existingToOwner = userForName(toName);
+  let changed = false;
+  for (const [userId, n] of Object.entries(map)) {
+    if (n.toLowerCase() !== fromLower) continue;
+    if (existingToOwner && existingToOwner !== userId) continue;
+    map[userId] = toName;
+    changed = true;
+  }
+  if (changed) writeAll(map);
+  return changed;
+}

@@ -153,6 +153,62 @@ export function removeWar(date) {
 }
 
 /**
+ * Combine two names' entire war history into one (e.g. a character rename).
+ * For every war fromName appears in: if toName isn't also in that war, the
+ * entry is simply renamed; if both somehow appear in the SAME war (a rare
+ * data-entry edge case, not the normal rename case), the additive stat
+ * columns are summed into toName's row and fromName's row is dropped —
+ * except `streak`, which is a per-war best-streak value, not a running
+ * total, so it takes Math.max instead of summing. Exact-match only; callers
+ * resolve casing first (see profiles.js canonicalName()).
+ * @returns {{warsChanged:number}}
+ */
+export function mergeNames(fromName, toName) {
+  const data = loadData();
+  const cols = data.extendedColumns;
+  let warsChanged = 0;
+
+  for (const m of data.matches) {
+    const idxFrom = m.players.findIndex((p) => p[0] === fromName);
+    if (idxFrom < 0) continue;
+
+    const idxTo = m.players.findIndex((p) => p[0] === toName);
+    if (idxTo < 0) {
+      m.players[idxFrom][0] = toName;
+    } else {
+      m.players[idxTo][1] += m.players[idxFrom][1]; // kills
+      m.players[idxTo][2] += m.players[idxFrom][2]; // deaths
+      m.players.splice(idxFrom, 1);
+    }
+    warsChanged++;
+
+    const extRows = data.extendedStats[m.date];
+    if (!extRows) continue;
+    const eFrom = extRows.findIndex((r) => r[0] === fromName);
+    if (eFrom < 0) continue;
+    const eTo = extRows.findIndex((r) => r[0] === toName);
+    if (eTo < 0) {
+      extRows[eFrom][0] = toName;
+    } else {
+      cols.forEach((c, i) => {
+        if (c === "name") return;
+        extRows[eTo][i] = c === "streak"
+          ? Math.max(extRows[eTo][i] || 0, extRows[eFrom][i] || 0)
+          : (extRows[eTo][i] || 0) + (extRows[eFrom][i] || 0);
+      });
+      extRows.splice(eFrom, 1);
+    }
+  }
+
+  data.rosterMembers = [...new Set(
+    data.rosterMembers.filter((n) => n !== fromName).concat(toName)
+  )].sort((a, b) => a.localeCompare(b));
+
+  saveData(data);
+  return { warsChanged };
+}
+
+/**
  * Replace rosterMembers wholesale (e.g. from /roster sync). Does not touch
  * matches/extendedStats — anyone with war history still shows up on the site
  * even if they've since left the guild (buildRoster() unions both sources).
