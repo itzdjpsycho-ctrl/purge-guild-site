@@ -5,9 +5,10 @@
 // bot host (bot/data/links.json), never published here.
 window.GUILD_PROFILES = {
   "HaterApproved": {
-    "updatedAt": "2026-06-29T00:19:44.797Z",
+    "updatedAt": "2026-08-01T12:23:02.876Z",
     "ap": 381,
     "aap": 387,
-    "dp": 453
+    "dp": 453,
+    "class": "Sage"
   }
 };
