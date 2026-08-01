@@ -613,15 +613,18 @@ function getAllMatches(){
 }
 
 /* ---- build roster totals ---- */
+// Current roster members only — someone who played a war but has since left
+// the guild (per the latest /roster sync) is dropped here. War Scores /
+// Dashboard are unaffected: those show historical war records, which stay
+// accurate regardless of who's currently in the guild.
 function buildRoster(){
   const totals = {};
-  // Seed roster-only members first
   ROSTER_MEMBERS.forEach(name=>{
-    if(!totals[name]) totals[name] = { name, kills:0, deaths:0, played:0 };
+    totals[name] = { name, kills:0, deaths:0, played:0 };
   });
   getAllMatches().forEach(m=>{
     m.players.forEach(([name,k,d])=>{
-      if(!totals[name]) totals[name] = { name, kills:0, deaths:0, played:0 };
+      if(!totals[name]) return; // not a current roster member
       totals[name].kills  += k;
       totals[name].deaths += d;
       totals[name].played += 1;
