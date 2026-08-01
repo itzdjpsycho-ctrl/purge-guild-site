@@ -6,7 +6,7 @@
      • the left sidebar nav rail (.app-shell / .app-sidebar)
      • the content column (.app-content) + page headers (.page-head)
      • unified scrollbar, panel, section spacing scoped under .app-content
-   Keeps the existing greyish-black + gold/orange theme (CSS vars defined per
+   Keeps the existing navy + electric-cyan theme (CSS vars defined per
    page; fallbacks below mirror them so this file also works standalone).
    Desktop-only by design — no mobile breakpoints.
    ========================================================================== */
@@ -14,31 +14,33 @@
 :root{
   --sidebar-w: 226px;
 
-  /* ---- Canonical design tokens ("Esports HUD" — grey/black + gold/orange) ----
+  /* ---- Canonical design tokens ("Nanotech HUD" — navy + electric cyan) ----
      This is the single source of truth. Every page used to redefine an identical
      :root block inline; app.css loads AFTER each page's inline <style>, so these
      values win the cascade and the inline copies can be deleted outright rather
-     than kept in sync. Variable NAMES are unchanged from the old purple-themed
-     site (see CLAUDE.md) — only values change. crimson-prefixed vars are now the
-     gold/amber UI accent (nav, buttons, links, glow); cyan-prefixed vars are now
-     a secondary ember-orange accent; gold, red, green, bronze and orange keep
-     their prior semantic meaning (K/D and victories, deaths, kills, rank-3,
-     shotcaller role). */
-  --bg:            #121212;
-  --bg2:           #17171A;
-  --panel:         #1C1C1F;
-  --panel-raised:  #242427;
-  --hairline:      #333336;
-  --hairline-soft: #232326;
-  --text:          #ECEAE4;
-  --text-muted:    #9C978F;
-  --text-faint:    #5A564F;
-  --crimson:       #8A5A12;
-  --crimson-mid:   #B87D1E;
-  --crimson-bright:#E0982E;
-  --crimson-glow:  #F2C067;
-  --cyan:          #C4571E;
-  --cyan-bright:   #E8752E;
+     than kept in sync. Variable NAMES are unchanged from the old purple/gold-
+     themed site (see CLAUDE.md) — only values change, chosen to match the
+     nanotech_background video. crimson-prefixed vars are now the electric-cyan
+     UI accent (nav, buttons, links, glow); cyan-prefixed vars are now a
+     secondary violet accent; gold, red, green, bronze and orange keep their
+     prior semantic meaning (K/D and victories, deaths, kills, rank-3,
+     shotcaller role) — those warm tones are left untouched so they read as
+     complementary "pop" colors against the cool navy/cyan base. */
+  --bg:            #0A1A28;
+  --bg2:           #0E2233;
+  --panel:         #11293D;
+  --panel-raised:  #163349;
+  --hairline:      #234258;
+  --hairline-soft: #17303F;
+  --text:          #E9F3F7;
+  --text-muted:    #8FA9BC;
+  --text-faint:    #4C6478;
+  --crimson:       #2C93B0;
+  --crimson-mid:   #3FBBDA;
+  --crimson-bright:#5FDCF5;
+  --crimson-glow:  #A6F3FF;
+  --cyan:          #7C6FE0;
+  --cyan-bright:   #9B90F2;
   --gold:          #C49A30;
   --gold-bright:   #E8BC55;
   --red:           #B2402F;
@@ -87,7 +89,7 @@
   z-index:1;
   /* Dark, close-in vignette — edges sink into near-black instead of the
      atmosphere reading flat all the way to the corners. */
-  box-shadow:inset 0 0 190px rgba(8,4,16,0.55);
+  box-shadow:inset 0 0 190px rgba(4,10,18,0.55);
 }
 
 .app-sidebar{
@@ -95,7 +97,7 @@
   width:var(--sidebar-w);
   height:100vh;
   display:flex; flex-direction:column;
-  background:linear-gradient(180deg, #0D0A14 0%, #0A0810 100%);
+  background:linear-gradient(180deg, #071018 0%, #04090E 100%);
   border-right:1px solid var(--hairline, #2A1F3A);
   padding:22px 0 18px;
   overflow-y:auto;
@@ -114,8 +116,8 @@
   display:flex; align-items:center; justify-content:center;
   clip-path:polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
   font-size:17px;
-  background:linear-gradient(150deg, #8A5A12 0%, #E0982E 100%);
-  box-shadow:0 0 0 1px rgba(224,152,46,0.5), inset 0 0 0 1px rgba(255,255,255,0.12);
+  background:linear-gradient(150deg, var(--crimson) 0%, var(--crimson-bright) 100%);
+  box-shadow:0 0 0 1px rgba(95,220,245,0.5), inset 0 0 0 1px rgba(255,255,255,0.12);
 }
 .app-brand-text{ display:flex; flex-direction:column; line-height:1; }
 .app-brand-name{
@@ -147,10 +149,10 @@
   color:var(--text, #EDE8E0);
 }
 .side-nav a.current{
-  background:rgba(138,90,18,0.16);
+  background:rgba(44,147,176,0.16);
   color:var(--crimson-glow, #F2C067);
-  border-color:rgba(224,152,46,0.30);
-  box-shadow:inset 2px 0 0 var(--crimson-bright, #E0982E), inset 0 0 0 1px rgba(224,152,46,0.12);
+  border-color:rgba(95,220,245,0.30);
+  box-shadow:inset 2px 0 0 var(--crimson-bright, #E0982E), inset 0 0 0 1px rgba(95,220,245,0.12);
 }
 .side-nav a.current .ico{ opacity:1; }
 
@@ -244,13 +246,13 @@
 .btn:disabled{ opacity:0.4; cursor:not-allowed; }
 .btn.gold{ color:var(--gold-bright); border-color:var(--gold); background:rgba(217,164,65,0.1); }
 .btn.gold:hover{ background:rgba(217,164,65,0.18); box-shadow:0 0 10px rgba(232,188,85,0.35), inset 0 0 0 1px rgba(232,188,85,0.4); }
-.btn.purple{ color:var(--crimson-glow); border-color:var(--crimson); background:rgba(138,90,18,0.16); }
-.btn.purple:hover:not(:disabled){ background:rgba(138,90,18,0.28); box-shadow:0 0 10px rgba(224,152,46,0.4), inset 0 0 0 1px rgba(224,152,46,0.5); }
+.btn.purple{ color:var(--crimson-glow); border-color:var(--crimson); background:rgba(44,147,176,0.16); }
+.btn.purple:hover:not(:disabled){ background:rgba(44,147,176,0.28); box-shadow:0 0 10px rgba(95,220,245,0.4), inset 0 0 0 1px rgba(95,220,245,0.5); }
 
 .officer-chip{
   display:flex; align-items:center; gap:6px;
   font-family:var(--font-mono); font-size:11.5px; color:var(--crimson-glow);
-  background:rgba(138,90,18,0.16); border:1px solid var(--crimson); border-radius:999px;
+  background:rgba(44,147,176,0.16); border:1px solid var(--crimson); border-radius:999px;
   padding:5px 6px 5px 12px;
 }
 .officer-chip button{
@@ -277,11 +279,11 @@
   padding-right:0;
 }
 
-/* ---- Custom scrollbars (purple-tinted) ---------------------------------- */
-*{ scrollbar-width:thin; scrollbar-color:#3A2A52 transparent; }
+/* ---- Custom scrollbars (navy-cyan-tinted) -------------------------------- */
+*{ scrollbar-width:thin; scrollbar-color:#1E4A63 transparent; }
 *::-webkit-scrollbar{ width:10px; height:10px; }
 *::-webkit-scrollbar-track{ background:transparent; }
 *::-webkit-scrollbar-thumb{
-  background:#2E2142; border-radius:999px; border:2px solid transparent; background-clip:padding-box;
+  background:#183C51; border-radius:999px; border:2px solid transparent; background-clip:padding-box;
 }
-*::-webkit-scrollbar-thumb:hover{ background:#4A356B; background-clip:padding-box; }
+*::-webkit-scrollbar-thumb:hover{ background:#2A6684; background-clip:padding-box; }
