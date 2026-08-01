@@ -16,7 +16,7 @@ window.GUILD_ATTENDANCE = {
       "attended": 4,
       "noShows": 0,
       "rate": 1,
-      "updatedAt": "2026-08-01T13:05:17.710Z",
+      "updatedAt": "2026-08-01T13:38:22.174Z",
       "noShowWars": []
     },
     "EXTRA_LARGE": {
@@ -24,7 +24,7 @@ window.GUILD_ATTENDANCE = {
       "attended": 2,
       "noShows": 0,
       "rate": 1,
-      "updatedAt": "2026-08-01T13:05:17.710Z",
+      "updatedAt": "2026-08-01T13:38:22.174Z",
       "noShowWars": []
     },
     "Greedyboy": {
@@ -38,7 +38,7 @@ window.GUILD_ATTENDANCE = {
         }
       ],
       "rate": 0,
-      "updatedAt": "2026-08-01T13:05:17.710Z"
+      "updatedAt": "2026-08-01T13:38:22.174Z"
     },
     "Ghond": {
       "signups": 1,
@@ -51,7 +51,7 @@ window.GUILD_ATTENDANCE = {
         }
       ],
       "rate": 0,
-      "updatedAt": "2026-08-01T13:05:17.710Z"
+      "updatedAt": "2026-08-01T13:38:22.174Z"
     },
     "NightBringers": {
       "signups": 1,
@@ -64,7 +64,7 @@ window.GUILD_ATTENDANCE = {
         }
       ],
       "rate": 0,
-      "updatedAt": "2026-08-01T13:05:17.710Z"
+      "updatedAt": "2026-08-01T13:38:22.174Z"
     },
     "Zebraghost": {
       "signups": 1,
@@ -77,7 +77,7 @@ window.GUILD_ATTENDANCE = {
         }
       ],
       "rate": 0,
-      "updatedAt": "2026-08-01T13:05:17.710Z"
+      "updatedAt": "2026-08-01T13:38:22.174Z"
     }
   },
   "byWar": {
