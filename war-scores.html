@@ -1654,11 +1654,7 @@ const NOSHOW_STATUS_LABELS = { in: "In", late: "Late", bench: "Bench" };
    not listed here just show the standard Kills/Deaths/K/D table.
    Each player: [name, kills, deaths, streak, dmgDone, dmgTaken, cc,
    hpHealed, allyHpHealed, fortDmg, cannonsLanded, objDestroyed,
-   cannonDist, traps, timeDeadSeconds, timeAliveSeconds, class, classMode]
-   class/classMode are OCR'd from the war screenshot's class glyph + the
-   blue(Succession)/red(Awakening) mode icon next to it — "" if unclear.
-   Older wars predating this just have undefined trailing elements, which
-   the site treats as "" and falls back to the player's profile class.
+   cannonDist, traps, timeDeadSeconds, timeAliveSeconds]
    ================================================================ */
 const EXTENDED_STATS = window.GUILD_DATA.extendedStats;
 
@@ -2196,7 +2192,7 @@ function attachScoreChartInteractions(panel){
 function buildPanelData(key){
   let rows, title, meta, resultClass, resultLabel, showHof = false, extended = null, noShowWar;
   if (key === "overall"){
-    rows = buildOverall().map(r=>({...r, kd: kd(r.kills, r.deaths), role: roleAssignments[r.name] || "", class: (playerProfiles[r.name]||{}).class||"", classMode:""}));
+    rows = buildOverall().map(r=>({...r, kd: kd(r.kills, r.deaths), role: roleAssignments[r.name] || "", class: (playerProfiles[r.name]||{}).class||""}));
     title = "Overall Record";
     meta = `${MATCHES.length} wars · ${rows.length} families`;
     resultClass = "overall"; resultLabel = "All Wars";
@@ -2208,15 +2204,11 @@ function buildPanelData(key){
     if (ext){
       extended = true;
       rows = ext.map(p=>{
-        const [name,kills,deaths,streak,dmgDone,dmgTaken,cc,hpHealed,allyHpHealed,fortDmg,cannonsLanded,objDestroyed,cannonDist,traps,timeDead,timeAlive,ocrClass,classMode] = p;
-        // Prefer the class OCR'd from this specific war's screenshot (people
-        // change class/build between wars); fall back to the player's
-        // self-reported profile class for older wars that predate this.
-        const cls = ocrClass || (playerProfiles[name]||{}).class || "";
-        return { name,kills,deaths,kd:kd(kills,deaths),role:roleAssignments[name] || "",class:cls,classMode:ocrClass?(classMode||""):"",played:undefined,streak,dmgDone,dmgTaken,cc,hpHealed,allyHpHealed,fortDmg,cannonsLanded,objDestroyed,cannonDist,traps,timeDead,timeAlive };
+        const [name,kills,deaths,streak,dmgDone,dmgTaken,cc,hpHealed,allyHpHealed,fortDmg,cannonsLanded,objDestroyed,cannonDist,traps,timeDead,timeAlive] = p;
+        return { name,kills,deaths,kd:kd(kills,deaths),role:roleAssignments[name] || "",class:(playerProfiles[name]||{}).class||"",played:undefined,streak,dmgDone,dmgTaken,cc,hpHealed,allyHpHealed,fortDmg,cannonsLanded,objDestroyed,cannonDist,traps,timeDead,timeAlive };
       });
     } else {
-      rows = m.players.map(([name,k,d])=>({name, kills:k, deaths:d, kd: kd(k,d), role: roleAssignments[name] || "", class: (playerProfiles[name]||{}).class||"", classMode:""}));
+      rows = m.players.map(([name,k,d])=>({name, kills:k, deaths:d, kd: kd(k,d), role: roleAssignments[name] || "", class: (playerProfiles[name]||{}).class||""}));
     }
     const dt = new Date(m.date + "T00:00:00");
     title = dt.toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
@@ -2321,10 +2313,7 @@ function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof
 
     bodyHTML = sorted.map((r,i)=>{
       const cells = cols.map(([key,label,fmt])=>{
-        if (key === "class") {
-          const titleText = r.class ? r.class + (r.classMode ? ` (${r.classMode})` : "") : "";
-          return `<td class="td-class" data-label="${label}" title="${titleText}">${ClassIcons.img(r.class, {size:15})}</td>`;
-        }
+        if (key === "class") return `<td class="td-class" data-label="${label}" title="${r.class||""}">${ClassIcons.img(r.class, {size:15})}</td>`;
         if (key === "name") return `<td data-label="${label}">${r.name}<button class="inspect-btn" data-player="${r.name}" type="button">inspect</button></td>`;
         if (key === "role") return `<td class="role-cell role-${r.role || 'none'}" data-label="${label}">${fmtRole(r.role)}</td>`;
         const cls = key === "kd" ? "num kd" : "num";
@@ -2336,7 +2325,7 @@ function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof
     bodyHTML = sorted.map((r,i)=>{
       const cells = [
         `<td class="rank">${i+1}</td>`,
-        `<td class="td-class" data-label="Class">${ClassIcons.img(r.class, {size:13})}${r.class||""}${r.class && r.classMode ? ` (${r.classMode})` : ""}</td>`,
+        `<td class="td-class" data-label="Class">${ClassIcons.img(r.class, {size:13})}${r.class||""}</td>`,
         `<td data-label="Family">${r.name}<button class="inspect-btn" data-player="${r.name}" type="button">inspect</button></td>`,
         `<td class="role-cell role-${r.role || 'none'}" data-label="Role">${fmtRole(r.role)}</td>`,
         `<td class="num" data-label="Kills">${r.kills}</td>`,
@@ -2697,7 +2686,6 @@ parseJsonBtn.addEventListener("click", ()=>{
     if (Array.isArray(p)) return { name:p[0], kills:p[1]||0, deaths:p[2]||0 };
     return {
       name: p.name||"Unknown", kills: p.kills||0, deaths: p.deaths||0,
-      class: p.class||"", classMode: p.classMode||"",
       streak: p.streak||0, dmgDone: p.dmgDone||0, dmgTaken: p.dmgTaken||0,
       cc: p.cc||0, hpHealed: p.hpHealed||0, allyHpHealed: p.allyHpHealed||0,
       fortDmg: p.fortDmg||0, cannonsLanded: p.cannonsLanded||0,
@@ -2893,11 +2881,10 @@ function showReviewStep(d){
   const dateStr = dt.toLocaleDateString("en-US", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
 
   const playerRows = d.players.map(p=>{
-    const cls = p.class ? ` (${p.class}${p.classMode ? " " + p.classMode : ""})` : "";
     if (d.type === "extended"){
-      return `<div><b>${p.name}</b>${cls} — ${p.kills}K / ${p.deaths}D · ${p.streak} streak · ${fmtNum(p.dmgDone)} dmg</div>`;
+      return `<div><b>${p.name}</b> — ${p.kills}K / ${p.deaths}D · ${p.streak} streak · ${fmtNum(p.dmgDone)} dmg</div>`;
     }
-    return `<div><b>${p.name}</b>${cls} — ${p.kills}K / ${p.deaths}D</div>`;
+    return `<div><b>${p.name}</b> — ${p.kills}K / ${p.deaths}D</div>`;
   }).join("");
 
   const alreadyExists = MATCHES.some(m=>m.date===d.date);
@@ -2939,8 +2926,7 @@ confirmBtn.addEventListener("click", ()=>{
     p.dmgDone??0, p.dmgTaken??0, p.cc??0,
     p.hpHealed??0, p.allyHpHealed??0, p.fortDmg??0,
     p.cannonsLanded??0, p.objDestroyed??0, p.cannonDist??0,
-    p.traps??0, p.timeDead??0, p.timeAlive??0,
-    p.class||"", p.classMode||""
+    p.traps??0, p.timeDead??0, p.timeAlive??0
   ]);
 
   // Persist dynamic matches to localStorage

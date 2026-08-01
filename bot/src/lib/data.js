@@ -8,17 +8,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_PATH = join(__dirname, "..", "..", "..", "data.js");
 
 // Index positions inside an EXTENDED_STATS row (mirrors data.extendedColumns).
-// class/classMode are strings (not stats) — see STRING_FIELDS below.
 export const EXT = {
   name: 0, kills: 1, deaths: 2, streak: 3, dmgDone: 4, dmgTaken: 5, cc: 6,
   hpHealed: 7, allyHpHealed: 8, fortDmg: 9, cannonsLanded: 10, objDestroyed: 11,
-  cannonDist: 12, traps: 13, timeDead: 14, timeAlive: 15, class: 16, classMode: 17,
+  cannonDist: 12, traps: 13, timeDead: 14, timeAlive: 15,
 };
-
-// Columns that hold text, not a stat number — addWar() must not coerce these
-// through num(). classMode is "S" (Succession) or "A" (Awakening), or "" if
-// the screenshot didn't show it clearly.
-const STRING_FIELDS = new Set(["name", "class", "classMode"]);
 
 /**
  * Read fresh every call so newly added wars show up without a bot restart.
@@ -121,7 +115,7 @@ export function addWar(war) {
   const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
   const basicPlayers = war.players.map((p) => [p.name, num(p.kills), num(p.deaths)]);
   const extRows = war.players.map((p) =>
-    cols.map((c) => (STRING_FIELDS.has(c) ? (p[c] || "") : num(p[c])))
+    cols.map((c) => (c === "name" ? p.name : num(p[c])))
   );
 
   const match = {

@@ -141,8 +141,8 @@ Three ways, in rough order of convenience:
 - War Scores page is `war-scores.html`, not `index.html` — `index.html` is the Home/landing page so the bare site URL lands there
 - New players auto-assigned **Mainball** role until manually changed
 - Screenshot extraction: kills from **score/flag icon column**, NOT fox/wolf icon
-- Screenshot extraction also reads each row's **class glyph** + **Succession(blue)/Awakening(red) mode icon**, stored as `class`/`classMode` (`"S"`/`"A"`) — trailing columns on `extendedStats` rows (`bot/src/lib/war.js` OCR prompt). This is a **per-war** value (players can switch class/build between wars), not the persistent `profiles.js` class — War Scores prefers the per-war OCR'd class and only falls back to the profile class for older wars that predate this or when OCR couldn't read it clearly.
-- Class icons (`assets/classes/<slug>.png`, looked up via `class-icons.js`) ARE used now — the old "plain mono text only" decision was reversed once real icon art was provided (see `players.html` roster cards, `player.html` class picker, `war-scores.html` Class column)
+- Class icons (`assets/classes/<slug>.png`, looked up via `class-icons.js`) ARE used now — the old "plain mono text only" decision was reversed once real icon art was provided (see `players.html` roster cards, `player.html` class picker, `war-scores.html` Class column). War Scores' Class column always shows the player's **persistent `profiles.js` class** (self-set via `/profile class`), not something read off the war screenshot.
+- **Tried and reverted:** per-war class + Succession/Awakening extraction via screenshot OCR (`class`/`classMode` on `extendedStats` rows). Accuracy was too unreliable even after fixes (allowing blank instead of a forced guess, attaching reference icon images to the vision request) — don't re-add without a materially better approach.
 - **Nav on all pages:** Home · War Scores · Roster · Dashboard · Sign Ups
 - All pages share identical nav — keep in sync when adding pages
 - Roles shared between pages via `localStorage["nodeWarSquadRoles"]`

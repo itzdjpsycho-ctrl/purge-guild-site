@@ -19,9 +19,7 @@ window.GUILD_DATA = {
     "cannonDist",
     "traps",
     "timeDead",
-    "timeAlive",
-    "class",
-    "classMode"
+    "timeAlive"
   ],
   "rosterMembers": [
     "Alancar",
