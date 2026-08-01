@@ -59,17 +59,49 @@
     gap:28px;
   }
 
-  /* Guild banner */
+  /* Guild banner — frosted glass frame so the purple art sits inside the
+     navy/cyan shell instead of reading as a pasted-in rectangle. */
   .hero-banner-wrap{
     position:relative;
     width:100%;
-    clip-path:polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 0 100%);
+    padding:12px;
+    clip-path:polygon(0 0, calc(100% - 26px) 0, 100% 26px, 100% 100%, 0 100%);
     overflow:hidden;
-    box-shadow:0 0 0 1px rgba(95,220,245,0.4), 0 20px 50px rgba(0,0,0,0.5);
+    background:rgba(17,41,61,0.5);
+    backdrop-filter:blur(22px) saturate(160%);
+    -webkit-backdrop-filter:blur(22px) saturate(160%);
+    box-shadow:
+      inset 0 0 0 1px rgba(95,220,245,0.35),
+      inset 0 1px 0 rgba(255,255,255,0.14),
+      0 20px 50px rgba(0,0,0,0.5),
+      0 0 46px rgba(95,220,245,0.1);
+  }
+  .hero-banner-inner{
+    position:relative;
+    overflow:hidden;
+    clip-path:polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
   }
   .hero-banner-img{
     display:block;
     width:100%; height:auto;
+    filter:saturate(0.86) brightness(0.96) contrast(1.02);
+  }
+  /* Cyan wash unifies the image's hue with the surrounding shell */
+  .hero-banner-tint{
+    position:absolute; inset:0;
+    background:
+      linear-gradient(180deg, rgba(10,26,40,0) 55%, rgba(10,26,40,0.4) 100%),
+      radial-gradient(ellipse 90% 60% at 50% 100%, rgba(44,147,176,0.22), transparent 65%),
+      radial-gradient(ellipse 70% 50% at 50% 0%, rgba(95,220,245,0.1), transparent 60%);
+    pointer-events:none;
+    mix-blend-mode:normal;
+  }
+  /* Diagonal glass sheen */
+  .hero-banner-sheen{
+    position:absolute; inset:0;
+    background:linear-gradient(115deg, transparent 32%, rgba(255,255,255,0.09) 46%, rgba(155,144,242,0.1) 51%, transparent 66%);
+    pointer-events:none;
+    mix-blend-mode:screen;
   }
   .hero-banner-glow{
     position:absolute; inset:-1px;
@@ -320,7 +352,11 @@
 <div class="hero">
   <div class="hero-banner-wrap">
     <div class="hero-banner-glow"></div>
-    <img src="assets/branding/purge-banner.png" alt="Purge — Purge the Weak, Remain Supreme" class="hero-banner-img">
+    <div class="hero-banner-inner">
+      <img src="assets/branding/purge-banner.png" alt="Purge — Purge the Weak, Remain Supreme" class="hero-banner-img">
+      <div class="hero-banner-tint"></div>
+      <div class="hero-banner-sheen"></div>
+    </div>
   </div>
 
   <div class="hero-copy">
