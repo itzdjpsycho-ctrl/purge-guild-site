@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Stats — Node War Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Design tokens live in app.css now (single canonical :root, loaded after
+     this inline block so it wins the cascade) — not redefined per-page. */
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; }
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:var(--font-ui); min-height:100vh;
+    position:relative; overflow-x:hidden;
+  }
+  body::before{
+    content:"";
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(44,147,176,0.16), transparent 65%),
+      radial-gradient(ellipse 35% 45% at 100% 100%, rgba(124,111,224,0.07), transparent 60%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
+  }
+  main, header, footer, nav{ position:relative; z-index:1; }
+
+  .panel{ background:var(--panel); border:1px solid var(--hairline); overflow:hidden; }
+  .panel-pad{ padding:20px 22px; }
+  .no-data{ text-align:center; padding:36px 16px; color:var(--text-faint); font-family:var(--font-mono); font-size:12px; font-style:italic; }
+
+  /* ---- 3-column layout ---- */
+  .stats-columns{ display:grid; grid-template-columns:1.15fr 1fr 1fr; gap:20px; align-items:start; }
+  .stats-col{ display:flex; flex-direction:column; }
+  .stats-col .section{ margin-bottom:20px; }
+  .stats-col .section:last-child{ margin-bottom:0; }
+
+  /* ---- Trend panel ---- */
+  .trend-controls{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:14px 18px; border-bottom:1px solid var(--hairline-soft); flex-wrap:wrap;
+  }
+  .trend-range-toggle{ display:flex; gap:4px; }
+  .trend-range-toggle button{
+    font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase;
+    padding:5px 11px; border-radius:999px; cursor:pointer;
+    border:1px solid var(--hairline); background:var(--panel-raised); color:var(--text-faint);
+    transition:all 0.15s ease;
+  }
+  .trend-range-toggle button.active{ color:var(--gold-bright); border-color:var(--gold); background:rgba(217,164,65,0.12); }
+  .trend-metric-switch{ display:flex; align-items:center; gap:10px; }
+  .metric-arrow{
+    background:none; border:1px solid var(--hairline); color:var(--text-muted);
+    width:24px; height:24px; border-radius:6px; cursor:pointer; font-size:13px; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+    transition:all 0.15s ease;
+  }
+  .metric-arrow:hover{ color:var(--text); border-color:rgba(255,255,255,0.2); }
+  .trend-metric-label{
+    font-family:var(--font-mono); font-size:12px; font-weight:600; letter-spacing:0.06em;
+    color:var(--crimson-bright); min-width:64px; text-align:center;
+  }
+  .trend-body{ padding:16px 18px 18px; }
+  .trend-legend{
+    display:flex; gap:16px; margin-bottom:8px;
+    font-family:var(--font-mono); font-size:10.5px; color:var(--text-muted);
+  }
+  .legend-dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+  .legend-dot.you{ background:var(--gold-bright); }
+  .legend-dot.avg{ background:var(--crimson-bright); }
+  .legend-dot.median{ background:var(--text-faint); }
+  canvas{ width:100% !important; display:block; }
+
+  /* ---- War Record card ---- */
+  .wr-head{ display:flex; align-items:center; gap:12px; margin-bottom:16px; }
+  .wr-class-icon img{ display:block; }
+  .wr-name{ font-family:var(--font-display); font-size:20px; font-weight:700; }
+  .wr-badge{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.06em; margin-top:2px; }
+  .wr-badge.active{ color:var(--green-bright); }
+  .wr-badge.inactive{ color:var(--text-faint); }
+  .wr-stats{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+  .wr-stat{
+    background:var(--panel-raised); border:1px solid var(--hairline-soft);
+    padding:12px 10px; text-align:center; border-radius:6px;
+  }
+  .wr-val{ font-family:var(--font-mono); font-size:20px; font-weight:700; color:var(--text); line-height:1; }
+  .wr-val.gold{ color:var(--gold-bright); }
+  .wr-label{ font-family:var(--font-mono); font-size:9px; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-faint); margin-top:5px; }
+
+  /* ---- Weekly Roundup / Coaching text panels ---- */
+  #weeklyRoundup p, #coachingCard p{ color:var(--text-muted); font-size:13.5px; line-height:1.6; }
+  .coaching-focus-tag{
+    display:inline-block; font-family:var(--font-mono); font-size:10px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--gold-bright); background:rgba(217,164,65,0.12);
+    border:1px solid rgba(217,164,65,0.3); border-radius:999px; padding:3px 10px; margin-bottom:10px;
+  }
+
+  /* ---- Trophy Case ---- */
+  .trophy-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+  .trophy-card{
+    background:var(--panel); border:1px solid var(--hairline);
+    clip-path:polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+    padding:16px 12px; text-align:center;
+  }
+  .trophy-icon{ font-size:20px; margin-bottom:6px; }
+  .trophy-val{ font-family:var(--font-mono); font-size:19px; font-weight:700; color:var(--gold-bright); line-height:1; }
+  .trophy-label{ font-family:var(--font-mono); font-size:9.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-muted); margin-top:6px; }
+  .trophy-sub{ font-family:var(--font-mono); font-size:9.5px; color:var(--text-faint); margin-top:3px; }
+
+  /* ---- Lifetime attendance gauge ---- */
+  .lifetime-gauge{ text-align:center; }
+  .lifetime-pct{ font-family:var(--font-mono); font-size:32px; font-weight:700; color:var(--crimson-bright); }
+  .lifetime-sub{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-faint); margin-top:6px; }
+  .lifetime-bar-track{ height:6px; background:var(--panel-raised); border-radius:999px; overflow:hidden; margin-top:14px; }
+  .lifetime-bar-fill{ height:100%; background:var(--crimson-bright); border-radius:999px; }
+
+  /* ---- Guild Standards ---- */
+  .standards-list{ display:flex; flex-direction:column; gap:10px; margin-bottom:14px; }
+  .standard-row{ display:flex; align-items:center; justify-content:space-between; font-size:13px; }
+  .standard-row .label{ color:var(--text-muted); }
+  .standard-row .mark{ font-family:var(--font-mono); font-weight:700; }
+  .standard-row .mark.pass{ color:var(--green-bright); }
+  .standard-row .mark.fail{ color:var(--red-bright); }
+  .standards-bar-track{ height:6px; background:var(--panel-raised); border-radius:999px; overflow:hidden; }
+  .standards-bar-fill{ height:100%; background:var(--green-bright); border-radius:999px; }
+  .standards-count{ font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint); margin-top:8px; text-align:right; }
+
+  /* ---- Attendance calendar ---- */
+  .cal-months{ display:flex; gap:16px; }
+  .cal-month{ flex:1; min-width:0; }
+  .cal-month-label{ font-family:var(--font-mono); font-size:10px; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-faint); margin-bottom:8px; }
+  .cal-dow-row{ display:grid; grid-template-columns:repeat(7,1fr); margin-bottom:4px; }
+  .cal-dow-row span{ font-family:var(--font-mono); font-size:8.5px; color:var(--text-faint); text-align:center; }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+  .cal-cell{
+    aspect-ratio:1; display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-size:9px; color:var(--text-faint);
+    background:var(--panel-raised); border-radius:4px;
+  }
+  .cal-cell.empty{ background:transparent; }
+  .cal-cell.war-attended{ background:rgba(91,201,118,0.25); color:var(--green-bright); font-weight:700; }
+  .cal-cell.war-missed{ background:rgba(214,90,69,0.2); color:var(--red-bright); font-weight:700; }
+  .cal-legend{ display:flex; gap:14px; margin-top:10px; font-family:var(--font-mono); font-size:9.5px; color:var(--text-faint); }
+  .cal-legend .sw{ display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:4px; vertical-align:middle; }
+  .cal-legend .sw.at{ background:var(--green-bright); }
+  .cal-legend .sw.mi{ background:var(--red-bright); }
+
+  /* ---- Recent Wars ---- */
+  .recent-war-row{
+    display:grid; grid-template-columns:34px 1fr auto; align-items:center; gap:12px;
+    padding:11px 18px; border-bottom:1px solid var(--hairline-soft); font-size:13px;
+  }
+  .recent-war-row:last-child{ border-bottom:none; }
+  .result-pill{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.06em; text-transform:uppercase;
+    padding:3px 0; border-radius:999px; font-weight:700; text-align:center;
+  }
+  .result-pill.victory{ color:var(--gold-bright); background:rgba(217,164,65,0.12); border:1px solid rgba(217,164,65,0.3); }
+  .result-pill.defeat{ color:var(--red-bright); background:rgba(178,64,47,0.12); border:1px solid rgba(178,64,47,0.3); }
+  .rw-date{ color:var(--text-muted); }
+  .rw-kd{ font-family:var(--font-mono); font-weight:700; }
+  .rw-kd.victory{ color:var(--green-bright); }
+  .rw-kd.defeat{ color:var(--red-bright); }
+
+  .not-linked-panel{ max-width:560px; }
+  .not-linked-panel p{ color:var(--text-muted); line-height:1.7; font-size:14px; }
+
+  @media(max-width:1100px){
+    .stats-columns{ grid-template-columns:1fr; }
+  }
+</style>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<video class="bg-video" autoplay muted loop playsinline aria-hidden="true">
+  <source src="nanotech_background_3840.webm" type="video/webm">
+</video>
+<div class="bg-video-scrim"></div>
+
+<div class="app-shell">
+<aside class="app-sidebar">
+  <a class="app-brand" href="index.html">
+    <span class="app-brand-logo">⚔</span>
+    <span class="app-brand-text">
+      <span class="app-brand-name">Purge</span>
+      <span class="app-brand-sub">Node War</span>
+    </span>
+  </a>
+  <div class="side-nav-label">Menu</div>
+  <nav class="side-nav">
+    <a href="index.html"><span class="ico">🏠</span> Home</a>
+    <a href="war-scores.html"><span class="ico">⚔️</span> War Scores</a>
+    <a href="players.html"><span class="ico">👥</span> Roster</a>
+    <a href="my-stats.html" class="current"><span class="ico">🪪</span> My Stats</a>
+    <a href="dashboard.html"><span class="ico">📊</span> Dashboard</a>
+    <a href="signups.html"><span class="ico">📝</span> Sign Ups</a>
+    <a href="combat-log.html"><span class="ico">📜</span> Combat Log</a>
+  </nav>
+  <div id="authWidget" class="auth-widget"></div>
+  <div class="app-sidebar-foot">
+    <b>Purge</b> · BDO Guild<br>
+    Node War Log
+  </div>
+</aside>
+
+<main class="app-content">
+
+<div class="page-head">
+  <div class="page-eyebrow">Personal Dashboard</div>
+  <h1>My <span>Stats</span></h1>
+  <div class="page-sub" id="statsSubtitle">Loading…</div>
+</div>
+
+<div id="statsRoot">
+  <div class="stats-columns" id="statsColumns" style="display:none;">
+    <div class="stats-col">
+      <div class="section">
+        <div class="section-label">Performance Trend</div>
+        <div class="panel">
+          <div class="trend-controls">
+            <div class="trend-range-toggle" id="trendRangeToggle">
+              <button data-range="10" class="active" type="button">Last 10</button>
+              <button data-range="all" type="button">All</button>
+            </div>
+            <div class="trend-metric-switch">
+              <button class="metric-arrow" id="trendMetricPrev" type="button" aria-label="Previous stat">‹</button>
+              <span class="trend-metric-label" id="trendMetricLabel">K/D</span>
+              <button class="metric-arrow" id="trendMetricNext" type="button" aria-label="Next stat">›</button>
+            </div>
+          </div>
+          <div class="trend-body">
+            <div class="trend-legend">
+              <span><span class="legend-dot you"></span>You</span>
+              <span><span class="legend-dot avg"></span>Guild Avg</span>
+              <span><span class="legend-dot median"></span>Guild Median</span>
+            </div>
+            <canvas id="trendCanvas" height="200"></canvas>
+            <div class="no-data" id="trendNoData" style="display:none;">No war data yet — play your first Node War to see a trend here.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">War Record</div>
+        <div class="panel panel-pad" id="warRecordCard"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">Weekly Roundup</div>
+        <div class="panel panel-pad" id="weeklyRoundup"></div>
+      </div>
+    </div>
+
+    <div class="stats-col">
+      <div class="section">
+        <div class="section-label">Trophy Case · Career Bests</div>
+        <div class="trophy-grid" id="trophyGrid"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">Lifetime Attendance</div>
+        <div class="panel panel-pad" id="lifetimeAttendance"></div>
+      </div>
+    </div>
+
+    <div class="stats-col">
+      <div class="section">
+        <div class="section-label">Coaching</div>
+        <div class="panel panel-pad" id="coachingCard"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">Guild Standards</div>
+        <div class="panel panel-pad" id="guildStandards"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">Attendance</div>
+        <div class="panel panel-pad" id="attendanceCalendar"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-label">Recent Wars</div>
+        <div class="panel" id="recentWars"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel panel-pad not-linked-panel" id="notLinkedPanel" style="display:none;">
+    <p>Your Discord account isn't linked to a guild family name yet.<br>
+    Run <b style="color:var(--gold-bright)">/profile register</b> in Discord, then reload this page.</p>
+  </div>
+</div>
+
+</main>
+</div><!-- /app-shell -->
+
+<footer style="text-align:center;padding:36px 24px 56px;font-size:12px;color:var(--text-faint);font-family:var(--font-mono);">Node War Log · My Stats</footer>
+
+<script src="flags.js"></script>
+<script src="class-icons.js"></script>
+<script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
+<script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script>document.write('<scr'+'ipt src="profiles.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script>
+/* ================================================================
+   MATCH DATA — keep in sync with war-scores.html / dashboard.html
+================================================================ */
+const MATCHES = window.GUILD_DATA.matches;
+const EXTENDED_STATS = window.GUILD_DATA.extendedStats;
+
+const DYNAMIC_MATCHES_KEY  = "nodeWarDynamicMatches";
+const DYNAMIC_EXTENDED_KEY = "nodeWarDynamicExtended";
+
+/* Guild Standards thresholds — tweak here, logic stays untouched. */
+const GUILD_STANDARDS = [
+  { label:"KDR ≥ 1.00",      pass:(p)=> p.lifetimeKD != null && p.lifetimeKD >= 1.0 },
+  { label:"Attendance ≥ 70%", pass:(p)=> p.attendanceRate != null && p.attendanceRate >= 0.70 },
+];
+
+/* Metrics the Performance Trend chart can cycle through. */
+const TREND_METRICS = [
+  { key:"kd",      label:"K/D",     fmt:v=>v.toFixed(2) },
+  { key:"kills",   label:"Kills",   fmt:v=>String(Math.round(v)) },
+  { key:"dmgDone", label:"Damage",  fmt:v=>Math.round(v).toLocaleString() },
+  { key:"cc",      label:"CC",      fmt:v=>Math.round(v).toLocaleString() },
+  { key:"healing", label:"Healing", fmt:v=>Math.round(v).toLocaleString() },
+];
+
+/* ---- helpers ---- */
+function kd(k,d){ return (k===0&&d===0)?null:d===0?k:k/d; }
+function fmtKD(v){ return v==null?"—":v.toFixed(2); }
+
+function getAllMatches(){
+  const all = [...MATCHES];
+  try{
+    const raw = localStorage.getItem(DYNAMIC_MATCHES_KEY);
+    if(raw){ JSON.parse(raw).forEach(m=>{ if(!all.find(e=>e.date===m.date)) all.push(m); }); }
+  }catch(e){}
+  try{
+    const raw = localStorage.getItem(DYNAMIC_EXTENDED_KEY);
+    if(raw){ Object.assign(EXTENDED_STATS, JSON.parse(raw)); }
+  }catch(e){}
+  return all.sort((a,b)=>a.date.localeCompare(b.date));
+}
+
+function buildOverall(matches){
+  const totals = {};
+  matches.forEach(m=>{
+    m.players.forEach(([name,k,d])=>{
+      if(!totals[name]) totals[name]={name,kills:0,deaths:0,played:0};
+      totals[name].kills+=k; totals[name].deaths+=d; totals[name].played+=1;
+    });
+  });
+  return Object.values(totals);
+}
+
+function loadProfiles(){
+  const base = (window.GUILD_PROFILES) ? JSON.parse(JSON.stringify(window.GUILD_PROFILES)) : {};
+  let local = {};
+  try{ const r=localStorage.getItem("nodeWarPlayerProfiles"); if(r) local=JSON.parse(r); }catch(e){}
+  const out = {...base};
+  for(const k in local){ out[k] = {...(out[k]||{}), ...local[k]}; }
+  for(const k in out){ for(const f in out[k]){ if(out[k][f] === null) delete out[k][f]; } }
+  return out;
+}
+
+function extRowFor(date, name){
+  const row = (EXTENDED_STATS[date]||[]).find(r=>r[0]===name);
+  if(!row) return null;
+  return { dmgDone:row[4], dmgTaken:row[5], cc:row[6], hpHealed:row[7], allyHpHealed:row[8], fortDmg:row[9] };
+}
+
+function getPlayerAppearances(name, allMatches){
+  return allMatches.map(m=>{
+    const p = m.players.find(([n])=>n===name);
+    if(!p) return null;
+    return { match:m, kills:p[1], deaths:p[2], ext:extRowFor(m.date, name) };
+  }).filter(Boolean);
+}
+
+/* Every participant's value for a given metric, in one war — used for the
+   guild avg/median comparison lines on the Performance Trend chart. */
+function getWarMetricValues(match, metricKey){
+  if(metricKey==="kd" || metricKey==="kills"){
+    return match.players.map(([,k,d])=> metricKey==="kd" ? (kd(k,d)??0) : k);
+  }
+  const ext = EXTENDED_STATS[match.date] || [];
+  return ext.map(row=>{
+    if(metricKey==="dmgDone") return row[4]||0;
+    if(metricKey==="cc")      return row[6]||0;
+    if(metricKey==="healing") return (row[7]||0)+(row[8]||0);
+    return 0;
+  });
+}
+function median(values){
+  if(!values.length) return 0;
+  const s = [...values].sort((a,b)=>a-b);
+  const mid = Math.floor(s.length/2);
+  return s.length%2 ? s[mid] : (s[mid-1]+s[mid])/2;
+}
+function playerMetricValue(appearance, metricKey){
+  if(metricKey==="kd")    return kd(appearance.kills, appearance.deaths) ?? 0;
+  if(metricKey==="kills") return appearance.kills;
+  if(!appearance.ext) return 0;
+  if(metricKey==="dmgDone") return appearance.ext.dmgDone||0;
+  if(metricKey==="cc")      return appearance.ext.cc||0;
+  if(metricKey==="healing") return (appearance.ext.hpHealed||0)+(appearance.ext.allyHpHealed||0);
+  return 0;
+}
+
+/* ---- week helpers (same grouping as dashboard.html) ---- */
+function weekKey(dateStr){
+  const d = new Date(dateStr + "T00:00:00");
+  const day = d.getDay();
+  const monday = new Date(d);
+  monday.setDate(d.getDate() - ((day + 6) % 7));
+  return monday.toISOString().slice(0,10);
+}
+function getMostRecentWeekMatches(matches){
+  if(!matches.length) return [];
+  const key = weekKey(matches[matches.length-1].date);
+  return matches.filter(m=>weekKey(m.date)===key);
+}
+
+/* ================================================================
+   IDENTITY — self only, via Discord OAuth (no ?name= override)
+================================================================ */
+PurgeAuth.init().then(state=>{
+  if(!state.loggedIn) return; // guardPage() already redirects to index.html
+  if(!state.familyName){
+    document.getElementById("statsSubtitle").textContent = "Account not linked.";
+    document.getElementById("notLinkedPanel").style.display = "block";
+    return;
+  }
+  document.getElementById("statsColumns").style.display = "grid";
+  buildPage(state.familyName);
+});
+
+function buildPage(playerName){
+  document.title = `My Stats — ${playerName}`;
+  const allMatches  = getAllMatches();
+  const profiles    = loadProfiles();
+  const profile     = profiles[playerName] || {};
+  const appearances = getPlayerAppearances(playerName, allMatches);
+
+  const totalKills  = appearances.reduce((s,a)=>s+a.kills,0);
+  const totalDeaths = appearances.reduce((s,a)=>s+a.deaths,0);
+  const lifetimeKD  = kd(totalKills, totalDeaths);
+  const careerWars  = appearances.length;
+
+  document.getElementById("statsSubtitle").textContent =
+    careerWars ? `${playerName} · ${careerWars} war${careerWars!==1?"s":""} fought` : `${playerName} · no wars logged yet`;
+
+  /* Appearance-based attendance: matches played ÷ matches logged since your
+     first appearance (mirrors dashboard.html's Weekly Update "Attendance"
+     category, which prefers this over sparse sign-up history). */
+  const firstDate = careerWars ? appearances[0].match.date : null;
+  const matchesSinceJoin = firstDate ? allMatches.filter(m=>m.date>=firstDate) : [];
+  const attendanceRate = matchesSinceJoin.length ? careerWars/matchesSinceJoin.length : 0;
+
+  const gearScore = (profile.ap!=null && profile.aap!=null && profile.dp!=null)
+    ? Math.round((profile.ap+profile.aap)/2 + profile.dp) : null;
+
+  renderWarRecord(playerName, profile, lifetimeKD, careerWars, attendanceRate, gearScore);
+  renderTrophyCase(appearances);
+  renderLifetimeAttendance(careerWars, attendanceRate);
+  renderWeeklyRoundup(allMatches, appearances);
+  renderGuildStandards({ lifetimeKD, attendanceRate });
+  renderCoaching(allMatches, lifetimeKD, careerWars);
+  renderAttendanceCalendar(allMatches, appearances);
+  renderRecentWars(appearances);
+  setupTrend(appearances);
+}
+
+/* ---- War Record ---- */
+function renderWarRecord(name, profile, lifetimeKD, careerWars, attendanceRate, gearScore){
+  const active = !profile.vacation;
+  document.getElementById("warRecordCard").innerHTML = `
+    <div class="wr-head">
+      <span class="wr-class-icon">${ClassIcons.img(profile.class, {size:32})}</span>
+      <div>
+        <div class="wr-name">${name}</div>
+        <div class="wr-badge ${active?"active":"inactive"}">${active?"● Active":"○ Inactive"}</div>
+      </div>
+    </div>
+    <div class="wr-stats">
+      <div class="wr-stat"><div class="wr-val gold">${fmtKD(lifetimeKD)}</div><div class="wr-label">Lifetime K/D</div></div>
+      <div class="wr-stat"><div class="wr-val">${Math.round(attendanceRate*100)}%</div><div class="wr-label">Attendance</div></div>
+      <div class="wr-stat"><div class="wr-val">${gearScore ?? "—"}</div><div class="wr-label">Gear Score</div></div>
+      <div class="wr-stat"><div class="wr-val">${careerWars}</div><div class="wr-label">Wars Fought · Career</div></div>
+    </div>
+  `;
+}
+
+/* ---- Trophy Case ---- */
+function renderTrophyCase(appearances){
+  const grid = document.getElementById("trophyGrid");
+  if(!appearances.length){
+    grid.innerHTML = `<div class="no-data" style="grid-column:1/-1;">No wars played yet — trophies unlock after your first Node War.</div>`;
+    return;
+  }
+  let bestKD = null;
+  appearances.forEach(a=>{
+    const v = kd(a.kills, a.deaths);
+    if(v!=null && (bestKD===null || v>bestKD.value)) bestKD = { value:v, kills:a.kills, deaths:a.deaths };
+  });
+  const maxExt = (sel) => appearances.reduce((m,a)=> a.ext ? Math.max(m, sel(a.ext)||0) : m, 0);
+  const biggestDamage = maxExt(e=>e.dmgDone);
+  const mostCC        = maxExt(e=>e.cc);
+  const mostHealing   = maxExt(e=>(e.hpHealed||0)+(e.allyHpHealed||0));
+  const biggestFort   = maxExt(e=>e.fortDmg);
+
+  const cards = [
+    { icon:"🏆", val: bestKD ? bestKD.value.toFixed(2) : "—", label:"Best War K/D",
+      sub: bestKD ? `${bestKD.kills}-${bestKD.deaths} in a single war` : "No wars yet" },
+    { icon:"💥", val: biggestDamage.toLocaleString(), label:"Biggest War Damage", sub:"damage dealt in a single war" },
+    { icon:"🎯", val: mostCC.toLocaleString(), label:"Most CC (One War)", sub:"crowd control in a single war" },
+    { icon:"💧", val: mostHealing.toLocaleString(), label:"Most Healing (One War)", sub:"self + ally healing" },
+    { icon:"🏰", val: biggestFort.toLocaleString(), label:"Biggest Fort Damage", sub:"fort damage in a single war" },
+  ];
+  grid.innerHTML = cards.map(c=>`
+    <div class="trophy-card">
+      <div class="trophy-icon">${c.icon}</div>
+      <div class="trophy-val">${c.val}</div>
+      <div class="trophy-label">${c.label}</div>
+      <div class="trophy-sub">${c.sub}</div>
+    </div>
+  `).join("");
+}
+
+/* ---- Lifetime Attendance gauge ---- */
+function renderLifetimeAttendance(careerWars, attendanceRate){
+  const MIN_WARS = 5;
+  const el = document.getElementById("lifetimeAttendance");
+  if(careerWars < MIN_WARS){
+    const needed = MIN_WARS - careerWars;
+    el.innerHTML = `
+      <div class="lifetime-gauge">
+        <div class="lifetime-pct">—</div>
+        <div class="lifetime-sub">Placement — graded in ${needed} more war${needed!==1?"s":""}</div>
+      </div>`;
+    return;
+  }
+  const pct = Math.round(attendanceRate*100);
+  el.innerHTML = `
+    <div class="lifetime-gauge">
+      <div class="lifetime-pct">${pct}%</div>
+      <div class="lifetime-sub">All wars since joining</div>
+      <div class="lifetime-bar-track"><div class="lifetime-bar-fill" style="width:${pct}%"></div></div>
+    </div>`;
+}
+
+/* ---- Weekly Roundup ---- */
+function renderWeeklyRoundup(allMatches, appearances){
+  const el = document.getElementById("weeklyRoundup");
+  const weekMatches = getMostRecentWeekMatches(allMatches);
+  if(!weekMatches.length){
+    el.innerHTML = `<p>No guild wars this week — nothing to round up.</p>`;
+    return;
+  }
+  const weekApps = appearances.filter(a=>weekMatches.some(m=>m.date===a.match.date));
+  if(!weekApps.length){
+    el.innerHTML = `<p>The guild fought ${weekMatches.length} war${weekMatches.length!==1?"s":""} this week, but you weren't in any of them — check Sign Ups for next week.</p>`;
+    return;
+  }
+  const kills  = weekApps.reduce((s,a)=>s+a.kills,0);
+  const deaths = weekApps.reduce((s,a)=>s+a.deaths,0);
+  const wins   = weekApps.filter(a=>a.match.result==="Victory").length;
+  const n = weekApps.length;
+  el.innerHTML = `<p>You played in ${n} war${n!==1?"s":""} this week (${wins}W/${n-wins}L), going ${kills}-${deaths} for a ${fmtKD(kd(kills,deaths))} K/D.</p>`;
+}
+
+/* ---- Guild Standards ---- */
+function renderGuildStandards(playerStats){
+  const results = GUILD_STANDARDS.map(s=>({ label:s.label, pass:s.pass(playerStats) }));
+  const met = results.filter(r=>r.pass).length;
+  document.getElementById("guildStandards").innerHTML = `
+    <div class="standards-list">
+      ${results.map(r=>`
+        <div class="standard-row">
+          <span class="label">${r.label}</span>
+          <span class="mark ${r.pass?"pass":"fail"}">${r.pass?"✓":"✕"}</span>
+        </div>`).join("")}
+    </div>
+    <div class="standards-bar-track"><div class="standards-bar-fill" style="width:${Math.round((met/results.length)*100)}%"></div></div>
+    <div class="standards-count">${met}/${results.length} criteria met</div>
+  `;
+}
+
+/* ---- Coaching (templated insight text only) ---- */
+function renderCoaching(allMatches, lifetimeKD, careerWars){
+  const el = document.getElementById("coachingCard");
+  if(!careerWars){
+    el.innerHTML = `<p>No war data yet — play your first Node War to get personalized feedback here.</p>`;
+    return;
+  }
+  const overall = buildOverall(allMatches).filter(r=>r.played>0);
+  const guildKDs = overall.map(r=>kd(r.kills,r.deaths)).filter(v=>v!=null);
+  const guildAvgKD = guildKDs.length ? guildKDs.reduce((a,b)=>a+b,0)/guildKDs.length : 0;
+
+  if(lifetimeKD==null){
+    el.innerHTML = `<p>Not enough data yet to grade your K/D.</p>`;
+    return;
+  }
+  const diff = lifetimeKD - guildAvgKD;
+  let tag, text;
+  if(diff >= 0.5){
+    tag = "Elite"; text = `You're at ${lifetimeKD.toFixed(2)} K/D, well above the guild average of ${guildAvgKD.toFixed(2)} — elite performance, keep the tempo up.`;
+  } else if(diff >= 0){
+    tag = "Steady"; text = `You're at ${lifetimeKD.toFixed(2)} K/D, right around the guild average (${guildAvgKD.toFixed(2)}) — solid and steady.`;
+  } else if(diff >= -0.5){
+    tag = "Focus"; text = `You're at ${lifetimeKD.toFixed(2)} K/D, a bit below the guild average of ${guildAvgKD.toFixed(2)} — tighten up positioning before pushing for kills.`;
+  } else {
+    tag = "Focus"; text = `You're at ${lifetimeKD.toFixed(2)} K/D, below the guild average of ${guildAvgKD.toFixed(2)} — focus on survivability this week.`;
+  }
+  el.innerHTML = `<span class="coaching-focus-tag">${tag}</span><p>${text}</p>`;
+}
+
+/* ---- Attendance calendar (current + previous month) ---- */
+function buildMonthCalendar(year, month, warDates, attendedDates){
+  const first = new Date(year, month, 1);
+  const startWeekday = first.getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const cells = [];
+  for(let i=0;i<startWeekday;i++) cells.push(null);
+  for(let d=1; d<=daysInMonth; d++) cells.push(d);
+  const monthLabel = first.toLocaleDateString("en-US",{month:"long", year:"numeric"});
+  const dayCells = cells.map(d=>{
+    if(d===null) return `<div class="cal-cell empty"></div>`;
+    const dateStr = `${year}-${String(month+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    let cls = "cal-cell";
+    if(attendedDates.has(dateStr)) cls += " war-attended";
+    else if(warDates.has(dateStr)) cls += " war-missed";
+    return `<div class="${cls}">${d}</div>`;
+  }).join("");
+  return `<div class="cal-month">
+    <div class="cal-month-label">${monthLabel}</div>
+    <div class="cal-dow-row">${["S","M","T","W","T","F","S"].map(d=>`<span>${d}</span>`).join("")}</div>
+    <div class="cal-grid">${dayCells}</div>
+  </div>`;
+}
+function renderAttendanceCalendar(allMatches, appearances){
+  const warDates = new Set(allMatches.map(m=>m.date));
+  const attendedDates = new Set(appearances.map(a=>a.match.date));
+  const now = new Date();
+  const prev = new Date(now.getFullYear(), now.getMonth()-1, 1);
+  const html =
+    `<div class="cal-months">
+      ${buildMonthCalendar(prev.getFullYear(), prev.getMonth(), warDates, attendedDates)}
+      ${buildMonthCalendar(now.getFullYear(), now.getMonth(), warDates, attendedDates)}
+    </div>
+    <div class="cal-legend">
+      <span><span class="sw at"></span>Attended</span>
+      <span><span class="sw mi"></span>Guild war, missed</span>
+    </div>`;
+  document.getElementById("attendanceCalendar").innerHTML = html;
+}
+
+/* ---- Recent Wars ---- */
+function renderRecentWars(appearances){
+  const el = document.getElementById("recentWars");
+  const recent = [...appearances].slice(-3).reverse();
+  if(!recent.length){
+    el.innerHTML = `<div class="no-data">No wars played yet.</div>`;
+    return;
+  }
+  el.innerHTML = recent.map(a=>{
+    const rc = a.match.result==="Victory" ? "victory" : "defeat";
+    const badge = a.match.result==="Victory" ? "W" : "L";
+    const dt = new Date(a.match.date+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric"});
+    return `<div class="recent-war-row">
+      <span class="result-pill ${rc}">${badge}</span>
+      <span class="rw-date">Node War ${dt}</span>
+      <span class="rw-kd ${rc}">${a.kills}/${a.deaths}</span>
+    </div>`;
+  }).join("");
+}
+
+/* ================================================================
+   PERFORMANCE TREND — pure canvas, extended from dashboard.html's
+   single-series line chart to plot You / Guild Avg / Guild Median,
+   with a metric cycle (K/D → Kills → Damage → CC → Healing) and a
+   Last-10 / All range toggle.
+================================================================ */
+function setupTrend(appearances){
+  let metricIndex = 0;
+  let range = "10";
+
+  function currentAppearances(){
+    return range==="10" ? appearances.slice(-10) : appearances;
+  }
+
+  function drawTrendChart(){
+    const canvas = document.getElementById("trendCanvas");
+    const noData = document.getElementById("trendNoData");
+    const apps = currentAppearances();
+    const metric = TREND_METRICS[metricIndex];
+    document.getElementById("trendMetricLabel").textContent = metric.label;
+
+    if(!apps.length){
+      canvas.style.display = "none";
+      noData.style.display = "block";
+      return;
+    }
+    canvas.style.display = "block";
+    noData.style.display = "none";
+
+    const ctx = canvas.getContext("2d");
+    const dpr = window.devicePixelRatio||1;
+    const W = canvas.parentElement.clientWidth;
+    const H = 200;
+    canvas.width = W*dpr; canvas.height = H*dpr;
+    canvas.style.width = W+"px"; canvas.style.height = H+"px";
+    ctx.scale(dpr,dpr);
+    ctx.clearRect(0,0,W,H);
+
+    const youVals   = apps.map(a=>playerMetricValue(a, metric.key));
+    const avgVals   = apps.map(a=>{
+      const vs = getWarMetricValues(a.match, metric.key);
+      return vs.length ? vs.reduce((x,y)=>x+y,0)/vs.length : 0;
+    });
+    const medVals   = apps.map(a=>median(getWarMetricValues(a.match, metric.key)));
+
+    const maxVal = Math.max(...youVals, ...avgVals, ...medVals, 1);
+    const pad = { t:16, r:16, b:28, l:44 };
+    const chartW = W - pad.l - pad.r;
+    const chartH = H - pad.t - pad.b;
+
+    ctx.strokeStyle="#1E323F"; ctx.lineWidth=1;
+    [0,0.25,0.5,0.75,1].forEach(f=>{
+      const y = pad.t + chartH*(1-f);
+      ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(pad.l+chartW,y); ctx.stroke();
+      ctx.fillStyle="#4C6478"; ctx.font="9px 'IBM Plex Mono'"; ctx.textAlign="right";
+      ctx.fillText(metric.fmt(maxVal*f), pad.l-6, y+3);
+    });
+
+    const xStep = apps.length>1 ? chartW/(apps.length-1) : chartW/2;
+    function plotLine(vals, color, dashed){
+      ctx.beginPath();
+      ctx.strokeStyle = color; ctx.lineWidth = dashed?1.5:2; ctx.lineJoin="round";
+      ctx.setLineDash(dashed ? [4,3] : []);
+      vals.forEach((v,i)=>{
+        const x = pad.l + (apps.length>1 ? i*xStep : chartW/2);
+        const y = pad.t + chartH*(1-(v/maxVal));
+        i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+      });
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    plotLine(medVals, "#4C6478", true);
+    plotLine(avgVals, "#5FDCF5", true);
+    plotLine(youVals, "#E8BC55", false);
+
+    apps.forEach((a,i)=>{
+      const x = pad.l + (apps.length>1 ? i*xStep : chartW/2);
+      const y = pad.t + chartH*(1-(youVals[i]/maxVal));
+      ctx.beginPath(); ctx.arc(x,y,3.5,0,Math.PI*2);
+      ctx.fillStyle = a.match.result==="Victory" ? "#5BC976" : "#D65A45";
+      ctx.fill();
+      ctx.strokeStyle="#0A1A28"; ctx.lineWidth=1.5; ctx.stroke();
+
+      if(apps.length<=14){
+        const dt = new Date(a.match.date+"T00:00:00");
+        const lbl = dt.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+        ctx.fillStyle="#4C6478"; ctx.font="8px 'IBM Plex Mono'"; ctx.textAlign="center";
+        ctx.fillText(lbl, x, H-pad.b+13);
+      }
+    });
+  }
+
+  document.querySelectorAll("#trendRangeToggle button").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      document.querySelectorAll("#trendRangeToggle button").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      range = btn.dataset.range;
+      drawTrendChart();
+    });
+  });
+  document.getElementById("trendMetricPrev").addEventListener("click", ()=>{
+    metricIndex = (metricIndex - 1 + TREND_METRICS.length) % TREND_METRICS.length;
+    drawTrendChart();
+  });
+  document.getElementById("trendMetricNext").addEventListener("click", ()=>{
+    metricIndex = (metricIndex + 1) % TREND_METRICS.length;
+    drawTrendChart();
+  });
+  window.addEventListener("resize", drawTrendChart);
+
+  drawTrendChart();
+}
+</script>
+</body>
+</html>
