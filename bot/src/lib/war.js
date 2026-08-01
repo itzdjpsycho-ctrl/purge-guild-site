@@ -1,4 +1,41 @@
+import { readFileSync, readdirSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join, basename, extname } from "node:path";
 import { ANTHROPIC_API_KEY, VISION_MODEL } from "../config.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const CLASS_ICONS_DIR = join(__dirname, "..", "..", "..", "assets", "classes");
+
+// Slug -> display name (mirrors the site's class-icons.js slug convention:
+// lowercase, non a-z0-9 stripped). Only needed for the handful of multi-word
+// classes — everything else is just its own slug capitalized.
+const SLUG_TO_NAME = {
+  darkknight: "Dark Knight",
+};
+function displayName(slug) {
+  return SLUG_TO_NAME[slug] || slug[0].toUpperCase() + slug.slice(1);
+}
+
+// Reference icon images (class glyph, white-on-transparent), loaded once and
+// reused across calls — these get attached to every /addwar vision request
+// so the model matches against the ACTUAL icon art instead of relying purely
+// on trained memory of what each class looks like. Missing entirely if
+// assets/classes/ doesn't exist yet — readWar() just skips the legend then.
+let classIconCache = null;
+function loadClassIcons() {
+  if (classIconCache) return classIconCache;
+  try {
+    classIconCache = readdirSync(CLASS_ICONS_DIR)
+      .filter((f) => f.toLowerCase().endsWith(".png"))
+      .map((f) => ({
+        name: displayName(basename(f, extname(f))),
+        base64: readFileSync(join(CLASS_ICONS_DIR, f)).toString("base64"),
+      }));
+  } catch {
+    classIconCache = [];
+  }
+  return classIconCache;
+}
 
 // Same extraction prompt the website used (war-scores.html) so the bot and site read
 // war result screens identically.
@@ -15,11 +52,12 @@ Look at the screenshot(s) carefully and extract ALL of the following:
    - Numbers like "1.3M" = 1300000, "471.9K" = 471900, "62672" = 62672
    - Times like "04:35" = 275 seconds, "34:33" = 2073 seconds (MM:SS to total seconds)
    - Extract ALL players visible across all screenshots provided
-6. CLASS — each row has a small class glyph icon right after the Family Name, identifying
-   which of the 31 Black Desert classes that player is: Warrior, Ranger, Sorceress, Berserker,
-   Tamer, Musa, Maehwa, Valkyrie, Kunoichi, Ninja, Wizard, Witch, Dark Knight, Striker, Mystic,
-   Lahn, Archer, Shai, Guardian, Nova, Sage, Corsair, Hashashin, Drakania, Woosa, Maegu,
-   Scholar, Dosa, Deadeye, Wukong, Seraph. Match the glyph shape to the class it represents.
+6. CLASS — each row has a small class glyph icon right after the Family Name. Reference images
+   for every known class are attached AFTER the screenshot(s), each preceded by a text label
+   naming the class — compare each row's glyph pixel-shape against those reference icons rather
+   than relying on memory, and pick the one that matches. If no reference icon is a confident
+   match (blurry, cut off, ambiguous, or genuinely doesn't resemble any of them), output ""
+   for that player's class rather than guessing — a wrong guess is worse than a blank.
 7. CLASS MODE — right next to the class glyph is a second small icon colored either BLUE
    (Succession — output "S") or RED (Awakening — output "A"). If you can't tell the color
    clearly, output "" for that player rather than guessing.
@@ -36,7 +74,7 @@ Respond with ONLY valid JSON — no markdown fences, no explanation — in exact
   ]
 }
 
-Always set "type" to "extended". Every player must include all stat fields — use 0 if a value is genuinely zero in the screenshot. If the class glyph or mode icon isn't visible/legible for a player, use "" for that field rather than guessing.`;
+Always set "type" to "extended". Every player must include all stat fields — use 0 if a value is genuinely zero in the screenshot. If the class glyph or mode icon isn't a confident match, use "" for that field — do not guess.`;
 
 /**
  * Extract a war result from one or more screenshots via Claude vision.
@@ -52,6 +90,19 @@ export async function readWar(images) {
       type: "image",
       source: { type: "base64", media_type: img.mediaType, data: img.base64 },
     }));
+
+    const icons = loadClassIcons();
+    if (icons.length) {
+      content.push({
+        type: "text",
+        text: `Reference class icons follow (${icons.length} classes) — each labeled by name right before its icon:`,
+      });
+      for (const icon of icons) {
+        content.push({ type: "text", text: `Class icon for: ${icon.name}` });
+        content.push({ type: "image", source: { type: "base64", media_type: "image/png", data: icon.base64 } });
+      }
+    }
+
     content.push({ type: "text", text: PROMPT });
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
