@@ -10,5 +10,12 @@ window.GUILD_PROFILES = {
     "aap": 387,
     "dp": 453,
     "class": "Sage"
+  },
+  "HoneyBadger": {
+    "gearImg": "assets/profiles/honeybadger-gear.png",
+    "updatedAt": "2026-08-01T14:57:11.632Z",
+    "ap": 384,
+    "aap": 390,
+    "dp": 456
   }
 };
