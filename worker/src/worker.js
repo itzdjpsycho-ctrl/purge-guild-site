@@ -16,16 +16,46 @@
 //   Bot      ──POST /state/clear (x-bot-secret)──────►  wipe live state after auto-deleting a sheet
 //   Bot      ──GET  /posted (x-bot-secret)─────────►   hydrate offline-posted sheets
 //
+// ---- D1-backed guild data (formerly data.js/profiles.js/attendance.js — see worker/src/data.js) ----
+//   Website  ──GET  /data.js,/profiles.js,/attendance.js (public)──► served as literal JS, drop-in
+//                                                            replacement for the old committed files
+//   Website  ──DELETE /matches/:date (officer-only)──────►  delete a war, takes effect immediately
+//   Website  ──POST /matches (officer or x-bot-secret)───►  add/replace a war
+//   Website  ──POST /profiles/:name (admin/owner; setImage is bot-only)──► apply a profile edit
+//   Website  ──POST /merge (officer-only)──────►  combine two players' entire history
+//   Bot      ──POST /roster (x-bot-secret)──────►  replace rosterMembers wholesale (/roster sync)
+//   Bot      ──POST /attendance (x-bot-secret)──►  push a freshly-computed attendance summary
+// The old /war-op, /profile-op, /merge-op queues above are kept temporarily during rollout —
+// see CLAUDE.md/the D1 migration plan for the staged cutover.
+//
 // Secrets (wrangler secret put): DISCORD_BOT_TOKEN, ADMIN_POST_PASSWORD, BOT_PUSH_SECRET,
 //   DISCORD_CLIENT_SECRET, SESSION_SECRET (signs the login token — any long random string).
 // Vars: DISCORD_CLIENT_ID, GUILD_ID (checked at login — see auth.js isGuildMember; NOT a secret).
 // Officers aren't Discord roles — they're a plain list of Discord ids in KV ("officers"),
 // managed from the website itself (bootstrap the first one with ADMIN_POST_PASSWORD).
 // KV binding: SIGNUPS_KV.  Keys: "config", "state", "posted", "links", "officers", "presets".
+// D1 binding: DB ("purge-guild-db").  Tables: matches, extended_stats, roster_members, profiles,
+//   attendance (see worker/schema.sql).
 
 import { postMessage, patchMessage } from "./discord.js";
 import { readGearStats } from "./gear.js";
 import { readWar } from "./war.js";
+import {
+  buildGuildData,
+  buildProfiles,
+  buildAttendance,
+  addOrReplaceMatch,
+  removeMatch,
+  mergeMatchNames,
+  setRosterMembers,
+  setProfileClass,
+  setProfileImage,
+  removeProfileImage,
+  setProfileGear,
+  setProfileFlags,
+  mergeProfileRows,
+  setAttendance,
+} from "./data.js";
 import {
   buildAuthorizeUrl,
   exchangeCode,
@@ -98,6 +128,20 @@ function json(data, status, request) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { "Content-Type": "application/json", ...corsHeaders(request) },
+  });
+}
+
+/** Serve a D1-backed global as literal JS — a byte-shape drop-in replacement
+ *  for the site's old `<script src="data.js">` etc., so pages keep loading it
+ *  the exact same (synchronous, parser-blocking) way. See worker/src/data.js. */
+function jsResponse(globalName, data, request) {
+  return new Response(`window.${globalName} = ${JSON.stringify(data)};`, {
+    status: 200,
+    headers: {
+      "Content-Type": "application/javascript; charset=utf-8",
+      "Cache-Control": "no-cache",
+      ...corsHeaders(request),
+    },
   });
 }
 
@@ -386,6 +430,20 @@ export default {
       return json(raw ? JSON.parse(raw) : {}, 200, request);
     }
 
+    // ---- public: canonical guild data, D1-backed, served as literal JS ----
+    // Drop-in replacements for the old committed data.js/profiles.js/
+    // attendance.js — pages point their existing document.write script-tag
+    // load at these instead, so no page-side rendering code needs to change.
+    if (path === "/data.js" && method === "GET") {
+      return jsResponse("GUILD_DATA", await buildGuildData(env), request);
+    }
+    if (path === "/profiles.js" && method === "GET") {
+      return jsResponse("GUILD_PROFILES", await buildProfiles(env), request);
+    }
+    if (path === "/attendance.js" && method === "GET") {
+      return jsResponse("GUILD_ATTENDANCE", await buildAttendance(env), request);
+    }
+
     // ---- website → post / edit (admin-password gated) ----
     if ((path === "/post" || path === "/edit") && method === "POST") {
       if (!(await isAdminRequest(request, env))) {
@@ -484,6 +542,61 @@ export default {
       return json({ ok: true }, 200, request);
     }
 
+    // ---- website → apply a profile edit directly to D1 (officer, or the
+    // player editing their own profile) — same auth + op shape as /profile-op
+    // above, but takes effect immediately instead of waiting for the bot. ----
+    const profileMatch = path.match(/^\/profiles\/(.+)$/);
+    if (profileMatch && method === "POST") {
+      const player = decodeURIComponent(profileMatch[1]);
+      const body = await readJson(request);
+
+      const opType = body?.op?.type || (body?.field ? "removeShot" : null);
+      const opBody = body?.op || { field: body?.field };
+      if (!opType) return json({ error: "op.type required." }, 400, request);
+      if (opType === "removeShot" && !opBody.field) {
+        return json({ error: "op.field required for removeShot." }, 400, request);
+      }
+      if (opType === "setClass" && !opBody.className) {
+        return json({ error: "op.className required for setClass." }, 400, request);
+      }
+      if (opType === "setStats" && opBody.ap == null && opBody.aap == null && opBody.dp == null) {
+        return json({ error: "op needs at least one of ap/aap/dp." }, 400, request);
+      }
+      if (opType === "setFlags" && typeof opBody.vacation !== "boolean" && typeof opBody.exception !== "boolean") {
+        return json({ error: "op needs at least one of vacation/exception (boolean)." }, 400, request);
+      }
+      if (opType === "setImage" && (!opBody.slotKey || !opBody.path)) {
+        return json({ error: "op.slotKey + op.path required for setImage." }, 400, request);
+      }
+
+      // setImage is bot-only — it's set right after the bot commits the actual
+      // screenshot file to git (assets/profiles/), which only the bot can do.
+      const botAuthed = request.headers.get("x-bot-secret") === env.BOT_PUSH_SECRET;
+      if (opType === "setImage" && !botAuthed) {
+        return json({ error: "setImage is bot-only." }, 401, request);
+      }
+
+      const admin = await isAdminRequest(request, env);
+      let owner = false;
+      if (!admin && !botAuthed) {
+        const session = await sessionFor(request, env);
+        owner = Boolean(session?.familyName) && session.familyName.toLowerCase() === player.toLowerCase();
+      }
+      if (!admin && !owner && !botAuthed) {
+        return json({ error: "Not signed in as an officer or as this player." }, 401, request);
+      }
+
+      let result;
+      if (opType === "removeShot") result = { removedPath: await removeProfileImage(env, player, opBody.field) };
+      else if (opType === "setClass") result = { ok: await setProfileClass(env, player, opBody.className) };
+      else if (opType === "setStats") result = await setProfileGear(env, player, opBody);
+      else if (opType === "setFlags") result = await setProfileFlags(env, player, opBody);
+      else if (opType === "setImage") result = { prevPath: await setProfileImage(env, player, opBody.slotKey, opBody.path) };
+      else return json({ error: `Unknown op.type "${opType}".` }, 400, request);
+
+      return json({ ok: true, result }, 200, request);
+    }
+
     // ---- website → war op (remove a war from data.js) — officer-gated ----
     // Queued for the bot to apply (only it holds git write access); see
     // bot/src/lib/war-sync.js applyWarOps().
@@ -502,6 +615,35 @@ export default {
       ops.push({ op: body.op, at: new Date().toISOString() });
       await env.SIGNUPS_KV.put("warops", JSON.stringify(ops.slice(-200)));
       return json({ ok: true }, 200, request);
+    }
+
+    // ---- website → delete a war directly from D1 (officer-only) ----
+    // Same auth as /war-op above, but takes effect immediately — no bot poll,
+    // no git commit, no wait for GitHub Pages to redeploy.
+    const matchDateMatch = path.match(/^\/matches\/(.+)$/);
+    if (matchDateMatch && method === "DELETE") {
+      if (!(await isAdminRequest(request, env))) {
+        return json({ error: "Not signed in as an officer." }, 401, request);
+      }
+      const result = await removeMatch(env, decodeURIComponent(matchDateMatch[1]));
+      return json(result, 200, request);
+    }
+
+    // ---- add/replace a war directly in D1 ----
+    // Officer session (manual/website entry) OR bot-secret (the Discord
+    // /addwar flow, after its own OCR + officer Confirm in Discord).
+    if (path === "/matches" && method === "POST") {
+      const botAuthed = request.headers.get("x-bot-secret") === env.BOT_PUSH_SECRET;
+      if (!botAuthed && !(await isAdminRequest(request, env))) {
+        return json({ error: "Not signed in as an officer." }, 401, request);
+      }
+      const body = await readJson(request);
+      const war = body?.war;
+      if (!war?.date || !Array.isArray(war?.players)) {
+        return json({ error: "war.date + war.players[] required." }, 400, request);
+      }
+      const result = await addOrReplaceMatch(env, war);
+      return json(result, 200, request);
     }
 
     // ---- website → merge op (combine two names' entire history, e.g. a
@@ -526,8 +668,57 @@ export default {
       return json({ ok: true }, 200, request);
     }
 
+    // ---- website → merge two names directly in D1 (officer-only) ----
+    // Same auth + op shape as /merge-op above, but applied immediately.
+    // Doesn't touch attendance (see worker/src/data.js mergeProfileRows() doc
+    // comment) — only the bot's signups.json cross-reference can recompute
+    // that correctly, and the next /addwar or /removewar naturally does.
+    if (path === "/merge" && method === "POST") {
+      if (!(await isAdminRequest(request, env))) {
+        return json({ error: "Not signed in as an officer." }, 401, request);
+      }
+      const body = await readJson(request);
+      const op = body?.op;
+      if (op?.type !== "mergeNames" || !op.from || !op.to) {
+        return json({ error: "op.type 'mergeNames' + op.from + op.to required." }, 400, request);
+      }
+      if (String(op.from).toLowerCase() === String(op.to).toLowerCase()) {
+        return json({ error: "from and to must be different names." }, 400, request);
+      }
+
+      const [matchResult, profileResult] = await Promise.all([
+        mergeMatchNames(env, op.from, op.to),
+        mergeProfileRows(env, op.from, op.to),
+      ]);
+      return json({ ok: true, ...matchResult, ...profileResult }, 200, request);
+    }
+
     // ---- bot → state / config / posted / ops (bot-secret gated) ----
     const botAuthed = request.headers.get("x-bot-secret") === env.BOT_PUSH_SECRET;
+
+    // Bot → replace rosterMembers wholesale in D1, after /roster sync's
+    // Playwright scrape + Discord Confirm. Bot-secret gated (not officer
+    // session) since this is always bot-initiated, never a website action.
+    if (path === "/roster" && method === "POST") {
+      if (!botAuthed) return json({ error: "Bad secret." }, 401, request);
+      const body = await readJson(request);
+      if (!Array.isArray(body?.names)) return json({ error: "names[] required." }, 400, request);
+      const result = await setRosterMembers(env, body.names);
+      return json(result, 200, request);
+    }
+
+    // Bot → push a freshly-computed attendance summary into D1. Only the bot
+    // can compute this (it cross-references its private signups.json against
+    // data.js/D1 matches) — the Worker just stores the wholesale result.
+    if (path === "/attendance" && method === "POST") {
+      if (!botAuthed) return json({ error: "Bad secret." }, 401, request);
+      const body = await readJson(request);
+      if (!body?.summary || typeof body.summary !== "object") {
+        return json({ error: "summary required." }, 400, request);
+      }
+      await setAttendance(env, body.summary);
+      return json({ ok: true }, 200, request);
+    }
 
     if (path === "/state" && method === "POST") {
       if (!botAuthed) return json({ error: "Bad secret." }, 401, request);

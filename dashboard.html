@@ -470,10 +470,16 @@
 <script src="flags.js"></script>
 <script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>PurgeAuth.init();</script>
-<!-- cache-bust so guild data refreshes without a hard reload (GitHub Pages caches assets ~10 min) -->
-<script>document.write('<scr'+'ipt src="data.js?v='+Date.now()+'"></scr'+'ipt>')</script>
-<script>document.write('<scr'+'ipt src="attendance.js?v='+Date.now()+'"></scr'+'ipt>')</script>
-<script>document.write('<scr'+'ipt src="profiles.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<!-- Canonical guild data now lives in D1, served by the Worker directly as
+     literal JS (byte-shape-identical to the old committed data.js/attendance.js/
+     profiles.js). Plain script tags, not document.write — Chrome silently
+     blocks/aborts document.write-injected cross-origin scripts on some
+     connections (see the "document.write cross-origin script" intervention).
+     The Worker's Cache-Control: no-cache means no cache-busting query param
+     is needed either. -->
+<script src="https://purge-signups.itzdjpsycho.workers.dev/data.js"></script>
+<script src="https://purge-signups.itzdjpsycho.workers.dev/attendance.js"></script>
+<script src="https://purge-signups.itzdjpsycho.workers.dev/profiles.js"></script>
 <script>
 /* ================================================================
    MATCH DATA — keep in sync with war-scores.html

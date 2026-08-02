@@ -8,6 +8,16 @@ kv_namespaces = [
   { binding = "SIGNUPS_KV", id = "080b0d66de544ebe9c5ac9f6f55bf9da" }
 ]
 
+# Canonical guild data (matches/extendedStats/rosterMembers/profiles/attendance)
+# — created once with `wrangler d1 create purge-guild-db`, schema in schema.sql.
+# Apply/update the schema with:
+#   wrangler d1 execute purge-guild-db --local --file=schema.sql   (dev)
+#   wrangler d1 execute purge-guild-db --remote --file=schema.sql  (prod)
+[[d1_databases]]
+binding = "DB"
+database_name = "purge-guild-db"
+database_id = "7f4e96cb-d0dc-4199-b472-00a4a12329aa"
+
 # Not secret — the OAuth app's public client id + the Purge guild id (same
 # values as the bot's bot/src/config.js CLIENT_ID/GUILD_ID). GUILD_ID gates
 # login itself (auth.js isGuildMember) — officer roles are still managed from
