@@ -821,10 +821,10 @@ function wireFlagToggles(){
       profiles[player][flagName] = value;
       saveProfiles(profiles);
 
-      fetch(`${WORKER_URL}/profile-op`, {
+      fetch(`${WORKER_URL}/profiles/${encodeURIComponent(player)}`, {
         method:"POST",
         headers:{ "content-type":"application/json", ...PurgeAuth.headers() },
-        body: JSON.stringify({ player, op:{ type:"setFlags", [flagName]: value } }),
+        body: JSON.stringify({ op:{ type:"setFlags", [flagName]: value } }),
       }).then(res=>{
         if(!res.ok){ showToast("Sign in as an officer or as this player to save that", "error"); return; }
         showToast(`${flagName[0].toUpperCase()+flagName.slice(1)} ${value?"on":"off"} for ${player}`, "success");
@@ -1157,7 +1157,7 @@ document.getElementById("mergeConfirmBtn").addEventListener("click", async ()=>{
   btn.dataset.confirming = "";
   btn.textContent = "Merging…";
   try{
-    const res = await fetch(`${WORKER_URL}/merge-op`, {
+    const res = await fetch(`${WORKER_URL}/merge`, {
       method:"POST",
       headers:{ "content-type":"application/json", ...PurgeAuth.headers() },
       body: JSON.stringify({ op:{ type:"mergeNames", from, to } }),
@@ -1166,11 +1166,11 @@ document.getElementById("mergeConfirmBtn").addEventListener("click", async ()=>{
       const body = await res.json().catch(()=>({}));
       throw new Error(body.error || `HTTP ${res.status}`);
     }
-    btn.textContent = "Queued — live in ~1 min";
-    setTimeout(()=>{ location.reload(); }, 4000);
+    btn.textContent = "Merged — reloading…";
+    setTimeout(()=>{ location.reload(); }, 1200);
   }catch(err){
     btn.disabled = false;
-    btn.textContent = `Couldn't queue merge — ${err.message}`;
+    btn.textContent = `Merge failed — ${err.message}`;
     setTimeout(()=>{ btn.textContent = "Merge Stats"; updateMergePreview(); }, 5000);
   }
 });

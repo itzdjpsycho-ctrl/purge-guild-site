@@ -10,7 +10,6 @@ import { SITE_URL } from "../config.js";
 import { getWar, listWars, removeWar, fmtDate } from "../lib/data.js";
 import { isAdmin } from "../lib/signup-message.js";
 import { computeAttendance, writeAttendance } from "../lib/attendance.js";
-import { publish } from "../lib/git.js";
 
 // Pending deletions awaiting a Confirm/Cancel, keyed by a one-time token.
 const pending = new Map(); // token -> { date, userId, createdAt }
@@ -34,7 +33,7 @@ export const data = new SlashCommandBuilder()
 
 export async function autocomplete(interaction) {
   const value = interaction.options.getFocused().toLowerCase();
-  const wars = listWars().filter(
+  const wars = (await listWars()).filter(
     (m) => m.date.includes(value) || m.location.toLowerCase().includes(value)
   );
   return interaction.respond(
@@ -50,7 +49,7 @@ function previewEmbed(war) {
     .setColor(0xd65a45)
     .setTitle(`🗑️ Remove War — ${war.location || "Unknown node"}`)
     .setDescription(`${fmtDate(war.date)} · **${war.result}** · ${war.players.length} players`)
-    .setFooter({ text: "This deletes the war from data.js and re-syncs attendance. Confirm within 10 min." });
+    .setFooter({ text: "This permanently deletes the war and re-syncs attendance. Confirm within 10 min." });
 }
 
 function buttons(token, disabled = false) {
@@ -76,7 +75,7 @@ export async function execute(interaction) {
   }
 
   const date = interaction.options.getString("date");
-  const war = getWar(date);
+  const war = await getWar(date);
   if (!war) {
     return interaction.reply({
       content: `🚫 No war found for \`${date}\`.`,
@@ -126,33 +125,23 @@ export async function handleComponent(interaction) {
   // confirm
   pending.delete(token);
   await interaction.update({
-    content: "⏳ Removing and publishing to the site…",
+    content: "⏳ Removing from the site…",
     embeds: [],
     components: [],
   });
 
   let removed;
   try {
-    removed = removeWar(entry.date);
+    removed = await removeWar(entry.date);
     if (!removed.removed) {
       return interaction.editReply(`🚫 War for \`${entry.date}\` no longer exists.`);
     }
-    writeAttendance(computeAttendance());
+    await writeAttendance(await computeAttendance());
   } catch (e) {
     return interaction.editReply(`🚫 Failed to remove the war: ${e.message}`);
   }
 
-  const pub = await publish(
-    ["data.js", "attendance.js"],
-    `war: remove ${removed.location} ${entry.date}`
-  );
-
-  let tail;
-  if (pub.pushed) tail = "🚀 Pushed — live on the site in ~1–2 minutes.";
-  else if (pub.error) tail = `⚠️ Removed locally, but auto-publish failed: ${pub.error}`;
-  else tail = "ℹ️ Removed (no change to publish).";
-
   await interaction.editReply(
-    `✅ **Removed** the ${fmtDate(entry.date)} war at **${removed.location}**.\n${tail}\n${SITE_URL}/`
+    `✅ **Removed** the ${fmtDate(entry.date)} war at **${removed.location}** — live now.\n${SITE_URL}/`
   );
 }

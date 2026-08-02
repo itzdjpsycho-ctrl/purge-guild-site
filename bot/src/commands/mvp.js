@@ -15,7 +15,8 @@ export const data = new SlashCommandBuilder()
 
 export async function autocomplete(interaction) {
   const focused = interaction.options.getFocused().toLowerCase();
-  const choices = listWars()
+  const wars = await listWars();
+  const choices = wars
     .filter((w) => w.date.includes(focused) || w.location.toLowerCase().includes(focused))
     .slice(0, 25)
     .map((w) => ({ name: `${w.date} — ${w.location} (${w.result})`, value: w.date }));
@@ -24,7 +25,7 @@ export async function autocomplete(interaction) {
 
 export async function execute(interaction) {
   const date = interaction.options.getString("date");
-  const war = date ? getWar(date) : latestWar();
+  const war = date ? await getWar(date) : await latestWar();
 
   if (!war) {
     return interaction.reply({

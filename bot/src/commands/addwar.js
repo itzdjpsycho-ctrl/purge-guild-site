@@ -11,7 +11,6 @@ import { readWar } from "../lib/war.js";
 import { addWar, getWar, fmtDate } from "../lib/data.js";
 import { isAdmin } from "../lib/signup-message.js";
 import { computeAttendance, writeAttendance } from "../lib/attendance.js";
-import { publish } from "../lib/git.js";
 import { PURPLE } from "../lib/embeds.js";
 
 const ALLOWED = ["image/png", "image/jpeg", "image/webp"];
@@ -140,7 +139,7 @@ export async function execute(interaction) {
   const token = randomUUID();
   pending.set(token, { war, userId: interaction.user.id, createdAt: Date.now() });
 
-  const replaced = !!getWar(war.date);
+  const replaced = !!(await getWar(war.date));
 
   await interaction.editReply({
     content: "Review the extracted war below, then confirm to publish:",
@@ -179,34 +178,24 @@ export async function handleComponent(interaction) {
   // confirm
   pending.delete(token);
   await interaction.update({
-    content: "⏳ Saving and publishing to the site…",
+    content: "⏳ Saving to the site…",
     embeds: [previewEmbed(entry.war, false)],
     components: [buttons(token, true)],
   });
 
   let saved;
   try {
-    saved = addWar(entry.war);
-    writeAttendance(computeAttendance());
+    saved = await addWar(entry.war);
+    await writeAttendance(await computeAttendance());
   } catch (e) {
-    return interaction.editReply(`🚫 Failed to write the war: ${e.message}`);
+    return interaction.editReply(`🚫 Failed to save the war: ${e.message}`);
   }
-
-  const pub = await publish(
-    ["data.js", "attendance.js"],
-    `war: ${entry.war.location} ${entry.war.date} (${entry.war.result})`
-  );
-
-  let tail;
-  if (pub.pushed) tail = "🚀 Pushed — live on the site in ~1–2 minutes.";
-  else if (pub.error) tail = `⚠️ Saved locally, but auto-publish failed: ${pub.error}`;
-  else tail = "ℹ️ Saved (no change to publish).";
 
   const verb = saved.replaced ? "Replaced" : "Added";
   await interaction.editReply({
     content:
       `✅ **${verb}** the ${fmtDate(entry.war.date)} war at **${entry.war.location}** ` +
-      `(${entry.war.result}, ${saved.players} players).\n${tail}\n${SITE_URL}/`,
+      `(${entry.war.result}, ${saved.players} players) — live now.\n${SITE_URL}/`,
     embeds: [],
     components: [],
   });

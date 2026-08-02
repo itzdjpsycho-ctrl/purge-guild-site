@@ -1,11 +1,14 @@
-import { readFileSync, writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { WORKER_URL, BOT_PUSH_SECRET } from "../config.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-// The canonical data lives at the repo root in data.js (a browser global that
-// the website also loads). bot/src/lib -> ../../../data.js
-const DATA_PATH = join(__dirname, "..", "..", "..", "data.js");
+// Canonical guild data (matches/extendedStats/rosterMembers) now lives in
+// Cloudflare D1 behind the Worker (see worker/src/data.js) instead of the
+// repo-root data.js file. This is now an HTTP client: reads hit the Worker's
+// public GET /data.js (served as literal `window.GUILD_DATA = {...};` JS —
+// the same strip-the-wrapper trick works on the fetched text), writes hit
+// the Worker's bot-secret-gated /matches, /matches/:date, /roster.
+// Requires WORKER_URL + BOT_PUSH_SECRET (bot/.env) — there is no local-file
+// fallback anymore, so these two are no longer optional the way they are for
+// the sign-up-board features.
 
 // Index positions inside an EXTENDED_STATS row (mirrors data.extendedColumns).
 export const EXT = {
@@ -14,15 +17,24 @@ export const EXT = {
   cannonDist: 12, traps: 13, timeDead: 14, timeAlive: 15,
 };
 
-/**
- * Read fresh every call so newly added wars show up without a bot restart.
- * data.js wraps the data as `window.GUILD_DATA = { ... };` for the browser;
- * here we strip that wrapper and parse the JSON payload.
- */
-export function loadData() {
-  const raw = readFileSync(DATA_PATH, "utf8");
-  // Greedy match so any mention of the global in comments is skipped and we
-  // land on the real assignment (the last one in the file).
+async function workerCall(path, method, body) {
+  const res = await fetch(`${WORKER_URL}${path}`, {
+    method,
+    headers: { "content-type": "application/json", "x-bot-secret": BOT_PUSH_SECRET },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Worker ${method} ${path} failed: HTTP ${res.status}${detail ? ` — ${detail}` : ""}`);
+  }
+  return res.json();
+}
+
+/** Fetched fresh every call so newly added/removed wars show up without a bot restart. */
+export async function loadData() {
+  const res = await fetch(`${WORKER_URL}/data.js`);
+  if (!res.ok) throw new Error(`Couldn't load guild data from the Worker (HTTP ${res.status}).`);
+  const raw = await res.text();
   const json = raw
     .replace(/^[\s\S]*window\.GUILD_DATA\s*=\s*/, "")
     .replace(/;\s*$/, "");
@@ -30,23 +42,27 @@ export function loadData() {
 }
 
 /** All wars, newest first. */
-export function listWars() {
-  return [...loadData().matches].sort((a, b) => b.date.localeCompare(a.date));
+export async function listWars() {
+  const data = await loadData();
+  return [...data.matches].sort((a, b) => b.date.localeCompare(a.date));
 }
 
 /** Most recent war. */
-export function latestWar() {
-  return listWars()[0] || null;
+export async function latestWar() {
+  const wars = await listWars();
+  return wars[0] || null;
 }
 
 /** Find a war by exact YYYY-MM-DD date, or null. */
-export function getWar(date) {
-  return loadData().matches.find((m) => m.date === date) || null;
+export async function getWar(date) {
+  const data = await loadData();
+  return data.matches.find((m) => m.date === date) || null;
 }
 
 /** Extended stat rows for a war date (array of arrays), or [] if none. */
-export function extendedFor(date) {
-  return loadData().extendedStats[date] || [];
+export async function extendedFor(date) {
+  const data = await loadData();
+  return data.extendedStats[date] || [];
 }
 
 /** Turn an extended row into a named object. */
@@ -61,8 +77,8 @@ export function rowToObj(row) {
  * Returns { name, wars: [{ date, location, result, ext|null, kills, deaths }] }
  * or null if the player was never in a war.
  */
-export function playerHistory(query) {
-  const data = loadData();
+export async function playerHistory(query) {
+  const data = await loadData();
   const lc = query.toLowerCase();
   let canonical = null;
   const wars = [];
@@ -90,154 +106,45 @@ export function playerHistory(query) {
   return { name: canonical, wars };
 }
 
-/**
- * Write the data object back to data.js, preserving the file's leading comment
- * header and the `window.GUILD_DATA = ...;` wrapper. The body is pretty-printed
- * JSON (2-space), matching the existing file so diffs stay minimal.
- */
-export function saveData(data) {
-  const raw = readFileSync(DATA_PATH, "utf8");
-  const prefix = raw.slice(0, raw.indexOf("window.GUILD_DATA"));
-  const body = "window.GUILD_DATA = " + JSON.stringify(data, null, 2) + ";\n";
-  writeFileSync(DATA_PATH, prefix + body);
-}
-
-/**
- * Append (or replace, by date) a war into matches + extendedStats.
- * @param {{date,day,location,result,players:Array<object>}} war - players carry
- *        full stat fields keyed like extendedColumns (name, kills, deaths, ...).
- * @returns {{replaced:boolean, players:number}}
- */
-export function addWar(war) {
-  const data = loadData();
-  const cols = data.extendedColumns; // canonical column order
-
-  const num = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
-  const basicPlayers = war.players.map((p) => [p.name, num(p.kills), num(p.deaths)]);
-  const extRows = war.players.map((p) =>
-    cols.map((c) => (c === "name" ? p.name : num(p[c])))
-  );
-
-  const match = {
-    date: war.date,
-    day: war.day || "",
-    location: war.location || "",
-    result: war.result === "Victory" ? "Victory" : "Defeat",
-    players: basicPlayers,
-  };
-
-  const replaced = data.matches.some((m) => m.date === war.date);
-  data.matches = data.matches.filter((m) => m.date !== war.date);
-  data.matches.push(match);
-  data.matches.sort((a, b) => a.date.localeCompare(b.date)); // keep chronological
-  data.extendedStats[war.date] = extRows;
-
-  saveData(data);
-  return { replaced, players: basicPlayers.length };
-}
-
-/**
- * Delete a war by exact YYYY-MM-DD date from matches + extendedStats.
- * @returns {{removed:boolean, location:string|null}}
- */
-export function removeWar(date) {
-  const data = loadData();
-  const match = data.matches.find((m) => m.date === date);
-  if (!match) return { removed: false, location: null };
-
-  data.matches = data.matches.filter((m) => m.date !== date);
-  delete data.extendedStats[date];
-
-  saveData(data);
-  return { removed: true, location: match.location };
-}
-
-/**
- * Combine two names' entire war history into one (e.g. a character rename).
- * For every war fromName appears in: if toName isn't also in that war, the
- * entry is simply renamed; if both somehow appear in the SAME war (a rare
- * data-entry edge case, not the normal rename case), the additive stat
- * columns are summed into toName's row and fromName's row is dropped —
- * except `streak`, which is a per-war best-streak value, not a running
- * total, so it takes Math.max instead of summing. Exact-match only; callers
- * resolve casing first (see profiles.js canonicalName()).
- * @returns {{warsChanged:number}}
- */
-export function mergeNames(fromName, toName) {
-  const data = loadData();
-  const cols = data.extendedColumns;
-  let warsChanged = 0;
-
-  for (const m of data.matches) {
-    const idxFrom = m.players.findIndex((p) => p[0] === fromName);
-    if (idxFrom < 0) continue;
-
-    const idxTo = m.players.findIndex((p) => p[0] === toName);
-    if (idxTo < 0) {
-      m.players[idxFrom][0] = toName;
-    } else {
-      m.players[idxTo][1] += m.players[idxFrom][1]; // kills
-      m.players[idxTo][2] += m.players[idxFrom][2]; // deaths
-      m.players.splice(idxFrom, 1);
-    }
-    warsChanged++;
-
-    const extRows = data.extendedStats[m.date];
-    if (!extRows) continue;
-    const eFrom = extRows.findIndex((r) => r[0] === fromName);
-    if (eFrom < 0) continue;
-    const eTo = extRows.findIndex((r) => r[0] === toName);
-    if (eTo < 0) {
-      extRows[eFrom][0] = toName;
-    } else {
-      cols.forEach((c, i) => {
-        if (c === "name") return;
-        extRows[eTo][i] = c === "streak"
-          ? Math.max(extRows[eTo][i] || 0, extRows[eFrom][i] || 0)
-          : (extRows[eTo][i] || 0) + (extRows[eFrom][i] || 0);
-      });
-      extRows.splice(eFrom, 1);
-    }
-  }
-
-  data.rosterMembers = [...new Set(
-    data.rosterMembers.filter((n) => n !== fromName).concat(toName)
-  )].sort((a, b) => a.localeCompare(b));
-
-  saveData(data);
-  return { warsChanged };
-}
-
-/**
- * Replace rosterMembers wholesale (e.g. from /roster sync). Does not touch
- * matches/extendedStats — anyone with war history still shows up on the site
- * even if they've since left the guild (buildRoster() unions both sources).
- * @returns {{added:string[], removed:string[]}} diff vs. the previous list.
- */
-export function setRosterMembers(names) {
-  const data = loadData();
-  const before = new Set(data.rosterMembers);
-  const after = [...new Set(names)].sort((a, b) => a.localeCompare(b));
-  const afterSet = new Set(after);
-
-  const added = after.filter((n) => !before.has(n));
-  const removed = data.rosterMembers.filter((n) => !afterSet.has(n));
-
-  data.rosterMembers = after;
-  saveData(data);
-  return { added, removed };
-}
-
 /** List of all distinct player names (for autocomplete), sorted. */
-export function allPlayerNames() {
+export async function allPlayerNames() {
+  const data = await loadData();
   const set = new Set();
-  for (const m of loadData().matches) {
+  for (const m of data.matches) {
     for (const p of m.players) set.add(p[0]);
   }
   return [...set].sort((a, b) => a.localeCompare(b));
 }
 
-// ---- formatting helpers (match the website) ----
+/**
+ * Add (or replace, by date) a war directly in D1 via the Worker.
+ * @param {{date,day,location,result,players:Array<object>}} war - players carry
+ *        full stat fields keyed like extendedColumns (name, kills, deaths, ...).
+ * @returns {Promise<{replaced:boolean, players:number}>}
+ */
+export async function addWar(war) {
+  return workerCall("/matches", "POST", { war });
+}
+
+/**
+ * Delete a war by exact YYYY-MM-DD date directly in D1 via the Worker.
+ * @returns {Promise<{removed:boolean, location:string|null}>}
+ */
+export async function removeWar(date) {
+  return workerCall(`/matches/${encodeURIComponent(date)}`, "DELETE");
+}
+
+/**
+ * Replace rosterMembers wholesale (e.g. from /roster sync) directly in D1.
+ * Does not touch matches/extendedStats — anyone with war history still shows
+ * up on the site even if they've since left the guild.
+ * @returns {Promise<{added:string[], removed:string[]}>} diff vs. the previous list.
+ */
+export async function setRosterMembers(names) {
+  return workerCall("/roster", "POST", { names });
+}
+
+// ---- formatting helpers (match the website; pure, no data dependency) ----
 
 export function fmtNum(v) {
   v = Number(v) || 0;

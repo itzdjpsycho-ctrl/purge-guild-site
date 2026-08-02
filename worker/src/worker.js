@@ -19,14 +19,15 @@
 // ---- D1-backed guild data (formerly data.js/profiles.js/attendance.js — see worker/src/data.js) ----
 //   Website  ──GET  /data.js,/profiles.js,/attendance.js (public)──► served as literal JS, drop-in
 //                                                            replacement for the old committed files
-//   Website  ──DELETE /matches/:date (officer-only)──────►  delete a war, takes effect immediately
-//   Website  ──POST /matches (officer or x-bot-secret)───►  add/replace a war
-//   Website  ──POST /profiles/:name (admin/owner; setImage is bot-only)──► apply a profile edit
-//   Website  ──POST /merge (officer-only)──────►  combine two players' entire history
-//   Bot      ──POST /roster (x-bot-secret)──────►  replace rosterMembers wholesale (/roster sync)
-//   Bot      ──POST /attendance (x-bot-secret)──►  push a freshly-computed attendance summary
-// The old /war-op, /profile-op, /merge-op queues above are kept temporarily during rollout —
-// see CLAUDE.md/the D1 migration plan for the staged cutover.
+//   DELETE /matches/:date (officer or x-bot-secret)───►  delete a war, takes effect immediately
+//   POST /matches (officer or x-bot-secret)───►  add/replace a war (website manual entry or /addwar)
+//   POST /profiles/:name (admin/owner or x-bot-secret; setImage is bot-only)──► apply a profile edit
+//   POST /merge (officer-only)──────►  combine two players' entire history (website Merge Stats)
+//   POST /roster (x-bot-secret)──────►  replace rosterMembers wholesale (/roster sync)
+//   POST /attendance (x-bot-secret)──►  push a freshly-computed attendance summary
+// The old /war-op, /profile-op, /merge-op queues above are now unused (the website and bot both
+// call the direct endpoints above) but kept temporarily during rollout — see the D1 migration
+// plan for the staged cutover before deleting them.
 //
 // Secrets (wrangler secret put): DISCORD_BOT_TOKEN, ADMIN_POST_PASSWORD, BOT_PUSH_SECRET,
 //   DISCORD_CLIENT_SECRET, SESSION_SECRET (signs the login token — any long random string).
@@ -208,6 +209,7 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/+$/, "") || "/";
     const method = request.method.toUpperCase();
+    const botAuthed = request.headers.get("x-bot-secret") === env.BOT_PUSH_SECRET;
 
     if (method === "OPTIONS") {
       return new Response(null, { status: 204, headers: corsHeaders(request) });
@@ -571,7 +573,6 @@ export default {
 
       // setImage is bot-only — it's set right after the bot commits the actual
       // screenshot file to git (assets/profiles/), which only the bot can do.
-      const botAuthed = request.headers.get("x-bot-secret") === env.BOT_PUSH_SECRET;
       if (opType === "setImage" && !botAuthed) {
         return json({ error: "setImage is bot-only." }, 401, request);
       }
@@ -617,12 +618,13 @@ export default {
       return json({ ok: true }, 200, request);
     }
 
-    // ---- website → delete a war directly from D1 (officer-only) ----
-    // Same auth as /war-op above, but takes effect immediately — no bot poll,
-    // no git commit, no wait for GitHub Pages to redeploy.
+    // ---- delete a war directly from D1 ----
+    // Officer session (website's "Remove This War") OR bot-secret (the
+    // Discord /removewar flow) — takes effect immediately, no git commit,
+    // no wait for GitHub Pages to redeploy.
     const matchDateMatch = path.match(/^\/matches\/(.+)$/);
     if (matchDateMatch && method === "DELETE") {
-      if (!(await isAdminRequest(request, env))) {
+      if (!botAuthed && !(await isAdminRequest(request, env))) {
         return json({ error: "Not signed in as an officer." }, 401, request);
       }
       const result = await removeMatch(env, decodeURIComponent(matchDateMatch[1]));
@@ -633,7 +635,6 @@ export default {
     // Officer session (manual/website entry) OR bot-secret (the Discord
     // /addwar flow, after its own OCR + officer Confirm in Discord).
     if (path === "/matches" && method === "POST") {
-      const botAuthed = request.headers.get("x-bot-secret") === env.BOT_PUSH_SECRET;
       if (!botAuthed && !(await isAdminRequest(request, env))) {
         return json({ error: "Not signed in as an officer." }, 401, request);
       }
@@ -673,6 +674,10 @@ export default {
     // Doesn't touch attendance (see worker/src/data.js mergeProfileRows() doc
     // comment) — only the bot's signups.json cross-reference can recompute
     // that correctly, and the next /addwar or /removewar naturally does.
+    // Also can't touch the private Discord-id<->family-name link (bot/data/
+    // links.json lives only on the bot host) — queues a lightweight
+    // "renameLink" op onto the (otherwise-retired) mergeops list so the bot's
+    // small link-sync poller (bot/src/lib/link-sync.js) can pick it up.
     if (path === "/merge" && method === "POST") {
       if (!(await isAdminRequest(request, env))) {
         return json({ error: "Not signed in as an officer." }, 401, request);
@@ -690,11 +695,15 @@ export default {
         mergeMatchNames(env, op.from, op.to),
         mergeProfileRows(env, op.from, op.to),
       ]);
+
+      const linkOps = await getMergeOps(env);
+      linkOps.push({ op: { type: "renameLink", from: op.from, to: op.to }, at: new Date().toISOString() });
+      await env.SIGNUPS_KV.put("mergeops", JSON.stringify(linkOps.slice(-200)));
+
       return json({ ok: true, ...matchResult, ...profileResult }, 200, request);
     }
 
     // ---- bot → state / config / posted / ops (bot-secret gated) ----
-    const botAuthed = request.headers.get("x-bot-secret") === env.BOT_PUSH_SECRET;
 
     // Bot → replace rosterMembers wholesale in D1, after /roster sync's
     // Playwright scrape + Discord Confirm. Bot-secret gated (not officer

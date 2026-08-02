@@ -1,15 +1,15 @@
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { WORKER_URL, BOT_PUSH_SECRET } from "../config.js";
 import { loadData } from "./data.js";
 import { listAll } from "./signups.js";
 import { nameForUser } from "./links.js";
 import { canonicalName } from "./profiles.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-// Committed attendance summary at repo root, read by the website too.
-// bot/src/lib -> ../../../attendance.js
-export const ATTENDANCE_PATH = join(__dirname, "..", "..", "..", "attendance.js");
+// Attendance is still computed HERE on the bot (only it has the private,
+// git-ignored bot/data/signups.json sign-up history to cross-reference
+// against wars), but the result is now pushed wholesale to D1 via the
+// Worker's bot-secret-gated POST /attendance instead of being written to the
+// repo-root attendance.js file. See worker/src/data.js's mergeProfileRows()
+// doc comment for why a website-initiated merge can't recompute this itself.
 
 // A player counts as having committed to a war if they were placed "in",
 // running "late", or held on the "bench" (still expected to show). Signing
@@ -18,10 +18,11 @@ const COMMITTED_STATUSES = new Set(["in", "late", "bench"]);
 
 /**
  * Cross-reference every historical sign-up sheet against wars that actually
- * happened (data.js matches) to compute per-player attendance. Resolves each
- * sign-up entry's Discord user id to a family name via the private
- * links.json, falling back to the sign-up's stored display name if unlinked.
- * Entries that can't be resolved to a known roster/war name are skipped.
+ * happened (D1 matches, via loadData()) to compute per-player attendance.
+ * Resolves each sign-up entry's Discord user id to a family name via the
+ * private links.json, falling back to the sign-up's stored display name if
+ * unlinked. Entries that can't be resolved to a known roster/war name are
+ * skipped.
  *
  * Returns { players, byWar }:
  *   - players[name]: { signups, attended, noShows, rate, updatedAt, noShowWars }
@@ -36,8 +37,8 @@ const COMMITTED_STATUSES = new Set(["in", "late", "bench"]);
  * share a war date (which happens in practice), the more recent sheet's
  * status wins for a given player on that date.
  */
-export function computeAttendance() {
-  const data = loadData();
+export async function computeAttendance() {
+  const data = await loadData();
   const warsByDate = new Map(data.matches.map((m) => [m.date, m]));
 
   const players = {}; // name -> { signups, attended, noShows }
@@ -58,7 +59,7 @@ export function computeAttendance() {
     for (const [userId, entry] of Object.entries(sheet.entries || {})) {
       if (!COMMITTED_STATUSES.has(entry.status)) continue;
 
-      const name = canonicalName(nameForUser(userId) || entry.name);
+      const name = await canonicalName(nameForUser(userId) || entry.name);
       if (!name) continue; // can't attribute this entry to a known player
 
       if (!players[name]) players[name] = { signups: 0, attended: 0, noShows: 0 };
@@ -104,32 +105,15 @@ export function computeAttendance() {
   return { players, byWar };
 }
 
-export function loadAttendance() {
-  if (!existsSync(ATTENDANCE_PATH)) return {};
-  const raw = readFileSync(ATTENDANCE_PATH, "utf8");
-  try {
-    const json = raw
-      .replace(/^[\s\S]*window\.GUILD_ATTENDANCE\s*=\s*/, "")
-      .replace(/;\s*$/, "");
-    return JSON.parse(json);
-  } catch {
-    return {};
+/** Push a freshly-computed attendance summary to D1 via the Worker. */
+export async function writeAttendance(summary) {
+  const res = await fetch(`${WORKER_URL}/attendance`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-bot-secret": BOT_PUSH_SECRET },
+    body: JSON.stringify({ summary }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Worker POST /attendance failed: HTTP ${res.status}${detail ? ` — ${detail}` : ""}`);
   }
-}
-
-export function writeAttendance(summary) {
-  const header =
-    "// Canonical guild ATTENDANCE — sign-up vs. actual-war-result data,\n" +
-    "// computed by the Discord bot after every /addwar from bot/data/\n" +
-    "// signups.json + data.js. Shape: { players: {<name>: {signups, attended,\n" +
-    "// noShows, rate, updatedAt, noShowWars: [{date, location}]}}, byWar:\n" +
-    "// {<date>: {location, noShows: [{name, status}]}} } — byWar only has an\n" +
-    "// entry for dates with matching sign-up data; its absence means no\n" +
-    "// sign-up data exists for that war, distinct from zero no-shows. Read by\n" +
-    '// dashboard.html (Attendance panel) and war-scores.html (per-war panel)\n' +
-    '// via <script src="attendance.js">.\n' +
-    "// Contains NO Discord IDs — the name<->Discord link is kept privately on\n" +
-    "// the bot host (bot/data/links.json), never published here.\n";
-  const body = "window.GUILD_ATTENDANCE = " + JSON.stringify(summary, null, 2) + ";\n";
-  writeFileSync(ATTENDANCE_PATH, header + body);
 }

@@ -1,12 +1,17 @@
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { WORKER_URL, BOT_PUSH_SECRET } from "../config.js";
 import { loadData, allPlayerNames } from "./data.js";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-// Committed profiles file at repo root, read by the website too.
-// bot/src/lib -> ../../../profiles.js
-export const PROFILES_PATH = join(__dirname, "..", "..", "..", "profiles.js");
+// Canonical player profiles (class, gear/crystal/addon screenshot paths, gear
+// stats) now live in Cloudflare D1 behind the Worker (see worker/src/data.js)
+// instead of the repo-root profiles.js file. This is now an HTTP client:
+// reads hit the Worker's public GET /profiles.js (served as literal
+// `window.GUILD_PROFILES = {...};` JS), writes hit the Worker's
+// bot-secret-gated POST /profiles/:name.
+//
+// The screenshot FILES themselves (assets/profiles/*) are unaffected by this
+// migration — they're still git-committed static assets served by GitHub
+// Pages (see images.js + git.js) — only the JSON metadata (which path, class,
+// gear stats) moved to D1.
 
 // Maps the /upload slot choice to the website's profile image key.
 export const SLOT_KEYS = {
@@ -16,155 +21,77 @@ export const SLOT_KEYS = {
 };
 
 /** All names the site knows about (roster + everyone who's played a war). */
-export function knownNames() {
+export async function knownNames() {
+  const [data, names] = await Promise.all([loadData(), allPlayerNames()]);
   const set = new Map(); // lowercase -> canonical
-  for (const n of loadData().rosterMembers) set.set(n.toLowerCase(), n);
-  for (const n of allPlayerNames()) if (!set.has(n.toLowerCase())) set.set(n.toLowerCase(), n);
+  for (const n of data.rosterMembers) set.set(n.toLowerCase(), n);
+  for (const n of names) if (!set.has(n.toLowerCase())) set.set(n.toLowerCase(), n);
   return set;
 }
 
 /** Resolve a typed name to its canonical roster casing, or null if unknown. */
-export function canonicalName(query) {
-  return knownNames().get(String(query).toLowerCase().trim()) || null;
+export async function canonicalName(query) {
+  const names = await knownNames();
+  return names.get(String(query).toLowerCase().trim()) || null;
 }
 
-export function loadProfiles() {
-  if (!existsSync(PROFILES_PATH)) return {};
-  const raw = readFileSync(PROFILES_PATH, "utf8");
-  try {
-    const json = raw
-      .replace(/^[\s\S]*window\.GUILD_PROFILES\s*=\s*/, "")
-      .replace(/;\s*$/, "");
-    return JSON.parse(json);
-  } catch {
-    return {};
+export async function loadProfiles() {
+  const res = await fetch(`${WORKER_URL}/profiles.js`);
+  if (!res.ok) throw new Error(`Couldn't load profiles from the Worker (HTTP ${res.status}).`);
+  const raw = await res.text();
+  const json = raw
+    .replace(/^[\s\S]*window\.GUILD_PROFILES\s*=\s*/, "")
+    .replace(/;\s*$/, "");
+  return JSON.parse(json);
+}
+
+export async function getProfile(name) {
+  const profiles = await loadProfiles();
+  return profiles[name] || null;
+}
+
+async function profileOp(name, op) {
+  const res = await fetch(`${WORKER_URL}/profiles/${encodeURIComponent(name)}`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-bot-secret": BOT_PUSH_SECRET },
+    body: JSON.stringify({ op }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Worker profile op "${op.type}" for ${name} failed: HTTP ${res.status}${detail ? ` — ${detail}` : ""}`);
   }
+  return res.json();
 }
 
-export function writeProfiles(profiles) {
-  const header =
-    "// Canonical guild PROFILES — class + gear/crystal/addon screenshots per\n" +
-    "// player, managed by the Discord bot (/profile commands). The website reads\n" +
-    "// this via <script src=\"profiles.js\"> as the shared layer for player pages.\n" +
-    "// Contains NO Discord IDs — the name<->Discord link is kept privately on the\n" +
-    "// bot host (bot/data/links.json), never published here.\n";
-  const body = "window.GUILD_PROFILES = " + JSON.stringify(profiles, null, 2) + ";\n";
-  writeFileSync(PROFILES_PATH, header + body);
+/** Returns false if the player has no profile row yet (mirrors the old file-based no-op). */
+export async function setClass(name, className) {
+  const r = await profileOp(name, { type: "setClass", className });
+  return Boolean(r.result?.ok);
 }
 
-export function getProfile(name) {
-  return loadProfiles()[name] || null;
-}
-
-export function setClass(name, className) {
-  const profiles = loadProfiles();
-  if (!profiles[name]) return false;
-  profiles[name].class = className;
-  profiles[name].updatedAt = new Date().toISOString();
-  writeProfiles(profiles);
-  return true;
-}
-
-/** Set an image path (relative, e.g. assets/profiles/x-gear.png) for a slot. */
-export function setImage(name, slotKey, relativePath) {
-  const profiles = loadProfiles();
-  if (!profiles[name]) profiles[name] = {};
-  const prev = profiles[name][slotKey];
-  profiles[name][slotKey] = relativePath;
-  profiles[name].updatedAt = new Date().toISOString();
-  writeProfiles(profiles);
-  return prev || null;
+/** Set an image path (relative, e.g. assets/profiles/x-gear.png) for a slot.
+ *  Returns the prior path (for asset cleanup) or null. */
+export async function setImage(name, slotKey, relativePath) {
+  const r = await profileOp(name, { type: "setImage", slotKey, path: relativePath });
+  return r.result?.prevPath ?? null;
 }
 
 /**
  * Store gear stats (ap / aap / dp) for a player. Only non-null values are
  * written, so a stat the screenshot reader couldn't see never clobbers an
- * existing good value. The website derives Gear Score = (ap+aap)/2 + dp.
+ * existing good value. Returns the updated profile.
  */
-export function setGear(name, { ap, aap, dp } = {}) {
-  const profiles = loadProfiles();
-  if (!profiles[name]) profiles[name] = {};
-  if (ap != null) profiles[name].ap = ap;
-  if (aap != null) profiles[name].aap = aap;
-  if (dp != null) profiles[name].dp = dp;
-  profiles[name].updatedAt = new Date().toISOString();
-  writeProfiles(profiles);
-  return profiles[name];
+export async function setGear(name, { ap, aap, dp } = {}) {
+  const r = await profileOp(name, { type: "setStats", ap, aap, dp });
+  return r.result;
 }
 
 /**
- * Vacation excludes a player from the Dashboard's attendance rankings
- * (Most Reliable / Frequent No-Shows) while it's on. Exception exempts them
- * from the site's automatic ⚠ Watch performance flag (flags.js). Both are
- * simple on/off switches, not date-ranged leave.
+ * Vacation excludes a player from the Dashboard's attendance rankings while
+ * it's on. Exception exempts them from the site's automatic Watch flag.
+ * Returns the updated profile.
  */
-export function setFlags(name, { vacation, exception } = {}) {
-  const profiles = loadProfiles();
-  if (!profiles[name]) profiles[name] = {};
-  if (vacation != null) profiles[name].vacation = vacation;
-  if (exception != null) profiles[name].exception = exception;
-  profiles[name].updatedAt = new Date().toISOString();
-  writeProfiles(profiles);
-  return profiles[name];
-}
-
-/** Remove a screenshot slot from a player. Returns the prior relative path (so
- *  the caller can delete the asset file), or null if there was nothing set. */
-export function removeImage(name, slotKey) {
-  const profiles = loadProfiles();
-  if (!profiles[name] || profiles[name][slotKey] == null) return null;
-  const prev = profiles[name][slotKey];
-  delete profiles[name][slotKey];
-  profiles[name].updatedAt = new Date().toISOString();
-  writeProfiles(profiles);
-  return prev;
-}
-
-/**
- * Combine two players' profiles into one (e.g. a character rename). If
- * toName has no existing profile, fromName's profile just moves to the
- * toName key. If both exist, fields merge with the newer `updatedAt`
- * profile winning per-field conflicts and the older one filling any gaps.
- * Any screenshot path that loses out to the other profile's value is
- * reported back in `orphanedAssets` — deleting the actual file is left to
- * the caller (merge-sync.js), same split as removeImage()/profile-sync.js.
- * @returns {{merged:boolean, orphanedAssets:string[]}}
- */
-export function mergeProfiles(fromName, toName) {
-  const profiles = loadProfiles();
-  const from = profiles[fromName];
-  if (!from) return { merged: false, orphanedAssets: [] };
-
-  const to = profiles[toName];
-  const orphanedAssets = [];
-  let mergedProfile;
-
-  if (!to) {
-    mergedProfile = from;
-  } else {
-    const fromNewer = new Date(from.updatedAt || 0) > new Date(to.updatedAt || 0);
-    const primary = fromNewer ? from : to;
-    const secondary = fromNewer ? to : from;
-    mergedProfile = { ...secondary, ...primary };
-    for (const slotKey of Object.values(SLOT_KEYS)) {
-      const kept = mergedProfile[slotKey];
-      for (const p of [from[slotKey], to[slotKey]]) {
-        if (p && p !== kept) orphanedAssets.push(p);
-      }
-    }
-  }
-  mergedProfile.updatedAt = new Date().toISOString();
-  profiles[toName] = mergedProfile;
-  delete profiles[fromName];
-  writeProfiles(profiles);
-  return { merged: true, orphanedAssets };
-}
-
-export function unlink(userId) {
-  const owned = findByDiscord(userId);
-  if (!owned) return null;
-  const profiles = loadProfiles();
-  delete profiles[owned[0]].discordId;
-  writeProfiles(profiles);
-  return owned[0];
+export async function setFlags(name, { vacation, exception } = {}) {
+  const r = await profileOp(name, { type: "setFlags", vacation, exception });
+  return r.result;
 }

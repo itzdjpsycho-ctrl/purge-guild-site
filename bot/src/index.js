@@ -9,9 +9,7 @@ import * as removewar from "./commands/removewar.js";
 import * as balance from "./commands/balance.js";
 import * as roster from "./commands/roster.js";
 import { syncFromWorker, applyOps } from "./lib/worker-sync.js";
-import { applyProfileOps } from "./lib/profile-sync.js";
-import { applyWarOps } from "./lib/war-sync.js";
-import { applyMergeOps } from "./lib/merge-sync.js";
+import { applyLinkRenameOps } from "./lib/link-sync.js";
 import { workerEnabled, pushLinks } from "./lib/worker.js";
 import { sweepExpiredSignups } from "./lib/signup-cleanup.js";
 import { allLinks } from "./lib/links.js";
@@ -37,14 +35,14 @@ client.once(Events.ClientReady, async (c) => {
     const n = await syncFromWorker(c);
     if (n) console.log(`🔗 Hydrated ${n} sign-up(s) from the Worker relay.`);
     setInterval(() => syncFromWorker(c), 60_000);
-    // Apply website board edits (add/move/remove) to posted sheets promptly.
+    // Apply website board edits (add/move/remove) to posted sign-up sheets promptly.
+    // (War/profile edits no longer poll — the website calls the Worker's
+    // D1-backed endpoints directly now, see the D1 migration plan.)
     setInterval(() => applyOps(c), 5_000);
-    // Apply website profile-ops (e.g. remove a published screenshot for everyone).
-    setInterval(() => applyProfileOps(), 10_000);
-    // Apply website war-ops (e.g. "Remove This War" on War Scores).
-    setInterval(() => applyWarOps(), 10_000);
-    // Apply website merge-ops (e.g. "Merge Stats" on the Roster page).
-    setInterval(() => applyMergeOps(), 10_000);
+    // Apply pending Discord-link renames queued by a website Merge Stats
+    // (character rename) — the only piece of a merge the Worker can't do
+    // itself, since the private link map only exists on the bot host.
+    setInterval(() => applyLinkRenameOps(), 10_000);
     // Re-sync the Discord-id <-> family-name link map in case the Worker's KV
     // was ever cleared/redeployed while this map only changed via /profile.
     pushLinks(allLinks()).catch(() => {});

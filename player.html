@@ -490,24 +490,24 @@ async function publishOwnEdit(player, op){
   const isSelf = state?.familyName && state.familyName.toLowerCase() === player.toLowerCase();
   if(!state?.isAdmin && !isSelf) return;
   try{
-    await fetch(`${WORKER_URL}/profile-op`, {
+    await fetch(`${WORKER_URL}/profiles/${encodeURIComponent(player)}`, {
       method:"POST",
       headers:{ "content-type":"application/json", ...PurgeAuth.headers() },
-      body: JSON.stringify({ player, op }),
+      body: JSON.stringify({ op }),
     });
   }catch(e){ /* offline: local save still applied */ }
 }
-// Ask the bot (via the Worker) to remove a PUBLISHED screenshot for everyone.
+// Ask the Worker to remove a PUBLISHED screenshot for everyone, live immediately.
 // Gated server-side to an admin session or the signed-in owner of this profile.
 async function requestGlobalRemove(player, field){
   try{
-    const res = await fetch(`${WORKER_URL}/profile-op`, {
+    const res = await fetch(`${WORKER_URL}/profiles/${encodeURIComponent(player)}`, {
       method:"POST",
       headers:{ "content-type":"application/json", ...PurgeAuth.headers() },
-      body: JSON.stringify({ player, op:{ type:"removeShot", field } }),
+      body: JSON.stringify({ op:{ type:"removeShot", field } }),
     });
     if(res.status === 401){ showToast("Sign in as an officer or as this player to remove it for everyone", "error"); return; }
-    if(res.ok) showToast("Removing for everyone — live in ~1–2 min", "success");
+    if(res.ok) showToast("Removed for everyone", "success");
   }catch(e){ /* offline: local tombstone still applied */ }
 }
 function loadRoles(){

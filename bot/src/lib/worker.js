@@ -92,23 +92,11 @@ export async function fetchOps() {
   return Array.isArray(r.data?.ops) ? r.data.ops : [];
 }
 
-/** Drain pending website profile-ops (e.g. remove a published screenshot). */
-export async function fetchProfileOps() {
-  const r = await send("/profile-ops", "GET");
-  if (!r.ok) return [];
-  return Array.isArray(r.data?.ops) ? r.data.ops : [];
-}
-
-/** Drain pending website war-ops (e.g. "Remove This War" on War Scores). */
-export async function fetchWarOps() {
-  const r = await send("/war-ops", "GET");
-  if (!r.ok) return [];
-  return Array.isArray(r.data?.ops) ? r.data.ops : [];
-}
-
-/** Drain pending website merge-ops (e.g. a character-rename "Merge Stats"). */
+/** Drain pending "renameLink" ops the Worker's POST /merge queues after a
+ *  website-initiated character-rename merge — see lib/link-sync.js. */
 export async function fetchMergeOps() {
   const r = await send("/merge-ops", "GET");
   if (!r.ok) return [];
   return Array.isArray(r.data?.ops) ? r.data.ops : [];
 }
+

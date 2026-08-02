@@ -10,7 +10,6 @@ import { SITE_URL, GUILD_PROFILE_URL } from "../config.js";
 import { loadData, setRosterMembers } from "../lib/data.js";
 import { isAdmin } from "../lib/signup-message.js";
 import { fetchOfficialRoster } from "../lib/roster-scrape.js";
-import { publish } from "../lib/git.js";
 
 // Pending syncs awaiting a Confirm/Cancel, keyed by a one-time token.
 const pending = new Map(); // token -> { members, added, removed, userId, createdAt }
@@ -34,7 +33,7 @@ function previewEmbed({ added, removed, total, guildMaster }) {
     .setColor(0x5fdcf5)
     .setTitle("🔄 Roster Sync Preview")
     .setDescription(description)
-    .setFooter({ text: "This replaces rosterMembers in data.js — war history is untouched. Confirm within 10 min." });
+    .setFooter({ text: "This replaces the roster on the site — war history is untouched. Confirm within 10 min." });
 
   if (guildMaster) e.addFields({ name: "Guild Master", value: guildMaster, inline: false });
   e.addFields(
@@ -77,7 +76,7 @@ export async function execute(interaction) {
   }
 
   // Dry-run the diff without writing yet, so Cancel is a true no-op.
-  const before = new Set(loadData().rosterMembers);
+  const before = new Set((await loadData()).rosterMembers);
   const afterSet = new Set(live.members);
   const added = live.members.filter((n) => !before.has(n));
   const removed = [...before].filter((n) => !afterSet.has(n)).sort((a, b) => a.localeCompare(b));
@@ -122,23 +121,16 @@ export async function handleComponent(interaction) {
 
   // confirm
   pending.delete(token);
-  await interaction.update({ content: "⏳ Publishing to the site…", embeds: [], components: [] });
+  await interaction.update({ content: "⏳ Syncing to the site…", embeds: [], components: [] });
 
   let diff;
   try {
-    diff = setRosterMembers(entry.members);
+    diff = await setRosterMembers(entry.members);
   } catch (e) {
     return interaction.editReply(`🚫 Failed to update the roster: ${e.message}`);
   }
 
-  const pub = await publish(["data.js"], `roster: sync from official guild page (${entry.members.length} members)`);
-
-  let tail;
-  if (pub.pushed) tail = "🚀 Pushed — live on the site in ~1–2 minutes.";
-  else if (pub.error) tail = `⚠️ Updated locally, but auto-publish failed: ${pub.error}`;
-  else tail = "ℹ️ No change to publish.";
-
   await interaction.editReply(
-    `✅ **Synced** — ${entry.members.length} members (+${diff.added.length} / −${diff.removed.length}).\n${tail}\n${SITE_URL}/players.html`
+    `✅ **Synced** — ${entry.members.length} members (+${diff.added.length} / −${diff.removed.length}) — live now.\n${SITE_URL}/players.html`
   );
 }

@@ -24,7 +24,8 @@ export async function autocomplete(interaction) {
   const value = focusedOpt.value.toLowerCase();
 
   if (focusedOpt.name === "player") {
-    const choices = allPlayerNames()
+    const names = await allPlayerNames();
+    const choices = names
       .filter((n) => n.toLowerCase().includes(value))
       .slice(0, 25)
       .map((n) => ({ name: n, value: n }));
@@ -33,8 +34,8 @@ export async function autocomplete(interaction) {
 
   // date option — scope to the chosen player's wars when possible
   const player = interaction.options.getString("player");
-  const hist = player ? playerHistory(player) : null;
-  const wars = hist ? hist.wars : listWars();
+  const hist = player ? await playerHistory(player) : null;
+  const wars = hist ? hist.wars : await listWars();
   const choices = wars
     .filter((w) => w.date.includes(value) || w.location.toLowerCase().includes(value))
     .slice(0, 25)
@@ -46,7 +47,7 @@ export async function execute(interaction) {
   const playerName = interaction.options.getString("player");
   const date = interaction.options.getString("date");
 
-  const history = playerHistory(playerName);
+  const history = await playerHistory(playerName);
   if (!history) {
     return interaction.reply({
       content: `No war records found for **${playerName}**. Check the spelling or use autocomplete.`,

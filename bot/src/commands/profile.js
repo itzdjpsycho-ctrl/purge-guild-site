@@ -57,7 +57,7 @@ export async function autocomplete(interaction) {
   const value = focused.value.toLowerCase();
 
   if (focused.name === "family") {
-    const names = [...knownNames().values()].sort((a, b) => a.localeCompare(b));
+    const names = [...(await knownNames()).values()].sort((a, b) => a.localeCompare(b));
     return interaction.respond(
       names.filter((n) => n.toLowerCase().includes(value)).slice(0, 25).map((n) => ({ name: n, value: n }))
     );
@@ -85,7 +85,7 @@ function requireLinked(interaction) {
 
 async function register(interaction) {
   const input = interaction.options.getString("family");
-  const name = canonicalName(input);
+  const name = await canonicalName(input);
   if (!name) {
     return interaction.reply({
       content: `**${input}** isn't on the roster. Start typing and pick a name from the suggestions, or ask an admin to add you.`,
@@ -108,11 +108,13 @@ async function setClassCmd(interaction) {
   const name = requireLinked(interaction);
   if (!name) return notLinked(interaction);
   const className = interaction.options.getString("class");
-  setClass(name, className);
 
-  await interaction.reply({ content: `⏳ Saving class **${className}** for **${name}** and publishing…`, ephemeral: true });
-  const pub = await publish(["profiles.js"], `profile: ${name} class -> ${className}`);
-  await interaction.editReply(publishLine(`Class set to **${className}** for **${name}**.`, pub));
+  await interaction.deferReply({ ephemeral: true });
+  const ok = await setClass(name, className);
+  if (!ok) {
+    return interaction.editReply(`🚫 No profile found for **${name}** yet — try \`/profile upload\` first.`);
+  }
+  await interaction.editReply(`✅ Class set to **${className}** for **${name}** — live now.\n${SITE_URL}/player.html?name=${encodeURIComponent(name)}`);
 }
 
 async function upload(interaction) {
@@ -125,21 +127,25 @@ async function upload(interaction) {
 
   await interaction.deferReply({ ephemeral: true });
 
-  const prev = getProfile(name)?.[slotKey] || null;
+  const prevProfile = await getProfile(name);
+  const prev = prevProfile?.[slotKey] || null;
   const saved = await saveAttachment(attachment, name, slot, prev);
   if (!saved.ok) {
     return interaction.editReply(`🚫 ${saved.error}`);
   }
 
-  setImage(name, slotKey, saved.relativePath);
+  // The path itself is live in D1 immediately; the image FILE is still a
+  // git-committed static asset (see git.js publish() below) — GitHub Pages
+  // takes ~1-2 min to actually serve the new file at that path.
+  await setImage(name, slotKey, saved.relativePath);
 
   // For a Gear screenshot, also read AP / Awakening AP / DP off the image and
-  // store them so the player's Gear Score shows on the roster — same commit.
+  // store them so the player's Gear Score shows on the roster.
   let gearNote = "";
   if (slot === "gear") {
     const read = await readGearStats(saved.buffer.toString("base64"), saved.mediaType);
     if (read.ok) {
-      const prof = setGear(name, read);
+      const prof = await setGear(name, read);
       const gs = gearScore(prof);
       gearNote =
         gs != null
@@ -152,10 +158,7 @@ async function upload(interaction) {
     }
   }
 
-  const pub = await publish(
-    ["profiles.js", saved.relativePath],
-    `profile: ${name} ${slot} screenshot`
-  );
+  const pub = await publish([saved.relativePath], `profile: ${name} ${slot} screenshot`);
 
   const label = SLOT_CHOICES.find((c) => c.value === slot).name;
   await interaction.editReply(
@@ -171,7 +174,7 @@ async function view(interaction) {
     return interaction.reply({ content: `${who} registered a family name yet (\`/profile register\`).`, ephemeral: true });
   }
 
-  const p = getProfile(name) || {};
+  const p = (await getProfile(name)) || {};
   const slots = [
     ["Gear", p.gearImg],
     ["Crystals", p.crystalsImg],
