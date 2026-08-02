@@ -11,6 +11,7 @@ import { readWar } from "../lib/war.js";
 import { addWar, getWar, fmtDate } from "../lib/data.js";
 import { isAdmin } from "../lib/signup-message.js";
 import { computeAttendance, writeAttendance } from "../lib/attendance.js";
+import { sniffMediaType } from "../lib/image-sniff.js";
 import { PURPLE } from "../lib/embeds.js";
 
 const ALLOWED = ["image/png", "image/jpeg", "image/webp"];
@@ -47,14 +48,18 @@ export const data = (() => {
 })();
 
 async function fetchImage(att) {
-  const mt = att.contentType?.split(";")[0];
-  if (!ALLOWED.includes(mt)) return { ok: false, error: `${att.name} isn't a PNG/JPG/WebP.` };
+  const declared = att.contentType?.split(";")[0];
+  if (!ALLOWED.includes(declared)) return { ok: false, error: `${att.name} isn't a PNG/JPG/WebP.` };
   if (att.size > MAX_BYTES) return { ok: false, error: `${att.name} is over 8 MB.` };
   try {
     const res = await fetch(att.url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const buf = Buffer.from(await res.arrayBuffer());
-    return { ok: true, image: { base64: buf.toString("base64"), mediaType: mt } };
+    // Discord's declared contentType is occasionally wrong (e.g. PNG bytes
+    // reported as image/webp) — Claude's vision API rejects that mismatch
+    // outright, so sniff the real format from the file's magic bytes instead.
+    const mediaType = sniffMediaType(buf) || declared;
+    return { ok: true, image: { base64: buf.toString("base64"), mediaType } };
   } catch (e) {
     return { ok: false, error: `Couldn't download ${att.name} (${e.message}).` };
   }

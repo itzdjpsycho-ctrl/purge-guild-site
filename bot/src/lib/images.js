@@ -1,6 +1,7 @@
 import { writeFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { sniffMediaType } from "./image-sniff.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Website assets live at the repo root. bot/src/lib -> ../../../assets/profiles
@@ -33,9 +34,8 @@ export function slug(name) {
  * different file, it's deleted so we don't leave orphans.
  */
 export async function saveAttachment(attachment, name, slot, prevRelative) {
-  const mediaType = attachment.contentType?.split(";")[0];
-  const ext = ALLOWED[mediaType];
-  if (!ext) {
+  const declared = attachment.contentType?.split(";")[0];
+  if (!ALLOWED[declared]) {
     return { ok: false, error: "That file isn't a PNG, JPG, or WebP image." };
   }
   if (attachment.size > MAX_BYTES) {
@@ -50,6 +50,13 @@ export async function saveAttachment(attachment, name, slot, prevRelative) {
   } catch (e) {
     return { ok: false, error: `Couldn't download the image (${e.message}).` };
   }
+
+  // Discord's declared contentType is occasionally wrong (e.g. PNG bytes
+  // reported as image/webp) — sniff the real format from the file's magic
+  // bytes so the saved extension and the mediaType handed to the gear
+  // reader (Claude vision, which rejects a mismatch outright) are correct.
+  const mediaType = sniffMediaType(buffer) || declared;
+  const ext = ALLOWED[mediaType] || ALLOWED[declared];
 
   if (!existsSync(ASSETS_DIR)) mkdirSync(ASSETS_DIR, { recursive: true });
 
