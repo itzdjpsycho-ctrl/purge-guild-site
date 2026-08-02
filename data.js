@@ -1,6 +1,9 @@
-// Canonical guild data — single source of truth for the website AND the
-// Discord bot. Edit the matches / extendedStats / rosterMembers below to add
-// wars or members; both the site and bot read this one file.
+// FROZEN pre-D1-migration snapshot (2026-08-02) — NOT read by the site or
+// written by the bot anymore. Canonical guild data now lives in Cloudflare
+// D1 (worker/schema.sql), served live via the Worker's GET /data.js. This
+// file is kept only as a manual point-in-time fallback; editing it has no
+// effect on the live site. See CLAUDE.md's "Canonical guild data moved to
+// Cloudflare D1" hosting note.
 window.GUILD_DATA = {
   "guildName": "Purge",
   "extendedColumns": [

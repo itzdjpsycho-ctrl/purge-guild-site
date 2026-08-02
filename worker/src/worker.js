@@ -8,8 +8,6 @@
 //   Website  ──GET/POST /officers (session-or-password)──►  manage who's an officer, by family name
 //   Website  ──GET/POST /presets (session-or-password)──►  save/load named role-cap presets
 //   Website  ──POST /post,/edit,/op (session-or-password)──► posts to Discord as the bot
-//   Website  ──POST /profile-op (session: admin or own familyName)──► queue a profile edit
-//   Website  ──POST /merge-op (officer-only)──────►  queue a player-name merge (character rename)
 //   Website  ──POST /war (public, origin-locked)──────►  Claude vision reads a war result screenshot
 //   Website  ──GET  /state (public, sanitized)──────►  live view
 //   Bot      ──POST /state,/config,/links (x-bot-secret)──►  live state + channel + link map
@@ -22,19 +20,20 @@
 //   DELETE /matches/:date (officer or x-bot-secret)───►  delete a war, takes effect immediately
 //   POST /matches (officer or x-bot-secret)───►  add/replace a war (website manual entry or /addwar)
 //   POST /profiles/:name (admin/owner or x-bot-secret; setImage is bot-only)──► apply a profile edit
-//   POST /merge (officer-only)──────►  combine two players' entire history (website Merge Stats)
+//   POST /merge (officer-only)──────►  combine two players' entire history (website Merge Stats) —
+//                                       also queues a "renameLink" op onto "mergeops" KV for the bot
+//                                       to pick up (GET /merge-ops, x-bot-secret), since the private
+//                                       Discord-link map only exists on the bot host.
 //   POST /roster (x-bot-secret)──────►  replace rosterMembers wholesale (/roster sync)
 //   POST /attendance (x-bot-secret)──►  push a freshly-computed attendance summary
-// The old /war-op, /profile-op, /merge-op queues above are now unused (the website and bot both
-// call the direct endpoints above) but kept temporarily during rollout — see the D1 migration
-// plan for the staged cutover before deleting them.
 //
 // Secrets (wrangler secret put): DISCORD_BOT_TOKEN, ADMIN_POST_PASSWORD, BOT_PUSH_SECRET,
 //   DISCORD_CLIENT_SECRET, SESSION_SECRET (signs the login token — any long random string).
 // Vars: DISCORD_CLIENT_ID, GUILD_ID (checked at login — see auth.js isGuildMember; NOT a secret).
 // Officers aren't Discord roles — they're a plain list of Discord ids in KV ("officers"),
 // managed from the website itself (bootstrap the first one with ADMIN_POST_PASSWORD).
-// KV binding: SIGNUPS_KV.  Keys: "config", "state", "posted", "links", "officers", "presets".
+// KV binding: SIGNUPS_KV.  Keys: "config", "state", "posted", "links", "officers", "presets",
+//   "ops" (sign-up board edits), "mergeops" (pending Discord-link renames after a merge — see /merge).
 // D1 binding: DB ("purge-guild-db").  Tables: matches, extended_stats, roster_members, profiles,
 //   attendance (see worker/schema.sql).
 
@@ -186,16 +185,6 @@ async function getPosted(env) {
 
 async function getOps(env) {
   const raw = await env.SIGNUPS_KV.get("ops");
-  try { return raw ? JSON.parse(raw) : []; } catch { return []; }
-}
-
-async function getProfileOps(env) {
-  const raw = await env.SIGNUPS_KV.get("profileops");
-  try { return raw ? JSON.parse(raw) : []; } catch { return []; }
-}
-
-async function getWarOps(env) {
-  const raw = await env.SIGNUPS_KV.get("warops");
   try { return raw ? JSON.parse(raw) : []; } catch { return []; }
 }
 
@@ -505,48 +494,8 @@ export default {
       return json({ ok: true }, 200, request);
     }
 
-    // ---- website → profile op (remove a screenshot / set class / set stats) ----
-    // Admins can edit anyone's profile; a signed-in player (session.familyName
-    // matches body.player) can edit their own.
-    if (path === "/profile-op" && method === "POST") {
-      const body = await readJson(request);
-      if (!body?.player) return json({ error: "player required." }, 400, request);
-
-      const opType = body.op?.type || (body.field ? "removeShot" : null);
-      const opBody = body.op || { field: body.field };
-      if (!opType) return json({ error: "op.type required." }, 400, request);
-      if (opType === "removeShot" && !opBody.field) {
-        return json({ error: "op.field required for removeShot." }, 400, request);
-      }
-      if (opType === "setClass" && !opBody.className) {
-        return json({ error: "op.className required for setClass." }, 400, request);
-      }
-      if (opType === "setStats" && opBody.ap == null && opBody.aap == null && opBody.dp == null) {
-        return json({ error: "op needs at least one of ap/aap/dp." }, 400, request);
-      }
-      if (opType === "setFlags" && typeof opBody.vacation !== "boolean" && typeof opBody.exception !== "boolean") {
-        return json({ error: "op needs at least one of vacation/exception (boolean)." }, 400, request);
-      }
-
-      const admin = await isAdminRequest(request, env);
-      let owner = false;
-      if (!admin) {
-        const session = await sessionFor(request, env);
-        owner = Boolean(session?.familyName) && session.familyName.toLowerCase() === String(body.player).toLowerCase();
-      }
-      if (!admin && !owner) {
-        return json({ error: "Not signed in as an officer or as this player." }, 401, request);
-      }
-
-      const ops = await getProfileOps(env);
-      ops.push({ op: { type: opType, player: body.player, ...opBody }, at: new Date().toISOString() });
-      await env.SIGNUPS_KV.put("profileops", JSON.stringify(ops.slice(-200)));
-      return json({ ok: true }, 200, request);
-    }
-
-    // ---- website → apply a profile edit directly to D1 (officer, or the
-    // player editing their own profile) — same auth + op shape as /profile-op
-    // above, but takes effect immediately instead of waiting for the bot. ----
+    // ---- apply a profile edit directly to D1 (officer, the player editing
+    // their own profile, or the bot on their behalf) ----
     const profileMatch = path.match(/^\/profiles\/(.+)$/);
     if (profileMatch && method === "POST") {
       const player = decodeURIComponent(profileMatch[1]);
@@ -598,26 +547,6 @@ export default {
       return json({ ok: true, result }, 200, request);
     }
 
-    // ---- website → war op (remove a war from data.js) — officer-gated ----
-    // Queued for the bot to apply (only it holds git write access); see
-    // bot/src/lib/war-sync.js applyWarOps().
-    if (path === "/war-op" && method === "POST") {
-      if (!(await isAdminRequest(request, env))) {
-        return json({ error: "Not signed in as an officer." }, 401, request);
-      }
-      const body = await readJson(request);
-      const opType = body?.op?.type;
-      if (opType === "removeWar" && !body?.op?.date) {
-        return json({ error: "op.date required for removeWar." }, 400, request);
-      }
-      if (!opType) return json({ error: "op.type required." }, 400, request);
-
-      const ops = await getWarOps(env);
-      ops.push({ op: body.op, at: new Date().toISOString() });
-      await env.SIGNUPS_KV.put("warops", JSON.stringify(ops.slice(-200)));
-      return json({ ok: true }, 200, request);
-    }
-
     // ---- delete a war directly from D1 ----
     // Officer session (website's "Remove This War") OR bot-secret (the
     // Discord /removewar flow) — takes effect immediately, no git commit,
@@ -647,30 +576,7 @@ export default {
       return json(result, 200, request);
     }
 
-    // ---- website → merge op (combine two names' entire history, e.g. a
-    // character rename) — officer-gated. Queued for the bot to apply (only it
-    // holds git write access); see bot/src/lib/merge-sync.js applyMergeOps().
-    if (path === "/merge-op" && method === "POST") {
-      if (!(await isAdminRequest(request, env))) {
-        return json({ error: "Not signed in as an officer." }, 401, request);
-      }
-      const body = await readJson(request);
-      const op = body?.op;
-      if (op?.type !== "mergeNames" || !op.from || !op.to) {
-        return json({ error: "op.type 'mergeNames' + op.from + op.to required." }, 400, request);
-      }
-      if (String(op.from).toLowerCase() === String(op.to).toLowerCase()) {
-        return json({ error: "from and to must be different names." }, 400, request);
-      }
-
-      const ops = await getMergeOps(env);
-      ops.push({ op, at: new Date().toISOString() });
-      await env.SIGNUPS_KV.put("mergeops", JSON.stringify(ops.slice(-200)));
-      return json({ ok: true }, 200, request);
-    }
-
     // ---- website → merge two names directly in D1 (officer-only) ----
-    // Same auth + op shape as /merge-op above, but applied immediately.
     // Doesn't touch attendance (see worker/src/data.js mergeProfileRows() doc
     // comment) — only the bot's signups.json cross-reference can recompute
     // that correctly, and the next /addwar or /removewar naturally does.
@@ -781,23 +687,7 @@ export default {
       return json({ ops }, 200, request);
     }
 
-    // Drain the pending profile-op queue for the bot to apply.
-    if (path === "/profile-ops" && method === "GET") {
-      if (!botAuthed) return json({ error: "Bad secret." }, 401, request);
-      const ops = await getProfileOps(env);
-      if (ops.length) await env.SIGNUPS_KV.put("profileops", "[]");
-      return json({ ops }, 200, request);
-    }
-
-    // Drain the pending war-op queue for the bot to apply.
-    if (path === "/war-ops" && method === "GET") {
-      if (!botAuthed) return json({ error: "Bad secret." }, 401, request);
-      const ops = await getWarOps(env);
-      if (ops.length) await env.SIGNUPS_KV.put("warops", "[]");
-      return json({ ops }, 200, request);
-    }
-
-    // Drain the pending merge-op queue for the bot to apply.
+    // Drain pending "renameLink" ops queued by /merge above (see link-sync.js).
     if (path === "/merge-ops" && method === "GET") {
       if (!botAuthed) return json({ error: "Bad secret." }, 401, request);
       const ops = await getMergeOps(env);

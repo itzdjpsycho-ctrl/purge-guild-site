@@ -1,12 +1,14 @@
-// Canonical guild ATTENDANCE — sign-up vs. actual-war-result data,
-// computed by the Discord bot after every /addwar from bot/data/
-// signups.json + data.js. Shape: { players: {<name>: {signups, attended,
-// noShows, rate, updatedAt, noShowWars: [{date, location}]}}, byWar:
-// {<date>: {location, noShows: [{name, status}]}} } — byWar only has an
-// entry for dates with matching sign-up data; its absence means no
-// sign-up data exists for that war, distinct from zero no-shows. Read by
-// dashboard.html (Attendance panel) and war-scores.html (per-war panel)
-// via <script src="attendance.js">.
+// FROZEN pre-D1-migration snapshot (2026-08-02) — NOT read by the site or
+// written by the bot anymore. Canonical attendance now lives in Cloudflare
+// D1 (worker/schema.sql) as a bot-computed blob, served live via the
+// Worker's GET /attendance.js. This file is kept only as a manual
+// point-in-time fallback; editing it has no effect on the live site. See
+// CLAUDE.md's "Canonical guild data moved to Cloudflare D1" hosting note.
+// Shape: { players: {<name>: {signups, attended, noShows, rate, updatedAt,
+// noShowWars: [{date, location}]}}, byWar: {<date>: {location, noShows:
+// [{name, status}]}} } — byWar only has an entry for dates with matching
+// sign-up data; its absence means no sign-up data exists for that war,
+// distinct from zero no-shows.
 // Contains NO Discord IDs — the name<->Discord link is kept privately on
 // the bot host (bot/data/links.json), never published here.
 window.GUILD_ATTENDANCE = {

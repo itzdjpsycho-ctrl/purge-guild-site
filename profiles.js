@@ -1,6 +1,9 @@
-// Canonical guild PROFILES — class + gear/crystal/addon screenshots per
-// player, managed by the Discord bot (/profile commands). The website reads
-// this via <script src="profiles.js"> as the shared layer for player pages.
+// FROZEN pre-D1-migration snapshot (2026-08-02) — NOT read by the site or
+// written by the bot anymore. Canonical profiles now live in Cloudflare D1
+// (worker/schema.sql), served live via the Worker's GET /profiles.js. This
+// file is kept only as a manual point-in-time fallback; editing it has no
+// effect on the live site. See CLAUDE.md's "Canonical guild data moved to
+// Cloudflare D1" hosting note.
 // Contains NO Discord IDs — the name<->Discord link is kept privately on the
 // bot host (bot/data/links.json), never published here.
 window.GUILD_PROFILES = {
