@@ -6,3 +6,8 @@
 # regenerate with `node scripts/seed-from-repo.js` rather than committing it
 # (it goes stale the moment D1 diverges from data.js/profiles.js/attendance.js).
 seed.sql
+
+# Third-party CoGM Logger app + a real session capture (159MB+ .pcap, personal
+# Discord/family-name data) — used locally to investigate a Kill Map feature
+# (see memory/project_kill_map_investigation.md), never meant to be committed.
+CoGM/

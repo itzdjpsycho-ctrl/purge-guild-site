@@ -167,6 +167,49 @@
   .not-linked-panel{ max-width:560px; }
   .not-linked-panel p{ color:var(--text-muted); line-height:1.7; font-size:14px; }
 
+  /* ---- Composed Identity ---- */
+  .identity-panel{
+    display:grid; grid-template-columns:220px 1fr 260px; gap:28px; align-items:center;
+    padding:26px 28px;
+  }
+  .identity-wheel-wrap{ display:flex; align-items:center; justify-content:center; }
+  .identity-wheel-wrap svg{ width:200px; height:200px; }
+  .identity-eyebrow{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.18em; text-transform:uppercase;
+    color:var(--text-faint); margin-bottom:8px;
+  }
+  .identity-category{
+    font-family:var(--font-mono); font-size:12px; letter-spacing:0.1em; text-transform:uppercase;
+    font-weight:700; color:var(--gold-bright); margin-bottom:4px;
+  }
+  .identity-name{ font-family:var(--font-display); font-size:34px; font-weight:700; color:var(--text); margin-bottom:10px; }
+  .identity-meta{ font-family:var(--font-mono); font-size:11.5px; color:var(--text-faint); margin-bottom:16px; }
+  .identity-meta b{ color:var(--text-muted); font-weight:600; }
+  .identity-flavor{ font-size:13.5px; line-height:1.7; color:var(--text-muted); }
+  .identity-flavor .flavor-name{ color:var(--text); font-weight:600; }
+  .identity-flavor .flavor-name.trait{ color:var(--gold-bright); }
+
+  .identity-record{ font-family:var(--font-mono); }
+  .identity-record-title{ font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-faint); margin-bottom:12px; }
+  .identity-record-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px 20px; margin-bottom:16px; }
+  .identity-record-row{ display:flex; align-items:center; justify-content:space-between; font-size:12px; }
+  .identity-record-row .rlabel{ color:var(--text-muted); display:flex; align-items:center; gap:6px; }
+  .identity-record-row .rgrade{ font-weight:700; color:var(--text); }
+  .identity-record-row .rgrade.grade-s{ color:var(--gold-bright); }
+  .identity-record-row .rgrade.grade-d{ color:var(--text-faint); }
+
+  .identity-trait-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+  .identity-trait-chip{
+    font-size:10.5px; letter-spacing:0.04em; padding:4px 10px; border-radius:999px;
+    border:1px solid rgba(217,164,65,0.35); background:rgba(217,164,65,0.1); color:var(--gold-bright);
+  }
+  .identity-trait-progress{ font-size:10px; color:var(--text-faint); margin-bottom:6px; }
+  .identity-trait-dots{ display:flex; gap:4px; flex-wrap:wrap; }
+  .identity-trait-dots span{ width:6px; height:6px; border-radius:50%; background:var(--hairline); flex:none; }
+  .identity-trait-dots span.earned{ background:var(--gold-bright); }
+
+  @media(max-width:900px){ .identity-panel{ grid-template-columns:1fr; } }
+
   @media(max-width:1100px){
     .stats-columns{ grid-template-columns:1fr; }
   }
@@ -217,6 +260,11 @@
 </div>
 
 <div id="statsRoot">
+  <div class="section" id="composedIdentitySection" style="display:none;">
+    <div class="section-label">Composed Identity</div>
+    <div class="panel identity-panel" id="identityPanel"></div>
+  </div>
+
   <div class="stats-columns" id="statsColumns" style="display:none;">
     <div class="stats-col">
       <div class="section">
@@ -380,7 +428,10 @@ function loadProfiles(){
 function extRowFor(date, name){
   const row = (EXTENDED_STATS[date]||[]).find(r=>r[0]===name);
   if(!row) return null;
-  return { dmgDone:row[4], dmgTaken:row[5], cc:row[6], hpHealed:row[7], allyHpHealed:row[8], fortDmg:row[9] };
+  return {
+    streak:row[3], dmgDone:row[4], dmgTaken:row[5], cc:row[6], hpHealed:row[7], allyHpHealed:row[8],
+    fortDmg:row[9], traps:row[13], timeDead:row[14], timeAlive:row[15],
+  };
 }
 
 function getPlayerAppearances(name, allMatches){
@@ -389,6 +440,19 @@ function getPlayerAppearances(name, allMatches){
     if(!p) return null;
     return { match:m, kills:p[1], deaths:p[2], ext:extRowFor(m.date, name) };
   }).filter(Boolean);
+}
+
+/* Every player's appearances, not just one — the roster-wide pool Composed
+   Identity percentile-ranks a player's stats against (see below). */
+function getAllPlayerAppearances(allMatches){
+  const map = {};
+  allMatches.forEach(m=>{
+    m.players.forEach(([name,k,d])=>{
+      if(!map[name]) map[name] = [];
+      map[name].push({ match:m, kills:k, deaths:d, ext:extRowFor(m.date, name) });
+    });
+  });
+  return map;
 }
 
 /* Every participant's value for a given metric, in one war — used for the
@@ -436,6 +500,264 @@ function getMostRecentWeekMatches(matches){
 }
 
 /* ================================================================
+   COMPOSED IDENTITY — an 8-category "playstyle wheel" (Damage / Control /
+   Siege / Tanked / Healing / Uptime / Streaks / Burst) graded by percentile
+   against roster-mates, a headline persona named after whichever of the 6
+   core categories the player ranks highest in, and a starter catalog of 12
+   unlockable trait badges layered on top. Deliberately smaller than a
+   reference tool's 26-trait catalog — a v1 covering the clearest patterns,
+   meant to grow over time rather than guess at 26 traits' worth of rules
+   and flavor text against real war data we haven't seen yet.
+
+   Burst has no raw stat to draw on (no "burst damage" column exists), so
+   it's approximated as damage-per-time-alive — an efficiency proxy, not
+   literal burst damage. Cannons landed / objectives destroyed are excluded
+   from Siege entirely: checked against real data.js and they're populated
+   on essentially 0% of rows (OCR rarely catches them), so fortDmg alone is
+   the only reliable siege signal.
+================================================================ */
+
+/* Higher raw value always means "better" for every category below —
+   including Tanked, where soaking damage for the team reads as a positive
+   here rather than a liability. `display` marks the two categories that
+   render as a "+N" chip instead of a letter grade (see computeGrades). */
+const IDENTITY_CATEGORIES = [
+  { key:"damage",  label:"Damage",  icon:"🗡️", value:a => a.ext?.dmgDone || 0 },
+  { key:"control", label:"Control", icon:"🔒", value:a => a.ext?.cc || 0 },
+  { key:"siege",   label:"Siege",   icon:"🏰", value:a => a.ext?.fortDmg || 0 },
+  { key:"tanked",  label:"Tanked",  icon:"🛡️", value:a => a.ext?.dmgTaken || 0 },
+  { key:"healing", label:"Healing", icon:"✚",  value:a => (a.ext?.hpHealed||0) + (a.ext?.allyHpHealed||0) },
+  { key:"uptime",  label:"Uptime",  icon:"⏳", value:a => {
+      const alive = a.ext?.timeAlive||0, dead = a.ext?.timeDead||0;
+      return (alive+dead) > 0 ? alive/(alive+dead) : null;
+    } },
+  // Career-best streak, not an average — a peak-performance stat, and small
+  // enough to show as a literal "+N" rather than compress into a percentile.
+  { key:"streaks", label:"Streaks", icon:"⚡", value:a => a.ext?.streak || 0, display:"raw", useMax:true },
+  // No unit assumption needed here (timeAlive's real unit is unconfirmed) —
+  // this ratio is only ever percentile-ranked against other players' same
+  // ratio, so whatever unit timeAlive is in cancels out.
+  { key:"burst",   label:"Burst",   icon:"💥", value:a => {
+      const alive = a.ext?.timeAlive||0;
+      return alive > 0 ? (a.ext?.dmgDone||0) / alive : null;
+    }, display:"tier" },
+];
+const IDENTITY_CORE_KEYS = ["damage","control","siege","tanked","healing","uptime"];
+
+// Headline persona shown once enough war data exists, named after whichever
+// core category (not streaks/burst — those read as secondary/flavor stats)
+// the player ranks highest in.
+const IDENTITY_PERSONAS = {
+  damage:  { category:"Pure Damage",   name:"Duelist",   flavor:"Every fight is a duel already won." },
+  control: { category:"Crowd Control", name:"Puppeteer", flavor:"The fight bends to their timing." },
+  siege:   { category:"Siegebreaking", name:"Sapper",    flavor:"Structures fear them more than players do." },
+  tanked:  { category:"Frontline",     name:"Bulwark",   flavor:"The line holds because they do." },
+  healing: { category:"Lifeline",      name:"Warden",    flavor:"Nobody dies on their watch." },
+  uptime:  { category:"Survival",      name:"Ghost",     flavor:"Impossible to pin down, impossible to punish." },
+};
+
+// v1 trait catalog — 12 discrete badges layered on top of the headline
+// persona, each independently unlockable. `rule` reads from the context
+// built by buildIdentityTraitContext() below.
+const IDENTITY_TRAIT_DEFS = [
+  { key:"objective-bully", name:"Objective Bully", flavor:"The fort is the target.",
+    rule:ctx => ctx.g.siege.percentile >= 0.75 },
+  { key:"iron-wall", name:"Iron Wall", flavor:"Damage breaks on them first.",
+    rule:ctx => ctx.g.tanked.percentile >= 0.75 && ctx.g.uptime.percentile >= 0.75 },
+  { key:"executioner", name:"Executioner", flavor:"Closes fights before they start.",
+    rule:ctx => ctx.g.damage.percentile >= 0.90 },
+  { key:"crowd-controller", name:"Crowd Controller", flavor:"Chains that never let go.",
+    rule:ctx => ctx.g.control.percentile >= 0.75 },
+  { key:"combat-medic", name:"Combat Medic", flavor:"Keeps the line standing.",
+    rule:ctx => ctx.g.healing.percentile >= 0.75 },
+  { key:"untouchable", name:"Untouchable", flavor:"Still standing when it matters most.",
+    rule:ctx => ctx.g.uptime.percentile >= 0.90 },
+  { key:"streak-machine", name:"Streak Machine", flavor:"One kill becomes five.",
+    rule:ctx => (ctx.raw.streaks||0) >= 8 },
+  { key:"glass-cannon", name:"Glass Cannon", flavor:"All offense, no defense.",
+    rule:ctx => ctx.g.damage.percentile >= 0.75 && ctx.g.tanked.percentile < 0.25 },
+  { key:"anchor", name:"Anchor", flavor:"Never the reason the line breaks.",
+    rule:ctx => ctx.extra.deathsAvg <= 0.20 && (ctx.g.damage.percentile >= 0.50 || ctx.g.control.percentile >= 0.50) },
+  { key:"trapper", name:"Trapper", flavor:"The ground itself works for them.",
+    rule:ctx => ctx.extra.trapsAvg >= 0.85 },
+  { key:"berserker", name:"Berserker", flavor:"Trades blows and always comes out ahead.",
+    rule:ctx => ctx.extra.killsAvg >= 0.80 && ctx.extra.deathsAvg >= 0.80 },
+  { key:"ace", name:"Ace", flavor:"Single-handedly ran the score up.",
+    rule:ctx => ctx.extra.bestWarKills >= 0.90 },
+];
+
+const IDENTITY_MIN_WARS = 5; // same gate as Lifetime Attendance, for consistency
+// Roster members need at least this many appearances to enter the comparison
+// pool — keeps a single one-off war from skewing everyone else's percentile.
+const IDENTITY_ROSTER_MIN_APPEARANCES = 3;
+
+function percentileRank(value, pool){
+  if(value==null || !pool.length) return 0;
+  const below = pool.filter(v=>v<value).length;
+  const equal = pool.filter(v=>v===value).length;
+  return (below + equal*0.5) / pool.length;
+}
+function letterForPercentile(p){
+  if(p>=0.90) return "S";
+  if(p>=0.75) return "A";
+  if(p>=0.50) return "B";
+  if(p>=0.25) return "C";
+  return "D";
+}
+function categoryValueFromAppearances(cat, appearances){
+  const vals = appearances.map(cat.value).filter(v=>v!=null);
+  if(!vals.length) return null;
+  return cat.useMax ? Math.max(...vals) : vals.reduce((a,b)=>a+b,0)/vals.length;
+}
+function buildIdentityRosterPools(allAppearancesByName){
+  const pools = {}; IDENTITY_CATEGORIES.forEach(c=> pools[c.key]=[]);
+  const extra = { killsAvg:[], deathsAvg:[], bestWarKills:[], trapsAvg:[] };
+  Object.values(allAppearancesByName).forEach(apps=>{
+    if(apps.length < IDENTITY_ROSTER_MIN_APPEARANCES) return;
+    IDENTITY_CATEGORIES.forEach(c=>{
+      const v = categoryValueFromAppearances(c, apps);
+      if(v!=null) pools[c.key].push(v);
+    });
+    extra.killsAvg.push(apps.reduce((s,a)=>s+a.kills,0)/apps.length);
+    extra.deathsAvg.push(apps.reduce((s,a)=>s+a.deaths,0)/apps.length);
+    extra.bestWarKills.push(Math.max(...apps.map(a=>a.kills)));
+    extra.trapsAvg.push(apps.reduce((s,a)=>s+(a.ext?.traps||0),0)/apps.length);
+  });
+  return { pools, extra };
+}
+function buildIdentityTraitContext(grades, appearances, extraPools){
+  const g = {}; grades.forEach(gr=> g[gr.key]=gr);
+  const killsAvg = appearances.reduce((s,a)=>s+a.kills,0)/appearances.length;
+  const deathsAvg = appearances.reduce((s,a)=>s+a.deaths,0)/appearances.length;
+  const bestWarKills = Math.max(...appearances.map(a=>a.kills));
+  const trapsAvg = appearances.reduce((s,a)=>s+(a.ext?.traps||0),0)/appearances.length;
+  const streaksCat = IDENTITY_CATEGORIES.find(c=>c.key==="streaks");
+  return {
+    g,
+    raw: { streaks: categoryValueFromAppearances(streaksCat, appearances) || 0 },
+    extra: {
+      killsAvg: percentileRank(killsAvg, extraPools.killsAvg),
+      deathsAvg: percentileRank(deathsAvg, extraPools.deathsAvg),
+      bestWarKills: percentileRank(bestWarKills, extraPools.bestWarKills),
+      trapsAvg: percentileRank(trapsAvg, extraPools.trapsAvg),
+    },
+  };
+}
+
+function computeComposedIdentity(playerName, appearances, allMatches, profile){
+  if(appearances.length < IDENTITY_MIN_WARS){
+    return { gated:true, needed: IDENTITY_MIN_WARS - appearances.length };
+  }
+  const allAppearancesByName = getAllPlayerAppearances(allMatches);
+  const { pools, extra:extraPools } = buildIdentityRosterPools(allAppearancesByName);
+
+  const grades = IDENTITY_CATEGORIES.map(c=>{
+    const val = categoryValueFromAppearances(c, appearances);
+    const pct = percentileRank(val, pools[c.key]);
+    let display;
+    if(c.display==="raw") display = `+${Math.round(val||0)}`;
+    else if(c.display==="tier") display = `+${Math.max(1, Math.round(pct*10))}`;
+    else display = letterForPercentile(pct);
+    return { key:c.key, label:c.label, icon:c.icon, percentile:pct, display };
+  });
+
+  const dominant = grades
+    .filter(g=>IDENTITY_CORE_KEYS.includes(g.key))
+    .reduce((best,g)=> (!best || g.percentile>best.percentile) ? g : best, null);
+  const persona = IDENTITY_PERSONAS[dominant.key];
+
+  const ctx = buildIdentityTraitContext(grades, appearances, extraPools);
+  const unlocked = IDENTITY_TRAIT_DEFS.filter(t=>t.rule(ctx));
+
+  return {
+    gated:false,
+    careerWars: appearances.length,
+    judgedClass: profile.class || null,
+    dominant, persona, grades,
+    traits: { unlocked, total: IDENTITY_TRAIT_DEFS.length },
+  };
+}
+
+/* ---- 8-spoke wheel: one diamond "petal" per category, length scaled by
+   percentile, dominant category filled gold. Pure SVG, no chart library. ---- */
+function identityPolar(cx, cy, r, angleDeg){
+  const a = (angleDeg * Math.PI) / 180;
+  return [cx + r*Math.cos(a), cy + r*Math.sin(a)];
+}
+function identityPetalPath(cx, cy, angleDeg, len, width){
+  const [tx,ty] = identityPolar(cx, cy, len, angleDeg);
+  const [mx,my] = identityPolar(cx, cy, len*0.4, angleDeg);
+  const [s1x,s1y] = identityPolar(cx, cy, width, angleDeg-90);
+  const [s2x,s2y] = identityPolar(cx, cy, width, angleDeg+90);
+  const w1x = mx + (s1x-cx), w1y = my + (s1y-cy);
+  const w2x = mx + (s2x-cx), w2y = my + (s2y-cy);
+  return `M ${cx} ${cy} L ${w1x} ${w1y} L ${tx} ${ty} L ${w2x} ${w2y} Z`;
+}
+function renderIdentityWheel(grades, dominantKey){
+  const cx=100, cy=100;
+  const petals = grades.map((g,i)=>{
+    const angle = i*45 - 90;
+    const len = 22 + g.percentile*60;
+    const isDom = g.key===dominantKey;
+    return `<path d="${identityPetalPath(cx,cy,angle,len,9)}" fill="${isDom?"var(--gold-bright)":"var(--panel-raised)"}" stroke="${isDom?"var(--gold)":"var(--hairline)"}" stroke-width="1.5" opacity="${isDom?1:0.9}"/>`;
+  }).join("");
+  const icons = grades.map((g,i)=>{
+    const angle = i*45 - 90;
+    const [ix,iy] = identityPolar(cx,cy,92,angle);
+    return `<text x="${ix}" y="${iy}" text-anchor="middle" dominant-baseline="central" font-size="13">${g.icon}</text>`;
+  }).join("");
+  return `<svg viewBox="0 0 200 200">
+    <circle cx="${cx}" cy="${cy}" r="86" fill="none" stroke="var(--hairline-soft)" stroke-width="1"/>
+    ${petals}
+    <circle cx="${cx}" cy="${cy}" r="5" fill="var(--text-faint)"/>
+    ${icons}
+  </svg>`;
+}
+
+function renderComposedIdentity(data){
+  document.getElementById("composedIdentitySection").style.display = "block";
+  const el = document.getElementById("identityPanel");
+
+  if(data.gated){
+    el.innerHTML = `<div class="no-data" style="grid-column:1/-1;">Composed Identity unlocks at ${IDENTITY_MIN_WARS} detailed wars — ${data.needed} more to go.</div>`;
+    return;
+  }
+
+  const dots = Array.from({length:data.traits.total}, (_,i)=>
+    `<span class="${i < data.traits.unlocked.length ? "earned" : ""}"></span>`
+  ).join("");
+  const highlightTrait = data.traits.unlocked[0];
+
+  el.innerHTML = `
+    <div class="identity-wheel-wrap">${renderIdentityWheel(data.grades, data.dominant.key)}</div>
+    <div>
+      <div class="identity-eyebrow">Composed Identity</div>
+      <div class="identity-category">${data.persona.category}</div>
+      <div class="identity-name">${data.persona.name}</div>
+      <div class="identity-meta">forged across <b>${data.careerWars}</b> detailed war${data.careerWars!==1?"s":""}${data.judgedClass ? ` · judged as <b>${data.judgedClass}</b>` : ""}</div>
+      <div class="identity-flavor">
+        <div><span class="flavor-name">${data.persona.name}</span> — ${data.persona.flavor}</div>
+        ${highlightTrait ? `<div style="margin-top:6px;"><span class="flavor-name trait">${highlightTrait.name}</span> — ${highlightTrait.flavor}</div>` : ""}
+      </div>
+    </div>
+    <div class="identity-record">
+      <div class="identity-record-title">The Record</div>
+      <div class="identity-record-grid">
+        ${data.grades.map(g=>`
+          <div class="identity-record-row">
+            <span class="rlabel">${g.icon} ${g.label}</span>
+            <span class="rgrade grade-${g.display.replace('+','').toLowerCase()}">${g.display}</span>
+          </div>
+        `).join("")}
+      </div>
+      ${data.traits.unlocked.length ? `<div class="identity-trait-chips">${data.traits.unlocked.map(t=>`<span class="identity-trait-chip">◆ ${t.name}</span>`).join("")}</div>` : ""}
+      <div class="identity-trait-progress">${data.traits.unlocked.length} / ${data.traits.total} TRAITS EARNED</div>
+      <div class="identity-trait-dots">${dots}</div>
+    </div>
+  `;
+}
+
+/* ================================================================
    IDENTITY — self only, via Discord OAuth (no ?name= override)
 ================================================================ */
 PurgeAuth.init().then(state=>{
@@ -475,6 +797,7 @@ function buildPage(playerName){
     ? Math.round((profile.ap+profile.aap)/2 + profile.dp) : null;
 
   renderWarRecord(playerName, profile, lifetimeKD, careerWars, attendanceRate, gearScore);
+  renderComposedIdentity(computeComposedIdentity(playerName, appearances, allMatches, profile));
   renderTrophyCase(appearances);
   renderLifetimeAttendance(careerWars, attendanceRate);
   renderWeeklyRoundup(allMatches, appearances);
