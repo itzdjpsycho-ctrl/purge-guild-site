@@ -69,6 +69,18 @@
   .form-field input:focus, .form-field textarea:focus{ border-color:var(--crimson); }
   .form-field.grow{ flex:1; min-width:220px; }
 
+  /* ---- Filter row ---- */
+  .filter-row{ display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .filter-row label{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--text-faint);
+  }
+  .filter-row select{
+    background:var(--panel-raised); border:1px solid var(--hairline); border-radius:6px;
+    color:var(--text); font-family:var(--font-ui); font-size:13px; padding:8px 12px; outline:none;
+  }
+  .filter-row select:focus{ border-color:var(--crimson); }
+
   /* ---- VOD grid ---- */
   .vod-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:18px; }
   .vod-card{
@@ -76,7 +88,15 @@
     overflow:hidden; cursor:pointer; transition:border-color 0.15s ease, transform 0.15s ease;
   }
   .vod-card:hover{ border-color:var(--crimson); transform:translateY(-2px); }
+  .vod-card-thumb-wrap{ position:relative; }
   .vod-card-thumb{ width:100%; aspect-ratio:16/9; object-fit:cover; background:#000; display:block; }
+  .vod-class-badge{
+    display:inline-flex; align-items:center; gap:5px;
+    background:rgba(10,26,40,0.85); border:1px solid var(--hairline);
+    color:var(--crimson-glow); font-family:var(--font-mono); font-size:10px;
+    padding:3px 9px; border-radius:999px;
+  }
+  .vod-card-thumb-wrap .vod-class-badge{ position:absolute; top:8px; left:8px; }
   .vod-card-body{ padding:12px 14px; }
   .vod-card-title{
     font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--text);
@@ -219,6 +239,10 @@
         <label for="vodUrl">YouTube URL</label>
         <input type="url" id="vodUrl" placeholder="https://www.youtube.com/watch?v=…" required>
       </div>
+      <div class="form-field">
+        <label for="vodClass">Class</label>
+        <select id="vodClass"><option value="">General</option></select>
+      </div>
       <button class="btn purple" type="submit" id="addVodBtn">+ Add VOD</button>
     </form>
     <div class="form-error" id="addVodError" style="display:none;"></div>
@@ -226,6 +250,13 @@
 
   <div class="section">
     <div class="section-label">All VODs</div>
+    <div class="filter-row">
+      <label for="classFilter">Filter by class</label>
+      <select id="classFilter">
+        <option value="">All Classes</option>
+        <option value="__general">General (no class)</option>
+      </select>
+    </div>
     <div class="vod-grid" id="vodGrid"></div>
     <div class="empty-state" id="vodEmptyState" style="display:none;">No VODs posted yet — be the first to share one.</div>
   </div>
@@ -294,6 +325,7 @@
 
 <script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script>window.purgeAuthReady = PurgeAuth.init();</script>
+<script src="class-icons.js"></script>
 <script>
 /* ================================================================
    VOD REVIEW — YouTube link board with timestamped notes and an
@@ -304,6 +336,20 @@
 ================================================================ */
 const WORKER_URL = (localStorage.getItem("signupWorkerUrl")
   || "https://purge-signups.itzdjpsycho.workers.dev").replace(/\/+$/, "");
+
+// Mirrors worker/src/constants.js BDO_CLASSES — the site can't import the
+// Worker's ESM module, so (like player.html) this is a plain copy.
+const BDO_CLASSES = [
+  "Warrior","Ranger","Sorceress","Berserker","Tamer","Musa","Maehwa","Valkyrie",
+  "Kunoichi","Ninja","Wizard","Witch","Dark Knight","Striker","Mystic","Lahn",
+  "Archer","Shai","Guardian","Nova","Sage","Corsair","Hashashin","Drakania",
+  "Woosa","Maegu","Scholar","Dosa","Deadeye","Wukong","Seraph",
+];
+(function populateClassDropdowns(){
+  const vodClassOpts = BDO_CLASSES.map(c => `<option value="${c}">${c}</option>`).join("");
+  document.getElementById("vodClass").insertAdjacentHTML("beforeend", vodClassOpts);
+  document.getElementById("classFilter").insertAdjacentHTML("beforeend", vodClassOpts);
+})();
 
 function escapeHtml(s){
   return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
@@ -330,34 +376,50 @@ function fmtDate(iso){
 /* ---- list view ---- */
 const vodGrid = document.getElementById("vodGrid");
 const vodEmptyState = document.getElementById("vodEmptyState");
+let allVods = [];
 
 async function loadVodList(){
   vodGrid.innerHTML = "";
   try{
     const res = await fetch(`${WORKER_URL}/vods`);
     const data = await res.json();
-    const vods = data.vods || [];
-    vodEmptyState.style.display = vods.length ? "none" : "block";
-    vodGrid.innerHTML = vods.map(v => `
-      <div class="vod-card" data-id="${escapeHtml(v.id)}">
-        <img class="vod-card-thumb" src="https://i.ytimg.com/vi/${escapeHtml(v.youtubeId)}/hqdefault.jpg" alt="" loading="lazy">
-        <div class="vod-card-body">
-          <div class="vod-card-title">${escapeHtml(v.title)}</div>
-          <div class="vod-card-meta">
-            <span>${escapeHtml(v.addedBy)}</span>
-            <span>${v.noteCount} note${v.noteCount === 1 ? "" : "s"}</span>
-          </div>
-        </div>
-      </div>
-    `).join("");
-    vodGrid.querySelectorAll(".vod-card").forEach(card => {
-      card.addEventListener("click", () => openVod(card.dataset.id));
-    });
+    allVods = data.vods || [];
+    renderVodGrid();
   } catch(e){
     vodEmptyState.textContent = "Couldn't load VODs — try refreshing.";
     vodEmptyState.style.display = "block";
   }
 }
+
+function renderVodGrid(){
+  const filter = document.getElementById("classFilter").value;
+  const vods = filter === "__general" ? allVods.filter(v => !v.class)
+    : filter ? allVods.filter(v => v.class === filter)
+    : allVods;
+
+  vodEmptyState.style.display = vods.length ? "none" : "block";
+  vodEmptyState.textContent = allVods.length ? "No VODs match this filter." : "No VODs posted yet — be the first to share one.";
+
+  vodGrid.innerHTML = vods.map(v => `
+    <div class="vod-card" data-id="${escapeHtml(v.id)}">
+      <div class="vod-card-thumb-wrap">
+        <img class="vod-card-thumb" src="https://i.ytimg.com/vi/${escapeHtml(v.youtubeId)}/hqdefault.jpg" alt="" loading="lazy">
+        ${v.class ? `<span class="vod-class-badge">${ClassIcons.img(v.class, { size: 13 })}${escapeHtml(v.class)}</span>` : ""}
+      </div>
+      <div class="vod-card-body">
+        <div class="vod-card-title">${escapeHtml(v.title)}</div>
+        <div class="vod-card-meta">
+          <span>${escapeHtml(v.addedBy)}</span>
+          <span>${v.noteCount} note${v.noteCount === 1 ? "" : "s"}</span>
+        </div>
+      </div>
+    </div>
+  `).join("");
+  vodGrid.querySelectorAll(".vod-card").forEach(card => {
+    card.addEventListener("click", () => openVod(card.dataset.id));
+  });
+}
+document.getElementById("classFilter").addEventListener("change", renderVodGrid);
 
 document.getElementById("addVodForm").addEventListener("submit", async e => {
   e.preventDefault();
@@ -366,18 +428,20 @@ document.getElementById("addVodForm").addEventListener("submit", async e => {
   errBox.style.display = "none";
   const title = document.getElementById("vodTitle").value.trim();
   const youtubeUrl = document.getElementById("vodUrl").value.trim();
+  const vodClass = document.getElementById("vodClass").value || null;
   btn.disabled = true;
   btn.textContent = "Adding…";
   try{
     const res = await fetch(`${WORKER_URL}/vods`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...PurgeAuth.headers() },
-      body: JSON.stringify({ title, youtubeUrl }),
+      body: JSON.stringify({ title, youtubeUrl, class: vodClass }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
     document.getElementById("vodTitle").value = "";
     document.getElementById("vodUrl").value = "";
+    document.getElementById("vodClass").value = "";
     await loadVodList();
     openVod(body.vod.id);
   } catch(err){
@@ -512,7 +576,8 @@ async function openVod(id){
 
     document.getElementById("detailTitle").textContent = currentVod.title;
     document.getElementById("detailMeta").innerHTML =
-      `Posted by ${escapeHtml(currentVod.addedBy)} · ${fmtDate(currentVod.createdAt)} · `
+      (currentVod.class ? `<span class="vod-class-badge">${ClassIcons.img(currentVod.class, { size: 13 })}${escapeHtml(currentVod.class)}</span> · ` : "")
+      + `Posted by ${escapeHtml(currentVod.addedBy)} · ${fmtDate(currentVod.createdAt)} · `
       + `<a href="https://www.youtube.com/watch?v=${escapeHtml(currentVod.youtubeId)}" target="_blank" rel="noopener">Watch on YouTube</a>`;
 
     const deleteBtn = document.getElementById("deleteVodBtn");

@@ -334,7 +334,7 @@ export function youtubeIdFromUrl(url) {
 
 export async function listVods(env) {
   const { results } = await env.DB.prepare(
-    `SELECT v.id, v.title, v.youtube_id, v.added_by_name, v.created_at,
+    `SELECT v.id, v.title, v.youtube_id, v.class, v.added_by_name, v.created_at,
             (SELECT COUNT(*) FROM vod_notes n WHERE n.vod_id = v.id) AS note_count
      FROM vods v ORDER BY v.created_at DESC`
   ).all();
@@ -342,6 +342,7 @@ export async function listVods(env) {
     id: r.id,
     title: r.title,
     youtubeId: r.youtube_id,
+    class: r.class || null,
     addedBy: r.added_by_name,
     createdAt: r.created_at,
     noteCount: r.note_count,
@@ -359,6 +360,7 @@ export async function getVod(env, id) {
       id: row.id,
       title: row.title,
       youtubeId: row.youtube_id,
+      class: row.class || null,
       addedBy: row.added_by_name,
       addedByDiscordId: row.added_by_discord_id,
       createdAt: row.created_at,
@@ -389,15 +391,15 @@ export async function getVodNoteOwner(env, vodId, noteId) {
   return row ? row.author_discord_id : null;
 }
 
-export async function createVod(env, { title, youtubeId, authorName, authorDiscordId }) {
+export async function createVod(env, { title, youtubeId, className, authorName, authorDiscordId }) {
   const id = crypto.randomUUID();
   const createdAt = new Date().toISOString();
   await env.DB.prepare(
-    "INSERT INTO vods (id, title, youtube_id, added_by_name, added_by_discord_id, created_at) VALUES (?,?,?,?,?,?)"
+    "INSERT INTO vods (id, title, youtube_id, class, added_by_name, added_by_discord_id, created_at) VALUES (?,?,?,?,?,?,?)"
   )
-    .bind(id, title, youtubeId, authorName, authorDiscordId, createdAt)
+    .bind(id, title, youtubeId, className || null, authorName, authorDiscordId, createdAt)
     .run();
-  return { id, title, youtubeId, addedBy: authorName, createdAt, noteCount: 0 };
+  return { id, title, youtubeId, class: className || null, addedBy: authorName, createdAt, noteCount: 0 };
 }
 
 export async function deleteVod(env, id) {

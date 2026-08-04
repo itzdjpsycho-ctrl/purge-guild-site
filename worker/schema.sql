@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS vods (
   id TEXT PRIMARY KEY,             -- crypto.randomUUID()
   title TEXT NOT NULL,
   youtube_id TEXT NOT NULL,        -- 11-char YouTube video id, extracted server-side from the pasted URL
+  class TEXT,                      -- nullable: one of worker/src/constants.js BDO_CLASSES, or NULL for "General"
   added_by_name TEXT NOT NULL,     -- family name (or Discord username fallback) at post time
   added_by_discord_id TEXT NOT NULL,
   created_at TEXT NOT NULL

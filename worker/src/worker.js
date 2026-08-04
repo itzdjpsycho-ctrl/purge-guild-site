@@ -73,6 +73,7 @@ import {
   addVodNote,
   deleteVodNote,
 } from "./data.js";
+import { BDO_CLASSES } from "./constants.js";
 import {
   buildAuthorizeUrl,
   exchangeCode,
@@ -725,11 +726,16 @@ export default {
       const body = await readJson(request);
       const title = String(body?.title || "").trim().slice(0, 200);
       const youtubeId = youtubeIdFromUrl(body?.youtubeUrl);
+      const className = body?.class ? String(body.class) : null;
       if (!title) return json({ error: "title required." }, 400, request);
       if (!youtubeId) return json({ error: "Couldn't find a YouTube video in that URL." }, 400, request);
+      if (className && !BDO_CLASSES.includes(className)) {
+        return json({ error: "class must be one of the 31 BDO classes." }, 400, request);
+      }
       const vod = await createVod(env, {
         title,
         youtubeId,
+        className,
         authorName: session.familyName || session.username,
         authorDiscordId: session.discordId,
       });
