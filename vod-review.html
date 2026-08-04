@@ -125,12 +125,15 @@
   }
   .clear-wars-btn:hover{ color:var(--red-bright); border-color:var(--red-bright); }
 
-  .video-layout{ display:grid; grid-template-columns:1.6fr 1fr; gap:22px; align-items:start; }
-  @media (max-width:1000px){ .video-layout{ grid-template-columns:1fr; } }
+  /* Video sits full-width above the notes row now (rather than sharing a
+     row with it) specifically so .video-stage's native resize handle has
+     room to grow without colliding with a neighboring column. */
+  .video-layout{ display:flex; flex-direction:column; gap:22px; }
 
   .video-stage{
     position:relative; width:100%; aspect-ratio:16/9; background:#000;
     border-radius:10px; overflow:hidden; border:1px solid var(--hairline);
+    resize:both; min-width:320px; min-height:200px; max-width:100%; max-height:82vh;
   }
   .video-stage #ytPlayer, .video-stage #ytPlayer iframe{
     position:absolute; inset:0; width:100% !important; height:100% !important; border:0;
@@ -152,7 +155,8 @@
   }
 
   /* ---- Notes panel ---- */
-  .notes-panel{ display:flex; flex-direction:column; gap:14px; }
+  .notes-panel{ display:grid; grid-template-columns:340px 1fr; gap:20px; align-items:start; }
+  @media (max-width:820px){ .notes-panel{ grid-template-columns:1fr; } }
   .note-form{ display:flex; flex-direction:column; gap:10px; padding:16px 18px; }
   .note-form textarea{ resize:vertical; min-height:56px; font-family:var(--font-ui); }
   .note-form-row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
@@ -291,7 +295,7 @@
         <button class="btn" id="undoStrokeBtn" type="button">Undo</button>
         <button class="btn" id="clearDrawBtn" type="button">Clear</button>
       </div>
-      <div class="draw-hint">Draw pauses the video. Click "Add Note" with "Attach drawing" checked to save this sketch to a timestamp.</div>
+      <div class="draw-hint">Draw pauses the video. Click "Add Note" with "Attach drawing" checked to save this sketch to a timestamp. Drag the video's bottom-right corner to resize it.</div>
     </div>
 
     <div class="notes-panel">
@@ -313,8 +317,10 @@
         <div class="form-error" id="addNoteError" style="display:none;"></div>
       </form>
 
-      <div class="notes-list" id="notesList"></div>
-      <div class="empty-state" id="notesEmptyState" style="display:none;">No notes yet — pause on a moment and add one.</div>
+      <div>
+        <div class="notes-list" id="notesList"></div>
+        <div class="empty-state" id="notesEmptyState" style="display:none;">No notes yet — pause on a moment and add one.</div>
+      </div>
     </div>
   </div>
 
