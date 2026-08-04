@@ -37,7 +37,8 @@
 //
 // ---- Clips (D1-backed: clips — a lighter board than VOD Review, no notes) ----
 //   GET  /clips (public)─────────────►  list every posted clip
-//   POST /clips (any signed-in member)──►  post a YouTube clip {title, youtubeUrl, class}
+//   POST /clips (any signed-in member)──►  post a clip {title, videoUrl, class} — videoUrl is
+//                                           either a YouTube link or a direct Discord CDN attachment link
 //   DELETE /clips/:id (officer or poster)──►  delete a clip
 //
 // Secrets (wrangler secret put): DISCORD_BOT_TOKEN, ADMIN_POST_PASSWORD, BOT_PUSH_SECRET,
@@ -81,6 +82,7 @@ import {
   getClipOwner,
   createClip,
   deleteClip,
+  discordVideoUrlFromUrl,
 } from "./data.js";
 import { BDO_CLASSES } from "./constants.js";
 import {
@@ -819,16 +821,27 @@ export default {
       if (!session) return json({ error: "Sign in with Discord to post a clip." }, 401, request);
       const body = await readJson(request);
       const title = String(body?.title || "").trim().slice(0, 200);
-      const youtubeId = youtubeIdFromUrl(body?.youtubeUrl);
       const className = body?.class ? String(body.class) : null;
       if (!title) return json({ error: "title required." }, 400, request);
-      if (!youtubeId) return json({ error: "Couldn't find a YouTube video in that URL." }, 400, request);
       if (className && !BDO_CLASSES.includes(className)) {
         return json({ error: "class must be one of the 31 BDO classes." }, 400, request);
       }
+
+      const youtubeId = youtubeIdFromUrl(body?.videoUrl);
+      const discordUrl = youtubeId ? null : discordVideoUrlFromUrl(body?.videoUrl);
+      if (!youtubeId && !discordUrl) {
+        return json(
+          { error: "Couldn't recognize that link — paste a YouTube URL or a Discord video attachment link (cdn.discordapp.com/attachments/.../clip.mp4)." },
+          400,
+          request
+        );
+      }
+
       const clip = await createClip(env, {
         title,
+        source: youtubeId ? "youtube" : "discord",
         youtubeId,
+        videoUrl: discordUrl,
         className,
         authorName: session.familyName || session.username,
         authorDiscordId: session.discordId,

@@ -88,6 +88,11 @@
   .clip-card:hover{ border-color:var(--crimson); transform:translateY(-2px); }
   .clip-card-thumb-wrap{ position:relative; }
   .clip-card-thumb{ width:100%; aspect-ratio:16/9; object-fit:cover; background:#000; display:block; }
+  .clip-card-thumb-discord{
+    display:flex; align-items:center; justify-content:center;
+    background:linear-gradient(160deg, var(--panel-raised), #0A1A28);
+    color:var(--text-faint); font-family:var(--font-mono); font-size:12px; letter-spacing:0.04em;
+  }
   .clip-class-badge{
     display:inline-flex; align-items:center; gap:5px;
     background:rgba(10,26,40,0.85); border:1px solid var(--hairline);
@@ -117,7 +122,7 @@
     width:100%; max-width:900px; max-height:90vh; overflow-y:auto;
   }
   .clip-modal-video{ position:relative; width:100%; aspect-ratio:16/9; background:#000; }
-  .clip-modal-video iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .clip-modal-video iframe, .clip-modal-video video{ position:absolute; inset:0; width:100%; height:100%; border:0; background:#000; }
   .clip-modal-body{ padding:18px 22px; display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
   .clip-modal-title{ font-family:var(--font-display); font-size:19px; font-weight:700; margin-bottom:6px; }
   .clip-modal-meta{ font-family:var(--font-mono); font-size:11px; color:var(--text-faint); }
@@ -189,8 +194,8 @@
       <input type="text" id="clipTitle" placeholder="e.g. 1v3 clutch outplay at the gate" required maxlength="200">
     </div>
     <div class="form-field grow">
-      <label for="clipUrl">YouTube URL</label>
-      <input type="url" id="clipUrl" placeholder="https://www.youtube.com/watch?v=…" required>
+      <label for="clipUrl">Video URL</label>
+      <input type="url" id="clipUrl" placeholder="YouTube link or a Discord video attachment link" required>
     </div>
     <div class="form-field">
       <label for="clipClass">Class</label>
@@ -308,7 +313,9 @@ function renderClipGrid(){
   clipGrid.innerHTML = clips.map(c => `
     <div class="clip-card" data-id="${escapeHtml(c.id)}">
       <div class="clip-card-thumb-wrap">
-        <img class="clip-card-thumb" src="https://i.ytimg.com/vi/${escapeHtml(c.youtubeId)}/hqdefault.jpg" alt="" loading="lazy">
+        ${c.source === "discord"
+          ? `<div class="clip-card-thumb clip-card-thumb-discord">🎮 Discord Clip</div>`
+          : `<img class="clip-card-thumb" src="https://i.ytimg.com/vi/${escapeHtml(c.youtubeId)}/hqdefault.jpg" alt="" loading="lazy">`}
         ${c.class ? `<span class="clip-class-badge">${ClassIcons.img(c.class, { size: 13 })}${escapeHtml(c.class)}</span>` : ""}
       </div>
       <div class="clip-card-body">
@@ -331,7 +338,7 @@ document.getElementById("addClipForm").addEventListener("submit", async e => {
   const errBox = document.getElementById("addClipError");
   errBox.style.display = "none";
   const title = document.getElementById("clipTitle").value.trim();
-  const youtubeUrl = document.getElementById("clipUrl").value.trim();
+  const videoUrl = document.getElementById("clipUrl").value.trim();
   const clipClass = document.getElementById("clipClass").value || null;
   btn.disabled = true;
   btn.textContent = "Adding…";
@@ -339,7 +346,7 @@ document.getElementById("addClipForm").addEventListener("submit", async e => {
     const res = await fetch(`${WORKER_URL}/clips`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...PurgeAuth.headers() },
-      body: JSON.stringify({ title, youtubeUrl, class: clipClass }),
+      body: JSON.stringify({ title, videoUrl, class: clipClass }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
@@ -365,13 +372,17 @@ function openClip(id){
   if (!clip) return;
   currentClip = clip;
 
-  document.getElementById("clipModalVideo").innerHTML =
-    `<iframe src="https://www.youtube.com/embed/${escapeHtml(clip.youtubeId)}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+  document.getElementById("clipModalVideo").innerHTML = clip.source === "discord"
+    ? `<video src="${escapeHtml(clip.videoUrl)}" controls autoplay></video>`
+    : `<iframe src="https://www.youtube.com/embed/${escapeHtml(clip.youtubeId)}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
   document.getElementById("clipModalTitle").textContent = clip.title;
+  const watchLink = clip.source === "discord"
+    ? `<a href="${escapeHtml(clip.videoUrl)}" target="_blank" rel="noopener">Open original link</a>`
+    : `<a href="https://www.youtube.com/watch?v=${escapeHtml(clip.youtubeId)}" target="_blank" rel="noopener">Watch on YouTube</a>`;
   document.getElementById("clipModalMeta").innerHTML =
     (clip.class ? `<span class="clip-class-badge">${ClassIcons.img(clip.class, { size: 13 })}${escapeHtml(clip.class)}</span> · ` : "")
     + `Posted by ${escapeHtml(clip.addedBy)} · ${fmtDate(clip.createdAt)} · `
-    + `<a href="https://www.youtube.com/watch?v=${escapeHtml(clip.youtubeId)}" target="_blank" rel="noopener">Watch on YouTube</a>`;
+    + watchLink;
 
   const deleteBtn = document.getElementById("clipDeleteBtn");
   const me = PurgeAuth.state;

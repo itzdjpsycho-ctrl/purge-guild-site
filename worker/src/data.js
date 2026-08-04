@@ -430,15 +430,31 @@ export async function deleteVodNote(env, vodId, noteId) {
 }
 
 // ---- Clips (lighter-weight than VOD Review: a link + one class tag, no notes) ----
+// Two sources: "youtube" (embedded via the YouTube iframe, like VOD Review) or
+// "discord" (a direct CDN attachment link — cdn.discordapp.com/attachments/...
+// or media.discordapp.net/attachments/... ending in a video extension — played
+// back with a plain <video> tag, since there's no oEmbed/thumbnail API for it).
+
+/** Discord CDN attachment link ending in a video extension, or null. Keeps the
+ *  full URL (including the ?ex=&is=&hm= signature Discord's CDN now requires)
+ *  since it's a direct file link, not an id to reconstruct one from. */
+export function discordVideoUrlFromUrl(url) {
+  const s = String(url || "").trim();
+  return /^https:\/\/(cdn\.discordapp\.com|media\.discordapp\.net)\/attachments\/\d+\/\d+\/[^?#]+\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(s)
+    ? s
+    : null;
+}
 
 export async function listClips(env) {
   const { results } = await env.DB.prepare(
-    "SELECT id, title, youtube_id, class, added_by_name, added_by_discord_id, created_at FROM clips ORDER BY created_at DESC"
+    "SELECT id, title, source, youtube_id, video_url, class, added_by_name, added_by_discord_id, created_at FROM clips ORDER BY created_at DESC"
   ).all();
   return results.map((r) => ({
     id: r.id,
     title: r.title,
+    source: r.source,
     youtubeId: r.youtube_id,
+    videoUrl: r.video_url,
     class: r.class || null,
     addedBy: r.added_by_name,
     addedByDiscordId: r.added_by_discord_id,
@@ -452,15 +468,15 @@ export async function getClipOwner(env, id) {
   return row ? row.added_by_discord_id : null;
 }
 
-export async function createClip(env, { title, youtubeId, className, authorName, authorDiscordId }) {
+export async function createClip(env, { title, source, youtubeId, videoUrl, className, authorName, authorDiscordId }) {
   const id = crypto.randomUUID();
   const createdAt = new Date().toISOString();
   await env.DB.prepare(
-    "INSERT INTO clips (id, title, youtube_id, class, added_by_name, added_by_discord_id, created_at) VALUES (?,?,?,?,?,?,?)"
+    "INSERT INTO clips (id, title, source, youtube_id, video_url, class, added_by_name, added_by_discord_id, created_at) VALUES (?,?,?,?,?,?,?,?,?)"
   )
-    .bind(id, title, youtubeId, className || null, authorName, authorDiscordId, createdAt)
+    .bind(id, title, source, youtubeId || null, videoUrl || null, className || null, authorName, authorDiscordId, createdAt)
     .run();
-  return { id, title, youtubeId, class: className || null, addedBy: authorName, createdAt };
+  return { id, title, source, youtubeId: youtubeId || null, videoUrl: videoUrl || null, class: className || null, addedBy: authorName, createdAt };
 }
 
 export async function deleteClip(env, id) {
