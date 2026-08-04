@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clips — Purge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Design tokens live in app.css now (single canonical :root, loaded after
+     this inline block so it wins the cascade) — not redefined per-page. */
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; }
+
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-ui);
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+
+  body::before{
+    content:"";
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(44,147,176,0.16), transparent 65%),
+      radial-gradient(ellipse 35% 45% at 100% 100%, rgba(124,111,224,0.07), transparent 60%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
+  }
+
+  nav, header, main, footer{ position:relative; z-index:1; }
+
+  .panel{ background:var(--panel); border:1px solid var(--hairline); }
+  .section{ margin-bottom:30px; }
+  .section-label{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.18em;
+    text-transform:uppercase; color:var(--text-faint); margin-bottom:14px;
+  }
+  .empty-state{
+    padding:30px; text-align:center;
+    font-family:var(--font-mono); font-size:12px; color:var(--text-faint);
+  }
+  .form-error{
+    font-family:var(--font-mono); font-size:11.5px; color:var(--red-bright);
+    margin-top:8px;
+  }
+
+  /* ---- Add Clip form ---- */
+  .add-clip-form{
+    display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;
+    padding:18px 20px;
+    clip-path:var(--panel-clip, none);
+  }
+  .form-field{ display:flex; flex-direction:column; gap:5px; }
+  .form-field label{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--text-faint);
+  }
+  .form-field input, .form-field select{
+    background:var(--panel-raised); border:1px solid var(--hairline); border-radius:6px;
+    color:var(--text); font-family:var(--font-ui); font-size:13px; padding:9px 12px; outline:none;
+  }
+  .form-field input:focus, .form-field select:focus{ border-color:var(--crimson); }
+  .form-field.grow{ flex:1; min-width:220px; }
+
+  /* ---- Filter row ---- */
+  .filter-row{ display:flex; align-items:center; gap:14px; margin-bottom:16px; flex-wrap:wrap; }
+  .filter-row label{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--text-faint);
+  }
+  .filter-row select, .filter-row input{
+    background:var(--panel-raised); border:1px solid var(--hairline); border-radius:6px;
+    color:var(--text); font-family:var(--font-ui); font-size:13px; padding:8px 12px; outline:none;
+  }
+  .filter-row select:focus, .filter-row input:focus{ border-color:var(--crimson); }
+  .filter-group{ display:flex; align-items:center; gap:8px; }
+
+  /* ---- Clip grid ---- */
+  .clip-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:18px; }
+  .clip-card{
+    background:var(--panel); border:1px solid var(--hairline); border-radius:10px;
+    overflow:hidden; cursor:pointer; transition:border-color 0.15s ease, transform 0.15s ease;
+  }
+  .clip-card:hover{ border-color:var(--crimson); transform:translateY(-2px); }
+  .clip-card-thumb-wrap{ position:relative; }
+  .clip-card-thumb{ width:100%; aspect-ratio:16/9; object-fit:cover; background:#000; display:block; }
+  .clip-class-badge{
+    display:inline-flex; align-items:center; gap:5px;
+    background:rgba(10,26,40,0.85); border:1px solid var(--hairline);
+    color:var(--crimson-glow); font-family:var(--font-mono); font-size:10px;
+    padding:3px 9px; border-radius:999px;
+  }
+  .clip-card-thumb-wrap .clip-class-badge{ position:absolute; top:8px; left:8px; }
+  .clip-card-body{ padding:12px 14px; }
+  .clip-card-title{
+    font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--text);
+    margin-bottom:6px; line-height:1.3;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .clip-card-meta{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-faint);
+  }
+
+  /* ---- Playback modal ---- */
+  .clip-modal-backdrop{
+    display:none; position:fixed; inset:0; z-index:50;
+    background:rgba(5,10,16,0.82);
+    align-items:center; justify-content:center; padding:30px;
+  }
+  .clip-modal-backdrop.visible{ display:flex; }
+  .clip-modal{
+    background:var(--panel); border:1px solid var(--hairline); border-radius:12px;
+    width:100%; max-width:900px; max-height:90vh; overflow-y:auto;
+  }
+  .clip-modal-video{ position:relative; width:100%; aspect-ratio:16/9; background:#000; }
+  .clip-modal-video iframe{ position:absolute; inset:0; width:100%; height:100%; border:0; }
+  .clip-modal-body{ padding:18px 22px; display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+  .clip-modal-title{ font-family:var(--font-display); font-size:19px; font-weight:700; margin-bottom:6px; }
+  .clip-modal-meta{ font-family:var(--font-mono); font-size:11px; color:var(--text-faint); }
+  .clip-modal-meta a{ color:var(--crimson-glow); text-decoration:none; }
+  .clip-modal-meta a:hover{ text-decoration:underline; }
+  .clip-modal-actions{ display:flex; gap:10px; flex:none; }
+  .clip-modal-close{
+    background:none; border:1px solid var(--hairline); color:var(--text-muted);
+    font-family:var(--font-mono); font-size:12px; padding:7px 14px; border-radius:999px; cursor:pointer;
+  }
+  .clip-modal-close:hover{ color:var(--text); border-color:rgba(255,255,255,0.18); }
+  .clip-delete-btn{
+    background:none; border:1px solid var(--hairline); color:var(--text-muted);
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.04em;
+    padding:7px 16px; border-radius:999px; cursor:pointer; transition:all 0.14s ease; flex:none;
+  }
+  .clip-delete-btn:hover{ color:var(--red-bright); border-color:var(--red-bright); }
+</style>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<video class="bg-video" autoplay muted loop playsinline aria-hidden="true">
+  <source src="nanotech_background_3840.webm" type="video/webm">
+</video>
+<div class="bg-video-scrim"></div>
+
+<div class="app-shell">
+<aside class="app-sidebar">
+  <a class="app-brand" href="index.html">
+    <span class="app-brand-logo">⚔</span>
+    <span class="app-brand-text">
+      <span class="app-brand-name">Purge</span>
+      <span class="app-brand-sub">Node War</span>
+    </span>
+  </a>
+  <div class="side-nav-label">Menu</div>
+  <nav class="side-nav">
+    <a href="index.html"><span class="ico">🏠</span> Home</a>
+    <a href="war-scores.html"><span class="ico">⚔️</span> War Scores</a>
+    <a href="players.html"><span class="ico">👥</span> Roster</a>
+    <a href="my-stats.html"><span class="ico">🪪</span> My Stats</a>
+    <a href="dashboard.html"><span class="ico">📊</span> Dashboard</a>
+    <a href="signups.html"><span class="ico">📝</span> Sign Ups</a>
+    <a href="combat-log.html"><span class="ico">📜</span> Combat Log</a>
+    <a href="vod-review.html"><span class="ico">🎬</span> VOD Review</a>
+    <a href="clips.html" class="current"><span class="ico">🎞️</span> Clips</a>
+  </nav>
+  <div id="authWidget" class="auth-widget"></div>
+  <div class="app-sidebar-foot">
+    <b>Purge</b> · BDO Guild<br>
+    Node War Log
+  </div>
+</aside>
+
+<main class="app-content">
+
+<div class="page-head">
+  <div class="page-eyebrow">Highlights &amp; Fails</div>
+  <h1>Clips</h1>
+  <div class="page-sub">Post a clip and tag the class you were playing so others can find it.</div>
+</div>
+
+<div class="section">
+  <div class="section-label">Post a Clip</div>
+  <form class="panel add-clip-form" id="addClipForm">
+    <div class="form-field grow">
+      <label for="clipTitle">Title</label>
+      <input type="text" id="clipTitle" placeholder="e.g. 1v3 clutch outplay at the gate" required maxlength="200">
+    </div>
+    <div class="form-field grow">
+      <label for="clipUrl">YouTube URL</label>
+      <input type="url" id="clipUrl" placeholder="https://www.youtube.com/watch?v=…" required>
+    </div>
+    <div class="form-field">
+      <label for="clipClass">Class</label>
+      <select id="clipClass"><option value="">General</option></select>
+    </div>
+    <button class="btn purple" type="submit" id="addClipBtn">+ Add Clip</button>
+  </form>
+  <div class="form-error" id="addClipError" style="display:none;"></div>
+</div>
+
+<div class="section">
+  <div class="section-label">All Clips</div>
+  <div class="filter-row">
+    <div class="filter-group">
+      <label for="clipSearch">Search</label>
+      <input type="text" id="clipSearch" placeholder="Search titles…" autocomplete="off">
+    </div>
+    <div class="filter-group">
+      <label for="classFilter">Class</label>
+      <select id="classFilter">
+        <option value="">All Classes</option>
+        <option value="__general">General (no class)</option>
+      </select>
+    </div>
+  </div>
+  <div class="clip-grid" id="clipGrid"></div>
+  <div class="empty-state" id="clipEmptyState" style="display:none;">No clips posted yet — be the first to share one.</div>
+</div>
+
+</main>
+</div><!-- /app-shell -->
+
+<div class="clip-modal-backdrop" id="clipModalBackdrop">
+  <div class="clip-modal">
+    <div class="clip-modal-video" id="clipModalVideo"></div>
+    <div class="clip-modal-body">
+      <div>
+        <div class="clip-modal-title" id="clipModalTitle"></div>
+        <div class="clip-modal-meta" id="clipModalMeta"></div>
+      </div>
+      <div class="clip-modal-actions">
+        <button class="clip-delete-btn" id="clipDeleteBtn" type="button" style="display:none;">Delete Clip</button>
+        <button class="clip-modal-close" id="clipModalCloseBtn" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script>window.purgeAuthReady = PurgeAuth.init();</script>
+<script src="class-icons.js"></script>
+<script>
+/* ================================================================
+   CLIPS — a lighter-weight board than VOD Review: post a YouTube
+   link with a title and one class tag, browse/search/filter, click
+   to watch inline. No timestamped notes or drawing here on purpose —
+   see vod-review.html for the teaching/coaching version.
+================================================================ */
+const WORKER_URL = (localStorage.getItem("signupWorkerUrl")
+  || "https://purge-signups.itzdjpsycho.workers.dev").replace(/\/+$/, "");
+
+// Mirrors worker/src/constants.js BDO_CLASSES — the site can't import the
+// Worker's ESM module, so (like player.html / vod-review.html) this is a
+// plain copy.
+const BDO_CLASSES = [
+  "Warrior","Ranger","Sorceress","Berserker","Tamer","Musa","Maehwa","Valkyrie",
+  "Kunoichi","Ninja","Wizard","Witch","Dark Knight","Striker","Mystic","Lahn",
+  "Archer","Shai","Guardian","Nova","Sage","Corsair","Hashashin","Drakania",
+  "Woosa","Maegu","Scholar","Dosa","Deadeye","Wukong","Seraph",
+];
+(function populateClassDropdowns(){
+  const opts = BDO_CLASSES.map(c => `<option value="${c}">${c}</option>`).join("");
+  document.getElementById("clipClass").insertAdjacentHTML("beforeend", opts);
+  document.getElementById("classFilter").insertAdjacentHTML("beforeend", opts);
+})();
+
+function escapeHtml(s){
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+function fmtDate(iso){
+  try{ return new Date(iso).toLocaleString(undefined, { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }); }
+  catch(e){ return iso; }
+}
+
+/* ---- list + filter ---- */
+const clipGrid = document.getElementById("clipGrid");
+const clipEmptyState = document.getElementById("clipEmptyState");
+let allClips = [];
+
+async function loadClips(){
+  clipGrid.innerHTML = "";
+  try{
+    const res = await fetch(`${WORKER_URL}/clips`);
+    const data = await res.json();
+    allClips = data.clips || [];
+    renderClipGrid();
+  } catch(e){
+    clipEmptyState.textContent = "Couldn't load clips — try refreshing.";
+    clipEmptyState.style.display = "block";
+  }
+}
+
+function renderClipGrid(){
+  const classFilter = document.getElementById("classFilter").value;
+  const search = document.getElementById("clipSearch").value.trim().toLowerCase();
+
+  let clips = allClips;
+  if (classFilter === "__general") clips = clips.filter(c => !c.class);
+  else if (classFilter) clips = clips.filter(c => c.class === classFilter);
+  if (search) clips = clips.filter(c => c.title.toLowerCase().includes(search));
+
+  clipEmptyState.style.display = clips.length ? "none" : "block";
+  clipEmptyState.textContent = allClips.length ? "No clips match your search/filter." : "No clips posted yet — be the first to share one.";
+
+  clipGrid.innerHTML = clips.map(c => `
+    <div class="clip-card" data-id="${escapeHtml(c.id)}">
+      <div class="clip-card-thumb-wrap">
+        <img class="clip-card-thumb" src="https://i.ytimg.com/vi/${escapeHtml(c.youtubeId)}/hqdefault.jpg" alt="" loading="lazy">
+        ${c.class ? `<span class="clip-class-badge">${ClassIcons.img(c.class, { size: 13 })}${escapeHtml(c.class)}</span>` : ""}
+      </div>
+      <div class="clip-card-body">
+        <div class="clip-card-title">${escapeHtml(c.title)}</div>
+        <div class="clip-card-meta">${escapeHtml(c.addedBy)} · ${fmtDate(c.createdAt)}</div>
+      </div>
+    </div>
+  `).join("");
+  clipGrid.querySelectorAll(".clip-card").forEach(card => {
+    card.addEventListener("click", () => openClip(card.dataset.id));
+  });
+}
+document.getElementById("classFilter").addEventListener("change", renderClipGrid);
+document.getElementById("clipSearch").addEventListener("input", renderClipGrid);
+
+/* ---- add clip ---- */
+document.getElementById("addClipForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = document.getElementById("addClipBtn");
+  const errBox = document.getElementById("addClipError");
+  errBox.style.display = "none";
+  const title = document.getElementById("clipTitle").value.trim();
+  const youtubeUrl = document.getElementById("clipUrl").value.trim();
+  const clipClass = document.getElementById("clipClass").value || null;
+  btn.disabled = true;
+  btn.textContent = "Adding…";
+  try{
+    const res = await fetch(`${WORKER_URL}/clips`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...PurgeAuth.headers() },
+      body: JSON.stringify({ title, youtubeUrl, class: clipClass }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+    document.getElementById("clipTitle").value = "";
+    document.getElementById("clipUrl").value = "";
+    document.getElementById("clipClass").value = "";
+    await loadClips();
+  } catch(err){
+    errBox.textContent = err.message;
+    errBox.style.display = "block";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "+ Add Clip";
+  }
+});
+
+/* ---- playback modal ---- */
+let currentClip = null;
+const modalBackdrop = document.getElementById("clipModalBackdrop");
+
+function openClip(id){
+  const clip = allClips.find(c => c.id === id);
+  if (!clip) return;
+  currentClip = clip;
+
+  document.getElementById("clipModalVideo").innerHTML =
+    `<iframe src="https://www.youtube.com/embed/${escapeHtml(clip.youtubeId)}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+  document.getElementById("clipModalTitle").textContent = clip.title;
+  document.getElementById("clipModalMeta").innerHTML =
+    (clip.class ? `<span class="clip-class-badge">${ClassIcons.img(clip.class, { size: 13 })}${escapeHtml(clip.class)}</span> · ` : "")
+    + `Posted by ${escapeHtml(clip.addedBy)} · ${fmtDate(clip.createdAt)} · `
+    + `<a href="https://www.youtube.com/watch?v=${escapeHtml(clip.youtubeId)}" target="_blank" rel="noopener">Watch on YouTube</a>`;
+
+  const deleteBtn = document.getElementById("clipDeleteBtn");
+  const me = PurgeAuth.state;
+  const canDelete = me?.isAdmin || (me?.discordId && me.discordId === clip.addedByDiscordId);
+  deleteBtn.style.display = canDelete ? "" : "none";
+  deleteBtn.dataset.confirming = "";
+  deleteBtn.textContent = "Delete Clip";
+
+  modalBackdrop.classList.add("visible");
+}
+
+function closeClipModal(){
+  modalBackdrop.classList.remove("visible");
+  document.getElementById("clipModalVideo").innerHTML = ""; // stops playback
+  currentClip = null;
+}
+document.getElementById("clipModalCloseBtn").addEventListener("click", closeClipModal);
+modalBackdrop.addEventListener("click", e => { if (e.target === modalBackdrop) closeClipModal(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && modalBackdrop.classList.contains("visible")) closeClipModal(); });
+
+document.getElementById("clipDeleteBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("clipDeleteBtn");
+  if (btn.dataset.confirming !== "1"){
+    btn.dataset.confirming = "1";
+    btn.textContent = "Tap again to confirm";
+    btn.style.background = "rgba(178,64,47,0.28)";
+    setTimeout(() => { btn.dataset.confirming = ""; btn.textContent = "Delete Clip"; btn.style.background = ""; }, 3000);
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "Deleting…";
+  try{
+    const res = await fetch(`${WORKER_URL}/clips/${encodeURIComponent(currentClip.id)}`, {
+      method: "DELETE",
+      headers: { ...PurgeAuth.headers() },
+    });
+    if (!res.ok){
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `HTTP ${res.status}`);
+    }
+    closeClipModal();
+    loadClips();
+  } catch(err){
+    btn.disabled = false;
+    btn.textContent = `Couldn't delete — ${err.message}`;
+    setTimeout(() => { btn.textContent = "Delete Clip"; btn.style.background = ""; }, 5000);
+  }
+});
+
+/* ---- boot ---- */
+loadClips();
+</script>
+</body>
+</html>

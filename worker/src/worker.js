@@ -35,6 +35,11 @@
 //   POST /vods/:id/notes (any signed-in member)──►  add a timestamped note, optionally with a drawing
 //   DELETE /vods/:id/notes/:noteId (officer or note author)──►  delete a note
 //
+// ---- Clips (D1-backed: clips — a lighter board than VOD Review, no notes) ----
+//   GET  /clips (public)─────────────►  list every posted clip
+//   POST /clips (any signed-in member)──►  post a YouTube clip {title, youtubeUrl, class}
+//   DELETE /clips/:id (officer or poster)──►  delete a clip
+//
 // Secrets (wrangler secret put): DISCORD_BOT_TOKEN, ADMIN_POST_PASSWORD, BOT_PUSH_SECRET,
 //   DISCORD_CLIENT_SECRET, SESSION_SECRET (signs the login token — any long random string).
 // Vars: DISCORD_CLIENT_ID, GUILD_ID (checked at login — see auth.js isGuildMember; NOT a secret).
@@ -43,7 +48,7 @@
 // KV binding: SIGNUPS_KV.  Keys: "config", "state", "posted", "links", "officers", "presets",
 //   "ops" (sign-up board edits), "mergeops" (pending Discord-link renames after a merge — see /merge).
 // D1 binding: DB ("purge-guild-db").  Tables: matches, extended_stats, roster_members, profiles,
-//   attendance, vods, vod_notes (see worker/schema.sql).
+//   attendance, vods, vod_notes, clips (see worker/schema.sql).
 
 import { postMessage, patchMessage } from "./discord.js";
 import { readGearStats } from "./gear.js";
@@ -72,6 +77,10 @@ import {
   deleteVod,
   addVodNote,
   deleteVodNote,
+  listClips,
+  getClipOwner,
+  createClip,
+  deleteClip,
 } from "./data.js";
 import { BDO_CLASSES } from "./constants.js";
 import {
@@ -796,6 +805,47 @@ export default {
         return json({ error: "Not signed in as an officer or as the note's author." }, 401, request);
       }
       return json(await deleteVodNote(env, vodNoteMatch[1], vodNoteMatch[2]), 200, request);
+    }
+
+    // ---- Clips: public reads, any signed-in member can post, officer or ----
+    // ---- the original poster can delete. Lighter than VOD Review — no notes. ----
+
+    if (path === "/clips" && method === "GET") {
+      return json({ clips: await listClips(env) }, 200, request);
+    }
+
+    if (path === "/clips" && method === "POST") {
+      const session = await sessionFor(request, env);
+      if (!session) return json({ error: "Sign in with Discord to post a clip." }, 401, request);
+      const body = await readJson(request);
+      const title = String(body?.title || "").trim().slice(0, 200);
+      const youtubeId = youtubeIdFromUrl(body?.youtubeUrl);
+      const className = body?.class ? String(body.class) : null;
+      if (!title) return json({ error: "title required." }, 400, request);
+      if (!youtubeId) return json({ error: "Couldn't find a YouTube video in that URL." }, 400, request);
+      if (className && !BDO_CLASSES.includes(className)) {
+        return json({ error: "class must be one of the 31 BDO classes." }, 400, request);
+      }
+      const clip = await createClip(env, {
+        title,
+        youtubeId,
+        className,
+        authorName: session.familyName || session.username,
+        authorDiscordId: session.discordId,
+      });
+      return json({ clip }, 200, request);
+    }
+
+    const clipMatch = path.match(/^\/clips\/([^/]+)$/);
+    if (clipMatch && method === "DELETE") {
+      const ownerId = await getClipOwner(env, clipMatch[1]);
+      if (ownerId === null) return json({ error: "Clip not found." }, 404, request);
+      const session = await sessionFor(request, env);
+      const isOwner = Boolean(session) && session.discordId === ownerId;
+      if (!isOwner && !(await isAdminRequest(request, env))) {
+        return json({ error: "Not signed in as an officer or as the poster." }, 401, request);
+      }
+      return json(await deleteClip(env, clipMatch[1]), 200, request);
     }
 
     return json({ error: "Not found." }, 404, request);

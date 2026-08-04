@@ -56,3 +56,16 @@ CREATE TABLE IF NOT EXISTS vod_notes (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_vod_notes_vod_id ON vod_notes(vod_id);
+
+-- Clips: a lighter-weight board than VOD Review — just a YouTube link + a
+-- single class tag, no timestamped notes/drawings. Members post highlight/fail
+-- clips here for browsing by class. See clips.html + the /clips routes.
+CREATE TABLE IF NOT EXISTS clips (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  youtube_id TEXT NOT NULL,
+  class TEXT,                      -- nullable: one of worker/src/constants.js BDO_CLASSES, or NULL for "General"
+  added_by_name TEXT NOT NULL,
+  added_by_discord_id TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);

@@ -428,3 +428,42 @@ export async function deleteVodNote(env, vodId, noteId) {
   await env.DB.prepare("DELETE FROM vod_notes WHERE id = ? AND vod_id = ?").bind(noteId, vodId).run();
   return { removed: true };
 }
+
+// ---- Clips (lighter-weight than VOD Review: a link + one class tag, no notes) ----
+
+export async function listClips(env) {
+  const { results } = await env.DB.prepare(
+    "SELECT id, title, youtube_id, class, added_by_name, added_by_discord_id, created_at FROM clips ORDER BY created_at DESC"
+  ).all();
+  return results.map((r) => ({
+    id: r.id,
+    title: r.title,
+    youtubeId: r.youtube_id,
+    class: r.class || null,
+    addedBy: r.added_by_name,
+    addedByDiscordId: r.added_by_discord_id,
+    createdAt: r.created_at,
+  }));
+}
+
+/** Discord id of the clip's poster, or null if the clip doesn't exist — used for delete-permission checks before touching anything. */
+export async function getClipOwner(env, id) {
+  const row = await env.DB.prepare("SELECT added_by_discord_id FROM clips WHERE id = ?").bind(id).first();
+  return row ? row.added_by_discord_id : null;
+}
+
+export async function createClip(env, { title, youtubeId, className, authorName, authorDiscordId }) {
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+  await env.DB.prepare(
+    "INSERT INTO clips (id, title, youtube_id, class, added_by_name, added_by_discord_id, created_at) VALUES (?,?,?,?,?,?,?)"
+  )
+    .bind(id, title, youtubeId, className || null, authorName, authorDiscordId, createdAt)
+    .run();
+  return { id, title, youtubeId, class: className || null, addedBy: authorName, createdAt };
+}
+
+export async function deleteClip(env, id) {
+  await env.DB.prepare("DELETE FROM clips WHERE id = ?").bind(id).run();
+  return { removed: true };
+}
