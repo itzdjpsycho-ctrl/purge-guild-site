@@ -567,12 +567,35 @@ let currentVod = null;
 const listView = document.getElementById("listView");
 const detailView = document.getElementById("detailView");
 
+async function fetchVod(id){
+  const res = await fetch(`${WORKER_URL}/vods/${encodeURIComponent(id)}`);
+  if (!res.ok) throw new Error("VOD not found.");
+  return res.json();
+}
+
+/** Updates title/meta/delete-button/notes from a fresh /vods/:id payload. Does NOT touch
+ *  the video player or drawing canvas — see refreshNotes() vs. openVod() below. */
+function applyVodData(data){
+  currentVod = data.vod;
+  document.getElementById("detailTitle").textContent = currentVod.title;
+  document.getElementById("detailMeta").innerHTML =
+    (currentVod.class ? `<span class="vod-class-badge">${ClassIcons.img(currentVod.class, { size: 13 })}${escapeHtml(currentVod.class)}</span> · ` : "")
+    + `Posted by ${escapeHtml(currentVod.addedBy)} · ${fmtDate(currentVod.createdAt)} · `
+    + `<a href="https://www.youtube.com/watch?v=${escapeHtml(currentVod.youtubeId)}" target="_blank" rel="noopener">Watch on YouTube</a>`;
+
+  const deleteBtn = document.getElementById("deleteVodBtn");
+  const me = PurgeAuth.state;
+  const canDeleteVod = me?.isAdmin || (me?.discordId && me.discordId === currentVod.addedByDiscordId);
+  deleteBtn.style.display = canDeleteVod ? "" : "none";
+  deleteBtn.dataset.confirming = "";
+  deleteBtn.textContent = "Delete VOD";
+
+  renderNotes(data.notes);
+}
+
 async function openVod(id){
   try{
-    const res = await fetch(`${WORKER_URL}/vods/${encodeURIComponent(id)}`);
-    if (!res.ok) throw new Error("VOD not found.");
-    const data = await res.json();
-    currentVod = data.vod;
+    const data = await fetchVod(id);
     strokes = [];
     redrawCanvas();
 
@@ -580,25 +603,23 @@ async function openVod(id){
     detailView.style.display = "block";
     history.replaceState(null, "", `${location.pathname}?v=${encodeURIComponent(id)}`);
 
-    document.getElementById("detailTitle").textContent = currentVod.title;
-    document.getElementById("detailMeta").innerHTML =
-      (currentVod.class ? `<span class="vod-class-badge">${ClassIcons.img(currentVod.class, { size: 13 })}${escapeHtml(currentVod.class)}</span> · ` : "")
-      + `Posted by ${escapeHtml(currentVod.addedBy)} · ${fmtDate(currentVod.createdAt)} · `
-      + `<a href="https://www.youtube.com/watch?v=${escapeHtml(currentVod.youtubeId)}" target="_blank" rel="noopener">Watch on YouTube</a>`;
-
-    const deleteBtn = document.getElementById("deleteVodBtn");
-    const me = PurgeAuth.state;
-    const canDeleteVod = me?.isAdmin || (me?.discordId && me.discordId === currentVod.addedByDiscordId);
-    deleteBtn.style.display = canDeleteVod ? "" : "none";
-    deleteBtn.dataset.confirming = "";
-    deleteBtn.textContent = "Delete VOD";
-
-    renderNotes(data.notes);
-    loadVideo(currentVod.youtubeId);
+    applyVodData(data);
+    loadVideo(data.vod.youtubeId);
     setDrawMode(false);
     resizeCanvas();
   } catch(e){
     alert(e.message || "Couldn't load that VOD.");
+  }
+}
+
+/** Re-fetches notes/metadata for the VOD already open, without reloading the video
+ *  player or touching the drawing canvas — used after adding/deleting a note so the
+ *  video doesn't restart out from under whoever's watching it. */
+async function refreshNotes(){
+  try{
+    applyVodData(await fetchVod(currentVod.id));
+  } catch(e){
+    alert(e.message || "Couldn't refresh notes.");
   }
 }
 
@@ -700,7 +721,7 @@ async function deleteNote(noteId, btn){
       const body = await res.json().catch(() => ({}));
       throw new Error(body.error || `HTTP ${res.status}`);
     }
-    openVod(currentVod.id);
+    refreshNotes();
   } catch(err){
     btn.disabled = false;
     btn.textContent = "Delete";
@@ -747,7 +768,7 @@ document.getElementById("addNoteForm").addEventListener("submit", async e => {
     tsField.value = "";
     document.getElementById("attachDrawingCheck").checked = false;
     if (attach){ strokes = []; redrawCanvas(); }
-    openVod(currentVod.id);
+    refreshNotes();
   } catch(err){
     errBox.textContent = err.message;
     errBox.style.display = "block";
