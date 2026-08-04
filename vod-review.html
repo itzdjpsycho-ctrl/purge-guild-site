@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VOD Review — Purge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Design tokens live in app.css now (single canonical :root, loaded after
+     this inline block so it wins the cascade) — not redefined per-page. */
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; }
+
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-ui);
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+
+  body::before{
+    content:"";
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(44,147,176,0.16), transparent 65%),
+      radial-gradient(ellipse 35% 45% at 100% 100%, rgba(124,111,224,0.07), transparent 60%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
+  }
+
+  nav, header, main, footer{ position:relative; z-index:1; }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--hairline);
+  }
+  .section{ margin-bottom:30px; }
+  .section-label{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.18em;
+    text-transform:uppercase; color:var(--text-faint); margin-bottom:14px;
+  }
+  .empty-state{
+    padding:30px; text-align:center;
+    font-family:var(--font-mono); font-size:12px; color:var(--text-faint);
+  }
+  .form-error{
+    font-family:var(--font-mono); font-size:11.5px; color:var(--red-bright);
+    margin-top:8px;
+  }
+
+  /* ---- Add VOD form ---- */
+  .add-vod-form{
+    display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;
+    padding:18px 20px;
+    clip-path:var(--panel-clip, none);
+  }
+  .form-field{ display:flex; flex-direction:column; gap:5px; }
+  .form-field label{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--text-faint);
+  }
+  .form-field input, .form-field textarea{
+    background:var(--panel-raised); border:1px solid var(--hairline); border-radius:6px;
+    color:var(--text); font-family:var(--font-ui); font-size:13px; padding:9px 12px; outline:none;
+  }
+  .form-field input:focus, .form-field textarea:focus{ border-color:var(--crimson); }
+  .form-field.grow{ flex:1; min-width:220px; }
+
+  /* ---- VOD grid ---- */
+  .vod-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:18px; }
+  .vod-card{
+    background:var(--panel); border:1px solid var(--hairline); border-radius:10px;
+    overflow:hidden; cursor:pointer; transition:border-color 0.15s ease, transform 0.15s ease;
+  }
+  .vod-card:hover{ border-color:var(--crimson); transform:translateY(-2px); }
+  .vod-card-thumb{ width:100%; aspect-ratio:16/9; object-fit:cover; background:#000; display:block; }
+  .vod-card-body{ padding:12px 14px; }
+  .vod-card-title{
+    font-family:var(--font-display); font-size:15px; font-weight:700; color:var(--text);
+    margin-bottom:6px; line-height:1.3;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+  }
+  .vod-card-meta{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-faint);
+    display:flex; justify-content:space-between; gap:8px;
+  }
+
+  /* ---- Detail view ---- */
+  .detail-head{
+    display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
+    margin-bottom:18px; flex-wrap:wrap;
+  }
+  .detail-title{ font-family:var(--font-display); font-size:22px; font-weight:700; }
+  .detail-meta{ font-family:var(--font-mono); font-size:11px; color:var(--text-faint); margin-top:6px; }
+  .detail-meta a{ color:var(--crimson-glow); text-decoration:none; }
+  .detail-meta a:hover{ text-decoration:underline; }
+
+  .clear-wars-btn{
+    background:none; border:1px solid var(--hairline); color:var(--text-muted);
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.04em;
+    padding:7px 16px; border-radius:999px; cursor:pointer; transition:all 0.14s ease; flex:none;
+  }
+  .clear-wars-btn:hover{ color:var(--red-bright); border-color:var(--red-bright); }
+
+  .video-layout{ display:grid; grid-template-columns:1.6fr 1fr; gap:22px; align-items:start; }
+  @media (max-width:1000px){ .video-layout{ grid-template-columns:1fr; } }
+
+  .video-stage{
+    position:relative; width:100%; aspect-ratio:16/9; background:#000;
+    border-radius:10px; overflow:hidden; border:1px solid var(--hairline);
+  }
+  .video-stage #ytPlayer, .video-stage #ytPlayer iframe{
+    position:absolute; inset:0; width:100% !important; height:100% !important; border:0;
+  }
+  #drawCanvas{
+    position:absolute; inset:0; width:100%; height:100%;
+    pointer-events:none; touch-action:none;
+  }
+  #drawCanvas.active{ pointer-events:auto; cursor:crosshair; }
+
+  .draw-toolbar{ display:flex; align-items:center; gap:10px; margin-top:12px; flex-wrap:wrap; }
+  .color-swatch{
+    width:20px; height:20px; border-radius:50%; border:2px solid transparent; cursor:pointer;
+    box-shadow:0 0 0 1px var(--hairline);
+  }
+  .color-swatch.selected{ border-color:var(--text); }
+  .draw-hint{
+    font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint); margin-top:8px;
+  }
+
+  /* ---- Notes panel ---- */
+  .notes-panel{ display:flex; flex-direction:column; gap:14px; }
+  .note-form{ display:flex; flex-direction:column; gap:10px; padding:16px 18px; }
+  .note-form textarea{ resize:vertical; min-height:56px; font-family:var(--font-ui); }
+  .note-form-row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .attach-check{
+    display:flex; align-items:center; gap:6px;
+    font-family:var(--font-mono); font-size:11px; color:var(--text-muted); cursor:pointer;
+  }
+  .attach-check input{ accent-color:var(--crimson); cursor:pointer; }
+
+  .notes-list{ display:flex; flex-direction:column; gap:8px; max-height:520px; overflow-y:auto; padding-right:4px; }
+  .note-item{
+    background:var(--panel); border:1px solid var(--hairline); border-radius:8px;
+    padding:10px 12px; cursor:pointer; transition:border-color 0.14s ease;
+  }
+  .note-item:hover{ border-color:var(--crimson); }
+  .note-item-head{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .note-time{ font-family:var(--font-mono); font-size:12px; color:var(--crimson-glow); font-weight:600; }
+  .note-author{ font-family:var(--font-mono); font-size:10px; color:var(--text-faint); }
+  .note-text{ font-size:13px; color:var(--text); margin-top:6px; line-height:1.5; white-space:pre-wrap; }
+  .note-drawing-tag{ font-family:var(--font-mono); font-size:10px; color:var(--gold-bright); margin-top:5px; }
+  .note-delete-btn{
+    background:none; border:1px solid var(--hairline); color:var(--text-faint);
+    font-family:var(--font-mono); font-size:10px; padding:3px 9px; border-radius:999px; cursor:pointer;
+    flex:none;
+  }
+  .note-delete-btn:hover{ color:var(--red-bright); border-color:var(--red-bright); }
+
+  #detailView{ display:none; }
+</style>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<video class="bg-video" autoplay muted loop playsinline aria-hidden="true">
+  <source src="nanotech_background_3840.webm" type="video/webm">
+</video>
+<div class="bg-video-scrim"></div>
+
+<div class="app-shell">
+<aside class="app-sidebar">
+  <a class="app-brand" href="index.html">
+    <span class="app-brand-logo">⚔</span>
+    <span class="app-brand-text">
+      <span class="app-brand-name">Purge</span>
+      <span class="app-brand-sub">Node War</span>
+    </span>
+  </a>
+  <div class="side-nav-label">Menu</div>
+  <nav class="side-nav">
+    <a href="index.html"><span class="ico">🏠</span> Home</a>
+    <a href="war-scores.html"><span class="ico">⚔️</span> War Scores</a>
+    <a href="players.html"><span class="ico">👥</span> Roster</a>
+    <a href="my-stats.html"><span class="ico">🪪</span> My Stats</a>
+    <a href="dashboard.html"><span class="ico">📊</span> Dashboard</a>
+    <a href="signups.html"><span class="ico">📝</span> Sign Ups</a>
+    <a href="combat-log.html"><span class="ico">📜</span> Combat Log</a>
+    <a href="vod-review.html" class="current"><span class="ico">🎬</span> VOD Review</a>
+  </nav>
+  <div id="authWidget" class="auth-widget"></div>
+  <div class="app-sidebar-foot">
+    <b>Purge</b> · BDO Guild<br>
+    Node War Log
+  </div>
+</aside>
+
+<main class="app-content">
+
+<div class="page-head">
+  <div class="page-eyebrow">Teaching &amp; Review</div>
+  <h1>VOD <span>Review</span></h1>
+  <div class="page-sub">Post a YouTube link, drop timestamped notes, and draw over the frame to explain a fight.</div>
+</div>
+
+<div id="listView">
+
+  <div class="section">
+    <div class="section-label">Post a VOD</div>
+    <form class="panel add-vod-form" id="addVodForm">
+      <div class="form-field grow">
+        <label for="vodTitle">Title</label>
+        <input type="text" id="vodTitle" placeholder="e.g. Calpheon 6/23 — front line collapse" required maxlength="200">
+      </div>
+      <div class="form-field grow">
+        <label for="vodUrl">YouTube URL</label>
+        <input type="url" id="vodUrl" placeholder="https://www.youtube.com/watch?v=…" required>
+      </div>
+      <button class="btn purple" type="submit" id="addVodBtn">+ Add VOD</button>
+    </form>
+    <div class="form-error" id="addVodError" style="display:none;"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-label">All VODs</div>
+    <div class="vod-grid" id="vodGrid"></div>
+    <div class="empty-state" id="vodEmptyState" style="display:none;">No VODs posted yet — be the first to share one.</div>
+  </div>
+
+</div><!-- /listView -->
+
+<div id="detailView">
+
+  <button class="back-link" id="backToListBtn" type="button" style="background:none;border:none;cursor:pointer;margin-bottom:16px;">← All VODs</button>
+
+  <div class="detail-head">
+    <div>
+      <div class="detail-title" id="detailTitle"></div>
+      <div class="detail-meta" id="detailMeta"></div>
+    </div>
+    <button class="clear-wars-btn" id="deleteVodBtn" type="button" style="display:none;">Delete VOD</button>
+  </div>
+
+  <div class="video-layout">
+    <div>
+      <div class="video-stage" id="videoStage">
+        <div id="ytPlayer"></div>
+        <canvas id="drawCanvas"></canvas>
+      </div>
+      <div class="draw-toolbar">
+        <button class="btn purple" id="drawToggleBtn" type="button">✏️ Draw</button>
+        <span class="color-swatch selected" data-color="#5FDCF5" style="background:#5FDCF5;" title="Cyan"></span>
+        <span class="color-swatch" data-color="#E8BC55" style="background:#E8BC55;" title="Gold"></span>
+        <span class="color-swatch" data-color="#D65A45" style="background:#D65A45;" title="Red"></span>
+        <span class="color-swatch" data-color="#5BC976" style="background:#5BC976;" title="Green"></span>
+        <span class="color-swatch" data-color="#FFFFFF" style="background:#FFFFFF;" title="White"></span>
+        <button class="btn" id="undoStrokeBtn" type="button">Undo</button>
+        <button class="btn" id="clearDrawBtn" type="button">Clear</button>
+      </div>
+      <div class="draw-hint">Draw pauses the video. Click "Add Note" with "Attach drawing" checked to save this sketch to a timestamp.</div>
+    </div>
+
+    <div class="notes-panel">
+      <form class="panel note-form" id="addNoteForm">
+        <div class="section-label" style="margin-bottom:0;">Add a Note</div>
+        <textarea id="noteText" placeholder="What should they see here? Advice, timing, positioning…" maxlength="2000"></textarea>
+        <div class="note-form-row">
+          <div class="form-field">
+            <label for="noteTimestamp">Timestamp</label>
+            <input type="text" id="noteTimestamp" placeholder="0:00" style="width:90px;">
+          </div>
+          <button class="btn" type="button" id="useCurrentTimeBtn">Use current time</button>
+          <label class="attach-check">
+            <input type="checkbox" id="attachDrawingCheck">
+            Attach drawing
+          </label>
+        </div>
+        <button class="btn purple" type="submit" id="addNoteBtn" style="align-self:flex-start;">+ Add Note</button>
+        <div class="form-error" id="addNoteError" style="display:none;"></div>
+      </form>
+
+      <div class="notes-list" id="notesList"></div>
+      <div class="empty-state" id="notesEmptyState" style="display:none;">No notes yet — pause on a moment and add one.</div>
+    </div>
+  </div>
+
+</div><!-- /detailView -->
+
+</main>
+</div><!-- /app-shell -->
+
+<script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script>window.purgeAuthReady = PurgeAuth.init();</script>
+<script>
+/* ================================================================
+   VOD REVIEW — YouTube link board with timestamped notes and an
+   optional freehand drawing attached to any note (a lightweight
+   telestrator, not a video editor). All data lives in D1 via the
+   Worker's /vods routes (worker/src/worker.js + worker/src/data.js);
+   this file is purely the client.
+================================================================ */
+const WORKER_URL = (localStorage.getItem("signupWorkerUrl")
+  || "https://purge-signups.itzdjpsycho.workers.dev").replace(/\/+$/, "");
+
+function escapeHtml(s){
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+}
+
+function fmtTime(totalSeconds){
+  const s = Math.max(0, Math.floor(totalSeconds || 0));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  const mm = h ? String(m).padStart(2,"0") : String(m);
+  const ss = String(sec).padStart(2,"0");
+  return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+function parseTime(str){
+  str = String(str || "").trim();
+  if (!str) return 0;
+  if (!str.includes(":")) return Math.max(0, Math.round(Number(str)) || 0);
+  return Math.max(0, str.split(":").reduce((secs, part) => secs * 60 + (Number(part) || 0), 0));
+}
+function fmtDate(iso){
+  try{ return new Date(iso).toLocaleString(undefined, { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }); }
+  catch(e){ return iso; }
+}
+
+/* ---- list view ---- */
+const vodGrid = document.getElementById("vodGrid");
+const vodEmptyState = document.getElementById("vodEmptyState");
+
+async function loadVodList(){
+  vodGrid.innerHTML = "";
+  try{
+    const res = await fetch(`${WORKER_URL}/vods`);
+    const data = await res.json();
+    const vods = data.vods || [];
+    vodEmptyState.style.display = vods.length ? "none" : "block";
+    vodGrid.innerHTML = vods.map(v => `
+      <div class="vod-card" data-id="${escapeHtml(v.id)}">
+        <img class="vod-card-thumb" src="https://i.ytimg.com/vi/${escapeHtml(v.youtubeId)}/hqdefault.jpg" alt="" loading="lazy">
+        <div class="vod-card-body">
+          <div class="vod-card-title">${escapeHtml(v.title)}</div>
+          <div class="vod-card-meta">
+            <span>${escapeHtml(v.addedBy)}</span>
+            <span>${v.noteCount} note${v.noteCount === 1 ? "" : "s"}</span>
+          </div>
+        </div>
+      </div>
+    `).join("");
+    vodGrid.querySelectorAll(".vod-card").forEach(card => {
+      card.addEventListener("click", () => openVod(card.dataset.id));
+    });
+  } catch(e){
+    vodEmptyState.textContent = "Couldn't load VODs — try refreshing.";
+    vodEmptyState.style.display = "block";
+  }
+}
+
+document.getElementById("addVodForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = document.getElementById("addVodBtn");
+  const errBox = document.getElementById("addVodError");
+  errBox.style.display = "none";
+  const title = document.getElementById("vodTitle").value.trim();
+  const youtubeUrl = document.getElementById("vodUrl").value.trim();
+  btn.disabled = true;
+  btn.textContent = "Adding…";
+  try{
+    const res = await fetch(`${WORKER_URL}/vods`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...PurgeAuth.headers() },
+      body: JSON.stringify({ title, youtubeUrl }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+    document.getElementById("vodTitle").value = "";
+    document.getElementById("vodUrl").value = "";
+    await loadVodList();
+    openVod(body.vod.id);
+  } catch(err){
+    errBox.textContent = err.message;
+    errBox.style.display = "block";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "+ Add VOD";
+  }
+});
+
+/* ---- YouTube IFrame API ---- */
+let ytApiReady = false;
+let pendingVideoId = null;
+let ytPlayer = null;
+window.onYouTubeIframeAPIReady = function(){
+  ytApiReady = true;
+  if (pendingVideoId){ createPlayer(pendingVideoId); pendingVideoId = null; }
+};
+(function loadYouTubeApi(){
+  const tag = document.createElement("script");
+  tag.src = "https://www.youtube.com/iframe_api";
+  document.head.appendChild(tag);
+})();
+
+function createPlayer(videoId){
+  if (ytPlayer){ ytPlayer.loadVideoById(videoId); return; }
+  ytPlayer = new YT.Player("ytPlayer", {
+    videoId,
+    playerVars: { rel: 0, modestbranding: 1 },
+  });
+}
+function loadVideo(videoId){
+  if (ytApiReady) createPlayer(videoId);
+  else pendingVideoId = videoId;
+}
+
+/* ---- drawing canvas ---- */
+const videoStage = document.getElementById("videoStage");
+const canvas = document.getElementById("drawCanvas");
+const ctx = canvas.getContext("2d");
+let strokes = [];
+let currentStroke = null;
+let drawColor = "#5FDCF5";
+let drawModeOn = false;
+
+function resizeCanvas(){
+  canvas.width = videoStage.clientWidth || 1;
+  canvas.height = videoStage.clientHeight || 1;
+  redrawCanvas();
+}
+new ResizeObserver(resizeCanvas).observe(videoStage);
+
+function redrawCanvas(){
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const all = currentStroke ? [...strokes, currentStroke] : strokes;
+  for (const s of all){
+    if (s.points.length < 2) continue;
+    ctx.beginPath();
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = s.width || 3;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    s.points.forEach(([x, y], i) => {
+      const px = x * canvas.width, py = y * canvas.height;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+  }
+}
+
+function setDrawMode(on){
+  drawModeOn = on;
+  canvas.classList.toggle("active", on);
+  document.getElementById("drawToggleBtn").textContent = on ? "✓ Drawing (click to stop)" : "✏️ Draw";
+  if (on && ytPlayer?.pauseVideo) ytPlayer.pauseVideo();
+}
+document.getElementById("drawToggleBtn").addEventListener("click", () => setDrawMode(!drawModeOn));
+
+document.querySelectorAll(".color-swatch").forEach(sw => {
+  sw.addEventListener("click", () => {
+    drawColor = sw.dataset.color;
+    document.querySelectorAll(".color-swatch").forEach(s => s.classList.remove("selected"));
+    sw.classList.add("selected");
+  });
+});
+document.getElementById("undoStrokeBtn").addEventListener("click", () => { strokes.pop(); redrawCanvas(); updateAttachCheckbox(); });
+document.getElementById("clearDrawBtn").addEventListener("click", () => { strokes = []; redrawCanvas(); updateAttachCheckbox(); });
+
+function normPoint(e){
+  const r = canvas.getBoundingClientRect();
+  return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height];
+}
+canvas.addEventListener("pointerdown", e => {
+  if (!drawModeOn) return;
+  currentStroke = { color: drawColor, width: 3, points: [normPoint(e)] };
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener("pointermove", e => {
+  if (!drawModeOn || !currentStroke) return;
+  currentStroke.points.push(normPoint(e));
+  redrawCanvas();
+});
+canvas.addEventListener("pointerup", () => {
+  if (currentStroke){ strokes.push(currentStroke); currentStroke = null; redrawCanvas(); }
+  updateAttachCheckbox();
+});
+
+function updateAttachCheckbox(){
+  const check = document.getElementById("attachDrawingCheck");
+  if (strokes.length) check.checked = true;
+  else check.checked = false;
+}
+
+/* ---- detail view ---- */
+let currentVod = null;
+const listView = document.getElementById("listView");
+const detailView = document.getElementById("detailView");
+
+async function openVod(id){
+  try{
+    const res = await fetch(`${WORKER_URL}/vods/${encodeURIComponent(id)}`);
+    if (!res.ok) throw new Error("VOD not found.");
+    const data = await res.json();
+    currentVod = data.vod;
+    strokes = [];
+    redrawCanvas();
+
+    listView.style.display = "none";
+    detailView.style.display = "block";
+    history.replaceState(null, "", `${location.pathname}?v=${encodeURIComponent(id)}`);
+
+    document.getElementById("detailTitle").textContent = currentVod.title;
+    document.getElementById("detailMeta").innerHTML =
+      `Posted by ${escapeHtml(currentVod.addedBy)} · ${fmtDate(currentVod.createdAt)} · `
+      + `<a href="https://www.youtube.com/watch?v=${escapeHtml(currentVod.youtubeId)}" target="_blank" rel="noopener">Watch on YouTube</a>`;
+
+    const deleteBtn = document.getElementById("deleteVodBtn");
+    const me = PurgeAuth.state;
+    const canDeleteVod = me?.isAdmin || (me?.discordId && me.discordId === currentVod.addedByDiscordId);
+    deleteBtn.style.display = canDeleteVod ? "" : "none";
+    deleteBtn.dataset.confirming = "";
+    deleteBtn.textContent = "Delete VOD";
+
+    renderNotes(data.notes);
+    loadVideo(currentVod.youtubeId);
+    setDrawMode(false);
+    resizeCanvas();
+  } catch(e){
+    alert(e.message || "Couldn't load that VOD.");
+  }
+}
+
+function closeDetail(){
+  detailView.style.display = "none";
+  listView.style.display = "block";
+  currentVod = null;
+  history.replaceState(null, "", location.pathname);
+  loadVodList();
+}
+document.getElementById("backToListBtn").addEventListener("click", closeDetail);
+
+document.getElementById("deleteVodBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("deleteVodBtn");
+  if (btn.dataset.confirming !== "1"){
+    btn.dataset.confirming = "1";
+    btn.textContent = "Tap again to confirm";
+    btn.style.background = "rgba(178,64,47,0.28)";
+    setTimeout(() => { btn.dataset.confirming = ""; btn.textContent = "Delete VOD"; btn.style.background = ""; }, 3000);
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "Deleting…";
+  try{
+    const res = await fetch(`${WORKER_URL}/vods/${encodeURIComponent(currentVod.id)}`, {
+      method: "DELETE",
+      headers: { ...PurgeAuth.headers() },
+    });
+    if (!res.ok){
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `HTTP ${res.status}`);
+    }
+    closeDetail();
+  } catch(err){
+    btn.disabled = false;
+    btn.textContent = `Couldn't delete — ${err.message}`;
+    setTimeout(() => { btn.textContent = "Delete VOD"; btn.style.background = ""; }, 5000);
+  }
+});
+
+function renderNotes(notes){
+  const list = document.getElementById("notesList");
+  const empty = document.getElementById("notesEmptyState");
+  empty.style.display = notes.length ? "none" : "block";
+  const me = PurgeAuth.state;
+  list.innerHTML = notes.map(n => {
+    const canDelete = me?.isAdmin || (me?.discordId && me.discordId === n.authorDiscordId);
+    return `
+      <div class="note-item" data-id="${escapeHtml(n.id)}" data-ts="${n.timestampSeconds}">
+        <div class="note-item-head">
+          <span class="note-time">${fmtTime(n.timestampSeconds)}</span>
+          <span class="note-author">${escapeHtml(n.author)} · ${fmtDate(n.createdAt)}</span>
+          ${canDelete ? `<button class="note-delete-btn" data-note-id="${escapeHtml(n.id)}" type="button">Delete</button>` : ""}
+        </div>
+        ${n.text ? `<div class="note-text">${escapeHtml(n.text)}</div>` : ""}
+        ${n.drawing ? `<div class="note-drawing-tag">🖉 has a drawing attached</div>` : ""}
+      </div>
+    `;
+  }).join("");
+
+  list.querySelectorAll(".note-item").forEach(item => {
+    item.addEventListener("click", e => {
+      if (e.target.closest(".note-delete-btn")) return;
+      const note = notes.find(n => n.id === item.dataset.id);
+      jumpToNote(note);
+    });
+  });
+  list.querySelectorAll(".note-delete-btn").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      deleteNote(btn.dataset.noteId, btn);
+    });
+  });
+}
+
+function jumpToNote(note){
+  if (ytPlayer?.seekTo){ ytPlayer.seekTo(note.timestampSeconds, true); ytPlayer.pauseVideo(); }
+  setDrawMode(false);
+  strokes = note.drawing ? JSON.parse(JSON.stringify(note.drawing)) : [];
+  redrawCanvas();
+  updateAttachCheckbox();
+}
+
+async function deleteNote(noteId, btn){
+  if (btn.dataset.confirming !== "1"){
+    btn.dataset.confirming = "1";
+    btn.textContent = "Confirm?";
+    setTimeout(() => { btn.dataset.confirming = ""; btn.textContent = "Delete"; }, 3000);
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "…";
+  try{
+    const res = await fetch(`${WORKER_URL}/vods/${encodeURIComponent(currentVod.id)}/notes/${encodeURIComponent(noteId)}`, {
+      method: "DELETE",
+      headers: { ...PurgeAuth.headers() },
+    });
+    if (!res.ok){
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `HTTP ${res.status}`);
+    }
+    openVod(currentVod.id);
+  } catch(err){
+    btn.disabled = false;
+    btn.textContent = "Delete";
+    alert(`Couldn't delete note — ${err.message}`);
+  }
+}
+
+document.getElementById("useCurrentTimeBtn").addEventListener("click", () => {
+  const t = ytPlayer?.getCurrentTime ? ytPlayer.getCurrentTime() : 0;
+  document.getElementById("noteTimestamp").value = fmtTime(t);
+});
+
+document.getElementById("addNoteForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const btn = document.getElementById("addNoteBtn");
+  const errBox = document.getElementById("addNoteError");
+  errBox.style.display = "none";
+
+  const text = document.getElementById("noteText").value.trim();
+  const tsField = document.getElementById("noteTimestamp");
+  const timestampSeconds = tsField.value.trim()
+    ? parseTime(tsField.value)
+    : (ytPlayer?.getCurrentTime ? Math.floor(ytPlayer.getCurrentTime()) : 0);
+  const attach = document.getElementById("attachDrawingCheck").checked && strokes.length;
+
+  if (!text && !attach){
+    errBox.textContent = "Write a note or attach a drawing.";
+    errBox.style.display = "block";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Adding…";
+  try{
+    const res = await fetch(`${WORKER_URL}/vods/${encodeURIComponent(currentVod.id)}/notes`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...PurgeAuth.headers() },
+      body: JSON.stringify({ timestampSeconds, text, drawing: attach ? strokes : null }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+
+    document.getElementById("noteText").value = "";
+    tsField.value = "";
+    document.getElementById("attachDrawingCheck").checked = false;
+    if (attach){ strokes = []; redrawCanvas(); }
+    openVod(currentVod.id);
+  } catch(err){
+    errBox.textContent = err.message;
+    errBox.style.display = "block";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "+ Add Note";
+  }
+});
+
+/* ---- boot ---- */
+loadVodList();
+window.purgeAuthReady?.then(() => {
+  const openId = new URLSearchParams(location.search).get("v");
+  if (openId) openVod(openId);
+});
+</script>
+</body>
+</html>

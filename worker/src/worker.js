@@ -27,6 +27,14 @@
 //   POST /roster (x-bot-secret)──────►  replace rosterMembers wholesale (/roster sync)
 //   POST /attendance (x-bot-secret)──►  push a freshly-computed attendance summary
 //
+// ---- VOD Review (D1-backed: vods, vod_notes) ----
+//   GET  /vods (public)──────────────►  list every posted VOD (+ note count)
+//   POST /vods (any signed-in member)──►  post a YouTube link {title, youtubeUrl}
+//   GET  /vods/:id (public)──────────►  one VOD + its timestamped notes
+//   DELETE /vods/:id (officer or poster)──►  delete a VOD + all its notes
+//   POST /vods/:id/notes (any signed-in member)──►  add a timestamped note, optionally with a drawing
+//   DELETE /vods/:id/notes/:noteId (officer or note author)──►  delete a note
+//
 // Secrets (wrangler secret put): DISCORD_BOT_TOKEN, ADMIN_POST_PASSWORD, BOT_PUSH_SECRET,
 //   DISCORD_CLIENT_SECRET, SESSION_SECRET (signs the login token — any long random string).
 // Vars: DISCORD_CLIENT_ID, GUILD_ID (checked at login — see auth.js isGuildMember; NOT a secret).
@@ -35,7 +43,7 @@
 // KV binding: SIGNUPS_KV.  Keys: "config", "state", "posted", "links", "officers", "presets",
 //   "ops" (sign-up board edits), "mergeops" (pending Discord-link renames after a merge — see /merge).
 // D1 binding: DB ("purge-guild-db").  Tables: matches, extended_stats, roster_members, profiles,
-//   attendance (see worker/schema.sql).
+//   attendance, vods, vod_notes (see worker/schema.sql).
 
 import { postMessage, patchMessage } from "./discord.js";
 import { readGearStats } from "./gear.js";
@@ -55,6 +63,15 @@ import {
   setProfileFlags,
   mergeProfileRows,
   setAttendance,
+  youtubeIdFromUrl,
+  listVods,
+  getVod,
+  getVodOwner,
+  getVodNoteOwner,
+  createVod,
+  deleteVod,
+  addVodNote,
+  deleteVodNote,
 } from "./data.js";
 import {
   buildAuthorizeUrl,
@@ -86,7 +103,7 @@ function corsHeaders(request) {
       : PAGES_ORIGIN;
   return {
     "Access-Control-Allow-Origin": allow,
-    "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "content-type, x-admin-password, x-session-id",
     Vary: "Origin",
   };
@@ -693,6 +710,86 @@ export default {
       const ops = await getMergeOps(env);
       if (ops.length) await env.SIGNUPS_KV.put("mergeops", "[]");
       return json({ ops }, 200, request);
+    }
+
+    // ---- VOD Review: public reads, any signed-in member can post/note, ----
+    // ---- officer or the original poster/author can delete. ----
+
+    if (path === "/vods" && method === "GET") {
+      return json({ vods: await listVods(env) }, 200, request);
+    }
+
+    if (path === "/vods" && method === "POST") {
+      const session = await sessionFor(request, env);
+      if (!session) return json({ error: "Sign in with Discord to post a VOD." }, 401, request);
+      const body = await readJson(request);
+      const title = String(body?.title || "").trim().slice(0, 200);
+      const youtubeId = youtubeIdFromUrl(body?.youtubeUrl);
+      if (!title) return json({ error: "title required." }, 400, request);
+      if (!youtubeId) return json({ error: "Couldn't find a YouTube video in that URL." }, 400, request);
+      const vod = await createVod(env, {
+        title,
+        youtubeId,
+        authorName: session.familyName || session.username,
+        authorDiscordId: session.discordId,
+      });
+      return json({ vod }, 200, request);
+    }
+
+    const vodDetailMatch = path.match(/^\/vods\/([^/]+)$/);
+    if (vodDetailMatch && method === "GET") {
+      const data = await getVod(env, vodDetailMatch[1]);
+      if (!data) return json({ error: "VOD not found." }, 404, request);
+      return json(data, 200, request);
+    }
+
+    if (vodDetailMatch && method === "DELETE") {
+      const ownerId = await getVodOwner(env, vodDetailMatch[1]);
+      if (ownerId === null) return json({ error: "VOD not found." }, 404, request);
+      const session = await sessionFor(request, env);
+      const isOwner = Boolean(session) && session.discordId === ownerId;
+      if (!isOwner && !(await isAdminRequest(request, env))) {
+        return json({ error: "Not signed in as an officer or as the poster." }, 401, request);
+      }
+      return json(await deleteVod(env, vodDetailMatch[1]), 200, request);
+    }
+
+    const vodNotesMatch = path.match(/^\/vods\/([^/]+)\/notes$/);
+    if (vodNotesMatch && method === "POST") {
+      const session = await sessionFor(request, env);
+      if (!session) return json({ error: "Sign in with Discord to add a note." }, 401, request);
+      const body = await readJson(request);
+      const timestampSeconds = Number(body?.timestampSeconds);
+      const text = String(body?.text || "").trim().slice(0, 2000);
+      const drawing = body?.drawing || null;
+      if (!Number.isFinite(timestampSeconds) || timestampSeconds < 0) {
+        return json({ error: "timestampSeconds required." }, 400, request);
+      }
+      if (!text && !drawing) return json({ error: "text or drawing required." }, 400, request);
+      if (drawing && JSON.stringify(drawing).length > 60_000) {
+        return json({ error: "Drawing too large." }, 413, request);
+      }
+      const note = await addVodNote(env, vodNotesMatch[1], {
+        timestampSeconds,
+        text,
+        drawing,
+        authorName: session.familyName || session.username,
+        authorDiscordId: session.discordId,
+      });
+      if (!note) return json({ error: "VOD not found." }, 404, request);
+      return json({ note }, 200, request);
+    }
+
+    const vodNoteMatch = path.match(/^\/vods\/([^/]+)\/notes\/([^/]+)$/);
+    if (vodNoteMatch && method === "DELETE") {
+      const ownerId = await getVodNoteOwner(env, vodNoteMatch[1], vodNoteMatch[2]);
+      if (ownerId === null) return json({ error: "Note not found." }, 404, request);
+      const session = await sessionFor(request, env);
+      const isOwner = Boolean(session) && session.discordId === ownerId;
+      if (!isOwner && !(await isAdminRequest(request, env))) {
+        return json({ error: "Not signed in as an officer or as the note's author." }, 401, request);
+      }
+      return json(await deleteVodNote(env, vodNoteMatch[1], vodNoteMatch[2]), 200, request);
     }
 
     return json({ error: "Not found." }, 404, request);

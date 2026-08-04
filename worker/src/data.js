@@ -321,3 +321,108 @@ export async function setAttendance(env, summary) {
     .bind(JSON.stringify(summary), new Date().toISOString())
     .run();
 }
+
+// ---- VOD review (YouTube link + timestamped notes/drawings) ----
+
+/** Pulls the 11-char video id out of any of the URL shapes YouTube hands out. */
+export function youtubeIdFromUrl(url) {
+  const m = String(url || "").match(
+    /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+  );
+  return m ? m[1] : null;
+}
+
+export async function listVods(env) {
+  const { results } = await env.DB.prepare(
+    `SELECT v.id, v.title, v.youtube_id, v.added_by_name, v.created_at,
+            (SELECT COUNT(*) FROM vod_notes n WHERE n.vod_id = v.id) AS note_count
+     FROM vods v ORDER BY v.created_at DESC`
+  ).all();
+  return results.map((r) => ({
+    id: r.id,
+    title: r.title,
+    youtubeId: r.youtube_id,
+    addedBy: r.added_by_name,
+    createdAt: r.created_at,
+    noteCount: r.note_count,
+  }));
+}
+
+export async function getVod(env, id) {
+  const row = await env.DB.prepare("SELECT * FROM vods WHERE id = ?").bind(id).first();
+  if (!row) return null;
+  const { results } = await env.DB.prepare(
+    "SELECT * FROM vod_notes WHERE vod_id = ? ORDER BY timestamp_seconds ASC"
+  ).bind(id).all();
+  return {
+    vod: {
+      id: row.id,
+      title: row.title,
+      youtubeId: row.youtube_id,
+      addedBy: row.added_by_name,
+      addedByDiscordId: row.added_by_discord_id,
+      createdAt: row.created_at,
+    },
+    notes: results.map((n) => ({
+      id: n.id,
+      timestampSeconds: n.timestamp_seconds,
+      text: n.text,
+      drawing: n.drawing_json ? JSON.parse(n.drawing_json) : null,
+      author: n.author_name,
+      authorDiscordId: n.author_discord_id,
+      createdAt: n.created_at,
+    })),
+  };
+}
+
+/** Discord id of the VOD's poster, or null if the VOD doesn't exist — used for delete-permission checks before touching anything. */
+export async function getVodOwner(env, id) {
+  const row = await env.DB.prepare("SELECT added_by_discord_id FROM vods WHERE id = ?").bind(id).first();
+  return row ? row.added_by_discord_id : null;
+}
+
+/** Discord id of the note's author, or null if the note doesn't exist. */
+export async function getVodNoteOwner(env, vodId, noteId) {
+  const row = await env.DB.prepare("SELECT author_discord_id FROM vod_notes WHERE id = ? AND vod_id = ?")
+    .bind(noteId, vodId)
+    .first();
+  return row ? row.author_discord_id : null;
+}
+
+export async function createVod(env, { title, youtubeId, authorName, authorDiscordId }) {
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+  await env.DB.prepare(
+    "INSERT INTO vods (id, title, youtube_id, added_by_name, added_by_discord_id, created_at) VALUES (?,?,?,?,?,?)"
+  )
+    .bind(id, title, youtubeId, authorName, authorDiscordId, createdAt)
+    .run();
+  return { id, title, youtubeId, addedBy: authorName, createdAt, noteCount: 0 };
+}
+
+export async function deleteVod(env, id) {
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM vod_notes WHERE vod_id = ?").bind(id),
+    env.DB.prepare("DELETE FROM vods WHERE id = ?").bind(id),
+  ]);
+  return { removed: true };
+}
+
+export async function addVodNote(env, vodId, { timestampSeconds, text, drawing, authorName, authorDiscordId }) {
+  const vod = await env.DB.prepare("SELECT id FROM vods WHERE id = ?").bind(vodId).first();
+  if (!vod) return null;
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+  const ts = Math.max(0, Math.round(timestampSeconds) || 0);
+  await env.DB.prepare(
+    "INSERT INTO vod_notes (id, vod_id, timestamp_seconds, text, drawing_json, author_name, author_discord_id, created_at) VALUES (?,?,?,?,?,?,?,?)"
+  )
+    .bind(id, vodId, ts, text || "", drawing ? JSON.stringify(drawing) : null, authorName, authorDiscordId, createdAt)
+    .run();
+  return { id, vodId, timestampSeconds: ts, text: text || "", drawing: drawing || null, author: authorName, createdAt };
+}
+
+export async function deleteVodNote(env, vodId, noteId) {
+  await env.DB.prepare("DELETE FROM vod_notes WHERE id = ? AND vod_id = ?").bind(noteId, vodId).run();
+  return { removed: true };
+}

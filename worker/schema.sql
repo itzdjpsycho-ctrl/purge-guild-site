@@ -31,3 +31,27 @@ CREATE TABLE IF NOT EXISTS attendance (
   json TEXT NOT NULL,          -- {players: {...}, byWar: {...}}
   updated_at TEXT NOT NULL
 );
+
+-- VOD Review: members post a YouTube link, then leave timestamped notes on it
+-- (optionally with a freehand drawing attached) for teaching/coaching. See
+-- vod-review.html + the /vods routes in worker/src/worker.js.
+CREATE TABLE IF NOT EXISTS vods (
+  id TEXT PRIMARY KEY,             -- crypto.randomUUID()
+  title TEXT NOT NULL,
+  youtube_id TEXT NOT NULL,        -- 11-char YouTube video id, extracted server-side from the pasted URL
+  added_by_name TEXT NOT NULL,     -- family name (or Discord username fallback) at post time
+  added_by_discord_id TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS vod_notes (
+  id TEXT PRIMARY KEY,
+  vod_id TEXT NOT NULL,
+  timestamp_seconds INTEGER NOT NULL,
+  text TEXT NOT NULL DEFAULT '',
+  drawing_json TEXT,               -- nullable: [{color,width,points:[[x,y],...]}, ...] in 0-1 normalized coords
+  author_name TEXT NOT NULL,
+  author_discord_id TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_vod_notes_vod_id ON vod_notes(vod_id);
