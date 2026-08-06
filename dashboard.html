@@ -198,6 +198,41 @@
   .perf-val.kills{ color:var(--green-bright); }
   .perf-val.deaths{ color:var(--red-bright); }
 
+  /* TROOPER PANEL — anyone with a 2.0+ lifetime K/D */
+  .trooper-sub{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-faint);
+    margin:-8px 0 14px;
+  }
+  .trooper-grid{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
+    gap:14px; margin-bottom:42px;
+  }
+  .trooper-card{
+    position:relative; overflow:hidden;
+    background:var(--panel); border:1px solid var(--hairline);
+    border-radius:10px; padding:18px 14px; text-align:center;
+  }
+  .trooper-card::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:3px;
+    background:var(--gold-bright);
+  }
+  .trooper-name{ font-size:14px; font-weight:600; margin-bottom:8px; }
+  .trooper-kd{
+    font-family:var(--font-mono); font-size:26px; font-weight:700;
+    color:var(--gold-bright); line-height:1;
+  }
+  .trooper-kd-label{
+    font-family:var(--font-mono); font-size:9px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--text-faint); margin:4px 0 12px;
+  }
+  .trooper-mini-stats{
+    display:flex; justify-content:center; gap:12px;
+    font-family:var(--font-mono); font-size:11px; color:var(--text-muted);
+    padding-top:10px; border-top:1px solid var(--hairline-soft);
+  }
+  .trooper-mini-stats .kills{ color:var(--green-bright); }
+  .trooper-mini-stats .deaths{ color:var(--red-bright); }
+
   /* WEEKLY UPDATE */
   .weekly-update-sub{
     font-family:var(--font-mono); font-size:11px; color:var(--text-faint);
@@ -425,6 +460,13 @@
         <div class="perf-list" id="perfList"></div>
       </div>
     </div>
+  </div>
+
+  <!-- TROOPER -->
+  <div class="section">
+    <div class="section-label">Trooper</div>
+    <div class="trooper-sub" id="trooperSub"></div>
+    <div class="trooper-grid" id="trooperGrid"></div>
   </div>
 
   <!-- ATTENDANCE -->
@@ -773,6 +815,32 @@ document.querySelectorAll(".perf-tab").forEach(tab=>{
     renderPerformers(currentMetric);
   });
 });
+
+/* ---- Trooper: anyone with a lifetime K/D above the threshold ---- */
+const TROOPER_KD_THRESHOLD = 2.0;
+
+function renderTrooperPanel(){
+  const qualified = buildOverall(allMatches)
+    .filter(r=>r.played>0 && (kd(r.kills,r.deaths) ?? 0) > TROOPER_KD_THRESHOLD)
+    .sort((a,b)=>kd(b.kills,b.deaths)-kd(a.kills,a.deaths));
+
+  document.getElementById("trooperSub").textContent =
+    `${qualified.length} player${qualified.length!==1?"s":""} above ${TROOPER_KD_THRESHOLD.toFixed(1)} K/D, all-time`;
+
+  document.getElementById("trooperGrid").innerHTML = qualified.map(r=>`
+    <div class="trooper-card">
+      <div class="trooper-name">${r.name}</div>
+      <div class="trooper-kd">${fmtKD(kd(r.kills,r.deaths))}</div>
+      <div class="trooper-kd-label">K/D</div>
+      <div class="trooper-mini-stats">
+        <span class="kills">${r.kills}K</span>
+        <span class="deaths">${r.deaths}D</span>
+        <span>${r.played} war${r.played!==1?"s":""}</span>
+      </div>
+    </div>
+  `).join("") || `<div class="no-data" style="grid-column:1/-1;">No one's above ${TROOPER_KD_THRESHOLD.toFixed(1)} K/D yet.</div>`;
+}
+renderTrooperPanel();
 
 /* ---- Performance Flags ---- */
 function loadRolesMap(){
