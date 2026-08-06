@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Purge Bot Control</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-logo">⚔</span>
+    <span class="brand-text">Purge Bot Control</span>
+  </div>
+  <div class="status-pill" id="statusPill">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText">Stopped</span>
+  </div>
+</header>
+
+<div class="button-row">
+  <button class="btn start" id="startBtn" type="button">▶ Start Bot</button>
+  <button class="btn stop" id="stopBtn" type="button">■ Stop Bot</button>
+  <button class="btn restart" id="restartBtn" type="button">↻ Restart Bot</button>
+</div>
+
+<div class="log-panel" id="logPanel"><div class="log-empty">No output yet — click Start Bot.</div></div>
+
+<script src="renderer.js"></script>
+</body>
+</html>

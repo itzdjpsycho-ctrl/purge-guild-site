@@ -1,0 +1,77 @@
+/* Same neon-purple dark palette as the site (see the website's CLAUDE.md) —
+   kept as plain system fonts here (no Google Fonts fetch) so the control
+   panel renders identically with or without a network connection. */
+:root{
+  --bg:#08060C;
+  --panel:#110D18;
+  --panel-raised:#181222;
+  --hairline:#2A1F3A;
+  --purple:#8B2FD9;
+  --purple-glow:#C77DFF;
+  --gold:#E8BC55;
+  --green:#5BC976;
+  --red:#D65A45;
+  --text:#EDE8F5;
+  --text-muted:#B7ADC9;
+  --text-faint:#786E8C;
+}
+
+*{ box-sizing:border-box; margin:0; padding:0; }
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:"Segoe UI", Inter, system-ui, sans-serif;
+  height:100vh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+
+.topbar{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 20px;
+  border-bottom:1px solid var(--hairline);
+  background:var(--panel);
+  -webkit-app-region:drag;
+}
+.brand{ display:flex; align-items:center; gap:10px; }
+.brand-logo{ color:var(--purple-glow); font-size:18px; }
+.brand-text{ font-weight:600; font-size:14px; letter-spacing:0.02em; }
+
+.status-pill{
+  display:flex; align-items:center; gap:8px;
+  background:var(--panel-raised); border:1px solid var(--hairline); border-radius:999px;
+  padding:6px 14px; font-family:"Consolas", monospace; font-size:12px; color:var(--text-muted);
+}
+.status-dot{
+  width:9px; height:9px; border-radius:50%; background:var(--text-faint);
+  box-shadow:0 0 0 0 transparent; transition:background 0.2s ease, box-shadow 0.2s ease;
+}
+.status-dot.starting, .status-dot.stopping{ background:var(--gold); box-shadow:0 0 8px var(--gold); }
+.status-dot.running{ background:var(--green); box-shadow:0 0 8px var(--green); }
+.status-dot.crashed{ background:var(--red); box-shadow:0 0 8px var(--red); }
+
+.button-row{
+  display:flex; gap:12px; padding:16px 20px;
+}
+.btn{
+  flex:1; padding:11px 0; border-radius:8px; border:1px solid var(--hairline);
+  background:var(--panel-raised); color:var(--text); font-size:13px; font-weight:600;
+  cursor:pointer; transition:all 0.14s ease;
+}
+.btn:hover:not(:disabled){ border-color:var(--purple); color:var(--purple-glow); }
+.btn:disabled{ opacity:0.35; cursor:default; }
+.btn.start:hover:not(:disabled){ border-color:var(--green); color:var(--green); }
+.btn.stop:hover:not(:disabled){ border-color:var(--red); color:var(--red); }
+.btn.restart:hover:not(:disabled){ border-color:var(--gold); color:var(--gold); }
+
+.log-panel{
+  flex:1; margin:0 20px 20px; padding:12px 14px;
+  background:var(--panel); border:1px solid var(--hairline); border-radius:10px;
+  font-family:"Consolas", "IBM Plex Mono", monospace; font-size:12px; line-height:1.6;
+  overflow-y:auto; white-space:pre-wrap; word-break:break-word;
+}
+.log-line{ color:var(--text-muted); }
+.log-line.error{ color:var(--red); }
+.log-empty{ color:var(--text-faint); font-style:italic; }

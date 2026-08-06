@@ -1,0 +1,13 @@
+{
+  "name": "purge-bot-control",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Desktop control panel (Start/Stop/Restart + live log) for the Purge Discord bot in ../bot.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^43.3.0"
+  }
+}
