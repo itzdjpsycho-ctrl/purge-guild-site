@@ -1,6 +1,7 @@
 import { listAll, markAutoDeleted } from "./signups.js";
 import { parseWarStart } from "./wartime.js";
 import { clearState } from "./worker.js";
+import { fail } from "./console-ui.js";
 
 const HOURS_AFTER_START = 4;
 // If the free-text time field can't be parsed, fall back to the end of the
@@ -38,7 +39,7 @@ export async function sweepExpiredSignups(client) {
     } catch (err) {
       // Already deleted / channel or message gone — fine, just stop retrying it.
       if (err.code !== 10008 && err.code !== 10003) {
-        console.error(`Failed to auto-delete sign-up ${s.messageId}:`, err.message);
+        fail(`Failed to auto-delete sign-up ${s.messageId}: ${err.message}`);
         continue;
       }
     }

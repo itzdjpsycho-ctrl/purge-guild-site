@@ -2,6 +2,7 @@ import { getSignup, importSignup, setEntry, removeEntry, setCaps } from "./signu
 import { userForName } from "./links.js";
 import { refreshSignupMessage } from "./signup-message.js";
 import { fetchPosted, fetchOps, workerEnabled } from "./worker.js";
+import { fail } from "./console-ui.js";
 
 const slug = (s) =>
   String(s || "")
@@ -64,7 +65,7 @@ export async function syncFromWorker(client) {
       if (client) await refreshSignupMessage(client, record).catch(() => {});
     }
   } catch (err) {
-    console.error("syncFromWorker failed:", err.message);
+    fail(`syncFromWorker failed: ${err.message}`);
   }
   return added;
 }
@@ -136,7 +137,7 @@ export async function applyOps(client) {
       if (signup && client) await refreshSignupMessage(client, signup).catch(() => {});
     }
   } catch (err) {
-    console.error("applyOps failed:", err.message);
+    fail(`applyOps failed: ${err.message}`);
   }
   return applied;
 }

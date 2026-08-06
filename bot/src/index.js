@@ -13,6 +13,7 @@ import { applyLinkRenameOps } from "./lib/link-sync.js";
 import { workerEnabled, pushLinks } from "./lib/worker.js";
 import { sweepExpiredSignups } from "./lib/signup-cleanup.js";
 import { allLinks } from "./lib/links.js";
+import { banner, ok, info, fail } from "./lib/console-ui.js";
 
 assertConfig();
 
@@ -22,18 +23,21 @@ for (const cmd of [mvp, stats, signup, profile, addwar, removewar, balance, rost
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 client.once(Events.ClientReady, async (c) => {
-  console.log(`✅ Logged in as ${c.user.tag}. Serving ${commands.size} commands.`);
+  banner("Purge — Discord Bot", `Logged in as ${c.user.tag}`);
+  ok(`Serving ${commands.size} commands`);
+  ok(workerEnabled() ? "Connected to the Worker relay" : "Running standalone — no Worker relay configured");
+  console.log();
   // Delete sign-up sheets whose war started 4+ hours ago (history is kept in
   // signups.json — only the live Discord message is removed).
-  sweepExpiredSignups(c).catch((err) => console.error("Sign-up sweep failed:", err.message));
+  sweepExpiredSignups(c).catch((err) => fail(`Sign-up sweep failed: ${err.message}`));
   setInterval(() => {
-    sweepExpiredSignups(c).catch((err) => console.error("Sign-up sweep failed:", err.message));
+    sweepExpiredSignups(c).catch((err) => fail(`Sign-up sweep failed: ${err.message}`));
   }, 15 * 60 * 1000);
   if (workerEnabled()) {
     // Adopt any sheets the website posted via the Worker (e.g. while we were
     // offline) so their buttons work, then keep checking on an interval.
     const n = await syncFromWorker(c);
-    if (n) console.log(`🔗 Hydrated ${n} sign-up(s) from the Worker relay.`);
+    if (n) info(`Hydrated ${n} sign-up(s) from the Worker relay.`);
     setInterval(() => syncFromWorker(c), 60_000);
     // Apply website board edits (add/move/remove) to posted sign-up sheets promptly.
     // (War/profile edits no longer poll — the website calls the Worker's
@@ -91,7 +95,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
       return await cmd.execute(interaction);
     }
   } catch (err) {
-    console.error("Interaction error:", err);
+    fail(`Interaction error: ${err.message}`);
+    console.error(err);
     const payload = { content: "⚠️ Something went wrong handling that.", ephemeral: true };
     if (interaction.isRepliable()) {
       if (interaction.replied || interaction.deferred) {

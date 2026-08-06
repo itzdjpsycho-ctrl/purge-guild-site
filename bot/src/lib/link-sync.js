@@ -1,5 +1,6 @@
 import { renameLink, allLinks } from "./links.js";
 import { fetchMergeOps, pushLinks, workerEnabled } from "./worker.js";
+import { fail } from "./console-ui.js";
 
 /**
  * Apply pending "renameLink" ops — queued by the Worker's POST /merge
@@ -26,7 +27,7 @@ export async function applyLinkRenameOps() {
     }
     if (changed) await pushLinks(allLinks());
   } catch (err) {
-    console.error("applyLinkRenameOps failed:", err.message);
+    fail(`applyLinkRenameOps failed: ${err.message}`);
   }
   return applied;
 }
