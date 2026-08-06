@@ -591,6 +591,13 @@ export default {
       if (!admin && !owner && !botAuthed) {
         return json({ error: "Not signed in as an officer or as this player." }, 401, request);
       }
+      // Exception (exempts a player from the auto ⚠ Watch flag) is an officer
+      // call, not self-service — a player can still set their own Vacation via
+      // the same op, just not Exception. Checked here, not just hidden in the
+      // UI, so it can't be set by calling this endpoint directly either.
+      if (opType === "setFlags" && opBody.exception != null && !admin && !botAuthed) {
+        return json({ error: "Exception can only be set by an officer." }, 403, request);
+      }
 
       let result;
       if (opType === "removeShot") result = { removedPath: await removeProfileImage(env, player, opBody.field) };

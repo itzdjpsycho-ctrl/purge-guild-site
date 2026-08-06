@@ -760,7 +760,11 @@ function render(){
     const trendClass = trend==null ? "" : trend>0 ? "up" : trend<0 ? "down" : "";
     const trendLabel = trend==null ? "— No trend yet" : `— ${trend>0?"+":""}${trend.toFixed(1)}%`;
 
-    const canToggle = authState.isAdmin || myFamilyName === r.name.toLowerCase();
+    // Exception (exempts a player from the auto ⚠ Watch flag) is officer-only —
+    // Vacation stays self-service, same as before. Enforced again server-side
+    // (worker.js's POST /profiles/:name), not just hidden here.
+    const canToggleVacation = authState.isAdmin || myFamilyName === r.name.toLowerCase();
+    const canToggleException = authState.isAdmin;
     const roleClass = role ? `role-${role}` : "";
     return `
       <a class="player-card" href="player.html?name=${encodeURIComponent(r.name)}" data-name="${r.name}">
@@ -797,14 +801,14 @@ function render(){
             <label class="card-toggle-row">
               <span>Exception</span>
               <span class="switch">
-                <input type="checkbox" data-flag-toggle="exception" data-player="${r.name}" ${p.exception?"checked":""} ${canToggle?"":"disabled"}>
+                <input type="checkbox" data-flag-toggle="exception" data-player="${r.name}" ${p.exception?"checked":""} ${canToggleException?"":"disabled"}>
                 <span class="track"></span>
               </span>
             </label>
             <label class="card-toggle-row">
               <span>Vacation</span>
               <span class="switch">
-                <input type="checkbox" data-flag-toggle="vacation" data-player="${r.name}" ${p.vacation?"checked":""} ${canToggle?"":"disabled"}>
+                <input type="checkbox" data-flag-toggle="vacation" data-player="${r.name}" ${p.vacation?"checked":""} ${canToggleVacation?"":"disabled"}>
                 <span class="track"></span>
               </span>
             </label>
@@ -860,8 +864,12 @@ function wireFlagToggles(){
         method:"POST",
         headers:{ "content-type":"application/json", ...PurgeAuth.headers() },
         body: JSON.stringify({ op:{ type:"setFlags", [flagName]: value } }),
-      }).then(res=>{
-        if(!res.ok){ showToast("Sign in as an officer or as this player to save that", "error"); return; }
+      }).then(async res=>{
+        if(!res.ok){
+          const body = await res.json().catch(()=>({}));
+          showToast(body.error || "Sign in as an officer or as this player to save that", "error");
+          return;
+        }
         showToast(`${flagName[0].toUpperCase()+flagName.slice(1)} ${value?"on":"off"} for ${player}`, "success");
       }).catch(()=>{ showToast("Couldn't reach the relay — saved locally only", "error"); });
     });
