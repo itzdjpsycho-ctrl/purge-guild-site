@@ -738,6 +738,7 @@ function render(){
 
   const authState = window.PurgeAuth?.state || {};
   const myFamilyName = (authState.familyName || "").toLowerCase();
+  console.log("[roster-debug] render() authState:", JSON.stringify(authState));
 
   grid.innerHTML = roster.map(r=>{
     const p     = profiles[r.name] || {};
@@ -1211,6 +1212,7 @@ document.getElementById("mergeConfirmBtn").addEventListener("click", async ()=>{
 });
 
 window.purgeAuthReady?.then((state) => {
+  console.log("[roster-debug] purgeAuthReady resolved:", JSON.stringify(state));
   if(state?.isAdmin){
     document.getElementById("officersPanel").style.display = "";
     document.getElementById("mergeStatsBtn").style.display = "";
