@@ -331,6 +331,60 @@
   }
   .lightbox-close:hover{ color:var(--text); }
 
+  /* ---- War popup (clicking a War History row) ---- */
+  .war-modal{
+    position:fixed; inset:0; z-index:300;
+    background:rgba(0,0,0,0.72);
+    display:flex; align-items:center; justify-content:center;
+    padding:24px; opacity:0; pointer-events:none;
+    transition:opacity 0.2s ease; backdrop-filter:blur(4px);
+  }
+  .war-modal.open{ opacity:1; pointer-events:auto; }
+  .war-modal-panel{
+    background:var(--panel); border:1px solid var(--hairline); border-radius:12px;
+    max-width:min(1100px, 95vw); width:100%; max-height:88vh;
+    display:flex; flex-direction:column; overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+  .war-modal-head{
+    display:flex; justify-content:space-between; align-items:flex-start; gap:16px;
+    padding:20px 24px; border-bottom:1px solid var(--hairline); flex:none;
+  }
+  .war-modal-title{ font-family:var(--font-display); font-size:20px; font-weight:700; }
+  .war-modal-meta{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-faint); margin-top:6px;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .war-modal-meta a{ color:var(--crimson-glow); text-decoration:none; }
+  .war-modal-meta a:hover{ text-decoration:underline; }
+  .war-modal-close{
+    background:none; border:none; color:var(--text-muted);
+    font-size:22px; cursor:pointer; line-height:1; padding:4px 8px; flex:none;
+    transition:color 0.14s ease;
+  }
+  .war-modal-close:hover{ color:var(--text); }
+  .war-modal-table-wrap{ overflow:auto; flex:1; }
+  .war-modal-table-wrap table{ width:100%; border-collapse:collapse; }
+  .war-modal-table-wrap th{
+    position:sticky; top:0; background:var(--panel);
+    text-align:left; font-family:var(--font-mono); font-size:10px;
+    letter-spacing:0.06em; text-transform:uppercase; color:var(--text-faint);
+    padding:10px 12px; border-bottom:1px solid var(--hairline); white-space:nowrap;
+  }
+  .war-modal-table-wrap td{
+    padding:9px 12px; border-bottom:1px solid var(--hairline-soft);
+    font-size:13px; white-space:nowrap;
+  }
+  .war-modal-table-wrap tbody tr:last-child td{ border-bottom:none; }
+  .war-modal-table-wrap tbody tr.is-you{ background:rgba(95,220,245,0.07); }
+  .war-modal-table-wrap tbody tr.is-you td:first-child{ box-shadow:inset 3px 0 0 var(--crimson); }
+  .war-modal-table-wrap .td-class{ display:flex; align-items:center; gap:6px; }
+  .war-row{ cursor:pointer; }
+  .war-row-hint{
+    font-family:var(--font-mono); font-size:9px; letter-spacing:0.04em;
+    color:var(--text-faint); text-transform:none;
+  }
+
   /* Toast */
   .toast{
     position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(20px);
@@ -396,7 +450,7 @@
 </div>
 
 <div class="section" style="margin-top:28px;">
-  <div class="section-heading">War History</div>
+  <div class="section-heading">War History <span class="war-row-hint">— click a war for the full scoreboard</span></div>
   <div class="panel">
     <table>
       <thead>
@@ -423,6 +477,23 @@
   <button class="lightbox-close" id="lightboxClose">✕</button>
   <img id="lightboxImg" src="" alt="Screenshot">
 </div>
+<div class="war-modal" id="warModal">
+  <div class="war-modal-panel">
+    <div class="war-modal-head">
+      <div>
+        <div class="war-modal-title" id="warModalTitle"></div>
+        <div class="war-modal-meta" id="warModalMeta"></div>
+      </div>
+      <button class="war-modal-close" id="warModalClose" type="button">✕</button>
+    </div>
+    <div class="war-modal-table-wrap">
+      <table>
+        <thead><tr id="warModalHead"></tr></thead>
+        <tbody id="warModalBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script src="flags.js"></script>
@@ -443,12 +514,23 @@
    MATCH DATA — must match war-scores.html exactly
 ================================================================ */
 const MATCHES = window.GUILD_DATA.matches;
+const EXTENDED_STATS = window.GUILD_DATA.extendedStats;
 
 const ROSTER_MEMBERS = window.GUILD_DATA.rosterMembers;
 
 const ROLES_STORAGE_KEY    = "nodeWarSquadRoles";
 const PROFILES_STORAGE_KEY = "nodeWarPlayerProfiles";
 const DYNAMIC_MATCHES_KEY  = "nodeWarDynamicMatches";
+const DYNAMIC_EXTENDED_KEY = "nodeWarDynamicExtended";
+
+// Merge in any locally-pasted wars' extended stats (mirrors war-scores.html's
+// applyDynamicMatches()) so the War popup below shows the same data either page.
+(function applyDynamicExtended(){
+  try{
+    const raw = localStorage.getItem(DYNAMIC_EXTENDED_KEY);
+    if(raw) Object.assign(EXTENDED_STATS, JSON.parse(raw));
+  }catch(e){}
+})();
 
 // Cloudflare Worker relay — holds the Anthropic key for gear-screenshot OCR.
 const WORKER_URL = (localStorage.getItem("signupWorkerUrl")
@@ -465,6 +547,49 @@ const ROLE_LABELS = { shotcaller:"Shotcaller", defensive:"Defensive", flex:"Flex
 
 function kd(k,d){ return (k===0&&d===0) ? null : d===0 ? k : k/d; }
 function fmtKD(v){ return v===null ? "—" : v.toFixed(2); }
+function fmtRole(role){ return ROLE_LABELS[role] || "—"; }
+function fmtNum(v){
+  if (v >= 1000000) return (v/1000000).toFixed(1) + "M";
+  if (v >= 100000) return (v/1000).toFixed(1) + "K";
+  return String(v);
+}
+function fmtTime(seconds){
+  const m = Math.floor(seconds/60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+}
+
+// Columns for the War popup table — mirrors war-scores.html's EXTENDED_COLS
+// (minus "played"/Wars, which only makes sense for the Overall view).
+const WAR_MODAL_EXT_COLS = [
+  ["class","Class", v=>v||""],
+  ["name","Family", v=>v],
+  ["role","Role", fmtRole],
+  ["kills","Kills", v=>v],
+  ["deaths","Deaths", v=>v],
+  ["kd","K/D", fmtKD],
+  ["streak","Streak", v=>v],
+  ["dmgDone","Dmg Done", fmtNum],
+  ["dmgTaken","Dmg Taken", fmtNum],
+  ["cc","CC's", v=>v],
+  ["hpHealed","HP Healed", fmtNum],
+  ["allyHpHealed","Ally HP Healed", fmtNum],
+  ["fortDmg","Fort Dmg", fmtNum],
+  ["cannonsLanded","Cannons Landed", v=>v],
+  ["objDestroyed","Objects Destroyed", v=>v],
+  ["cannonDist","Cannon Dist", v=>v],
+  ["traps","Traps Triggered", v=>v],
+  ["timeDead","Time Dead", fmtTime],
+  ["timeAlive","Time Alive", fmtTime],
+];
+const WAR_MODAL_BASIC_COLS = [
+  ["class","Class", v=>v||""],
+  ["name","Family", v=>v],
+  ["role","Role", fmtRole],
+  ["kills","Kills", v=>v],
+  ["deaths","Deaths", v=>v],
+  ["kd","K/D", fmtKD],
+];
 
 function getParam(name){
   return new URLSearchParams(window.location.search).get(name);
@@ -551,7 +676,73 @@ function openLightbox(src){ lightboxImg.src=src; lightbox.classList.add("open");
 function closeLightbox(){ lightbox.classList.remove("open"); lightboxImg.src=""; }
 lightboxClose.addEventListener("click", closeLightbox);
 lightbox.addEventListener("click", e=>{ if(e.target===lightbox) closeLightbox(); });
-document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeLightbox(); });
+
+/* ---- War popup: click a War History row for that war's full scoreboard ---- */
+const warModal      = document.getElementById("warModal");
+const warModalClose = document.getElementById("warModalClose");
+
+function openWarModal(date){
+  const m = getAllMatches().find(x=>x.date===date);
+  if(!m) return;
+
+  const ext      = EXTENDED_STATS[date];
+  const roles    = loadRoles();
+  const profiles = loadProfiles();
+
+  let rows, cols;
+  if(ext){
+    cols = WAR_MODAL_EXT_COLS;
+    rows = ext.map(p=>{
+      const [name,kills,deaths,streak,dmgDone,dmgTaken,cc,hpHealed,allyHpHealed,fortDmg,cannonsLanded,objDestroyed,cannonDist,traps,timeDead,timeAlive] = p;
+      return {
+        name, kills, deaths, kd: kd(kills,deaths),
+        role: roles[name] || "", class: (profiles[name]||{}).class || "",
+        streak, dmgDone, dmgTaken, cc, hpHealed, allyHpHealed, fortDmg,
+        cannonsLanded, objDestroyed, cannonDist, traps, timeDead, timeAlive,
+      };
+    });
+  } else {
+    cols = WAR_MODAL_BASIC_COLS;
+    rows = m.players.map(([name,k,d])=>({
+      name, kills:k, deaths:d, kd: kd(k,d),
+      role: roles[name] || "", class: (profiles[name]||{}).class || "",
+    }));
+  }
+  rows.sort((a,b)=> (b.kd ?? -1) - (a.kd ?? -1));
+
+  const dt = new Date(m.date+"T00:00:00");
+  const dateStr = dt.toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+  const rc = m.result==="Victory" ? "victory" : "defeat";
+
+  document.getElementById("warModalTitle").textContent = dateStr;
+  document.getElementById("warModalMeta").innerHTML =
+    `<span class="result-pill ${rc}">${m.result}</span>` +
+    `<span>${m.location} · Node War${ext ? " · Extended Stats" : ""}</span>` +
+    `<a href="war-scores.html?war=${encodeURIComponent(m.date)}">Open on War Scores →</a>`;
+
+  document.getElementById("warModalHead").innerHTML = cols.map(([key,label])=>{
+    const cls = (key==="name"||key==="role"||key==="class") ? "" : "num";
+    return `<th class="${cls}">${label}</th>`;
+  }).join("");
+
+  document.getElementById("warModalBody").innerHTML = rows.map(r=>{
+    const cells = cols.map(([key,label,fmt])=>{
+      if(key==="class") return `<td class="td-class">${ClassIcons.img(r.class,{size:14})}${r.class||""}</td>`;
+      if(key==="name") return `<td>${r.name}</td>`;
+      if(key==="role") return `<td>${fmtRole(r.role)}</td>`;
+      const c = key==="kd" ? "num kd-cell" : "num";
+      return `<td class="${c}">${fmt(r[key])}</td>`;
+    }).join("");
+    return `<tr class="${r.name===playerName ? "is-you" : ""}">${cells}</tr>`;
+  }).join("");
+
+  warModal.classList.add("open");
+}
+function closeWarModal(){ warModal.classList.remove("open"); }
+warModalClose.addEventListener("click", closeWarModal);
+warModal.addEventListener("click", e=>{ if(e.target===warModal) closeWarModal(); });
+
+document.addEventListener("keydown", e=>{ if(e.key==="Escape"){ closeLightbox(); closeWarModal(); } });
 
 /* ================================================================
    MAIN RENDER
@@ -602,7 +793,7 @@ function init(){
       const flagCell = meta
         ? `<span class="flag-tag ${meta.cls}">${meta.icon} ${meta.label}</span>`
         : `<span class="flag-none">—</span>`;
-      return `<tr>
+      return `<tr class="war-row" data-date="${m.date}" title="Click for the full scoreboard">
         <td>${dateStr}</td>
         <td>${m.location}</td>
         <td><span class="result-pill ${rc}">${m.result}</span></td>
@@ -612,6 +803,9 @@ function init(){
         <td>${flagCell}</td>
       </tr>`;
     }).join("");
+    body.querySelectorAll("tr[data-date]").forEach(tr=>{
+      tr.addEventListener("click", ()=>openWarModal(tr.dataset.date));
+    });
   }
 }
 
