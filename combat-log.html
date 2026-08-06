@@ -202,6 +202,75 @@
 
   #resultsWrap{ display:none; }
   #resultsWrap.visible{ display:block; }
+
+  /* ---- Guild Breakdown ---- */
+  .guild-breakdown{ display:flex; flex-direction:column; gap:14px; }
+  .guild-card{
+    background:var(--panel); border:1px solid var(--hairline);
+    border-radius:12px; padding:18px 20px;
+    display:flex; flex-direction:column; gap:12px;
+  }
+  .guild-card.our-guild{
+    border-color:var(--crimson-bright);
+    background:linear-gradient(180deg, rgba(171,77,255,0.08), var(--panel) 65%);
+  }
+  .gc-top{ display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  .gc-name-block{ display:flex; align-items:baseline; gap:9px; }
+  .gc-name{ font-family:var(--font-display); font-weight:700; font-size:15px; letter-spacing:0.02em; }
+  .gc-count{ font-family:var(--font-mono); font-size:11px; color:var(--text-faint); }
+  .gc-kd{ font-family:var(--font-mono); font-weight:700; font-size:24px; text-align:right; line-height:1; color:var(--text); }
+  .gc-kd.our{ font-size:38px; color:var(--gold-bright); }
+  .gc-kd-label{ font-family:var(--font-mono); font-size:9px; letter-spacing:0.14em; text-transform:uppercase; color:var(--text-faint); text-align:right; margin-top:4px; }
+  .gc-stats-row{ display:flex; gap:26px; font-family:var(--font-mono); font-size:12px; color:var(--text-muted); flex-wrap:wrap; }
+  .gc-stats-row b{ font-size:15px; }
+  .gc-stats-row .green b{ color:var(--green-bright); }
+  .gc-stats-row .red b{ color:var(--red-bright); }
+  .gc-rate{ font-size:10px; color:var(--text-faint); }
+  .gc-leaders{ display:flex; gap:30px; flex-wrap:wrap; }
+  .gc-leaders-col{ display:flex; flex-direction:column; gap:4px; min-width:150px; }
+  .gc-leaders-title{ font-family:var(--font-mono); font-size:9px; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-faint); margin-bottom:2px; }
+  .gc-leader-row{ display:flex; align-items:center; gap:6px; font-family:var(--font-mono); font-size:12px; }
+  .gc-leader-rank{ color:var(--text-faint); width:12px; flex:none; }
+  .gc-leader-name{ flex:1; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .gc-leader-val.green{ color:var(--green-bright); }
+  .gc-leader-val.red{ color:var(--red-bright); }
+  .gc-bar{ height:6px; border-radius:999px; overflow:hidden; display:flex; background:var(--hairline-soft); }
+  .gc-bar-kills{ background:var(--green-bright); }
+  .gc-bar-deaths{ background:var(--red-bright); }
+  .gc-bar-caption{ display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:10px; color:var(--text-faint); }
+  .guild-list-more{
+    background:none; border:1px dashed var(--hairline); color:var(--text-muted);
+    font-family:var(--font-mono); font-size:11px; padding:10px; border-radius:8px;
+    cursor:pointer; width:100%; text-align:center; transition:all 0.14s ease;
+  }
+  .guild-list-more:hover{ border-color:var(--crimson); color:var(--text); }
+
+  /* ---- Live-feed Combat Log ---- */
+  .feed-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .feed-count{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-faint);
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    border-radius:999px; padding:2px 10px;
+  }
+  .feed-scroll{
+    max-height:480px; overflow-y:auto;
+    border:1px solid var(--hairline); border-radius:12px;
+    background:var(--panel);
+  }
+  .feed-row{
+    display:flex; align-items:center; gap:8px;
+    padding:6px 14px; font-size:12.5px;
+    border-bottom:1px solid var(--hairline-soft);
+    white-space:nowrap;
+  }
+  .feed-row:last-child{ border-bottom:none; }
+  .feed-row:hover{ background:rgba(255,255,255,0.02); }
+  .feed-time{ font-family:var(--font-mono); font-size:11px; color:var(--text-faint); width:60px; flex:none; }
+  .feed-killer{ color:var(--green-bright); font-weight:600; }
+  .feed-icon{ color:var(--red-bright); font-size:11px; flex:none; opacity:0.85; }
+  .feed-victim{ color:var(--red-bright); font-weight:600; }
+  .feed-char{ color:var(--text-faint); font-size:10.5px; margin:0 2px; }
+  .feed-guild{ margin-left:auto; font-family:var(--font-mono); font-size:10px; color:var(--text-faint); overflow:hidden; text-overflow:ellipsis; }
 </style>
 <link rel="stylesheet" href="app.css">
 </head>
@@ -303,15 +372,8 @@
   </div>
 
   <div class="section">
-    <div class="section-label">Kills / Deaths by Guild</div>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr><th>Guild</th><th>Kills</th><th>Deaths</th><th>K/D</th></tr>
-        </thead>
-        <tbody id="guildTableBody"></tbody>
-      </table>
-    </div>
+    <div class="section-label">Guild Breakdown</div>
+    <div class="guild-breakdown" id="guildBreakdown"></div>
   </div>
 
   <div class="section">
@@ -327,15 +389,11 @@
   </div>
 
   <div class="section">
-    <div class="section-label">Raw Event Log</div>
-    <div class="table-scroll">
-      <table>
-        <thead>
-          <tr><th>Time</th><th>Event</th><th>Guild</th></tr>
-        </thead>
-        <tbody id="eventTableBody"></tbody>
-      </table>
+    <div class="feed-head">
+      <div class="section-label" style="margin-bottom:0;">📡 Combat Log</div>
+      <span class="feed-count" id="feedCount">0</span>
     </div>
+    <div class="feed-scroll" id="feedList"></div>
   </div>
 
 </div>
@@ -358,6 +416,8 @@
      Worker's Cache-Control: no-cache means no cache-busting query param
      is needed either. -->
 <script src="https://purge-signups.itzdjpsycho.workers.dev/data.js"></script>
+<script src="https://purge-signups.itzdjpsycho.workers.dev/profiles.js"></script>
+<script src="class-icons.js"></script>
 <script>
 /* ================================================================
    COMBAT LOG PARSER — standalone, client-side only. Recognizes two
@@ -426,16 +486,22 @@ function aggregate(events){
 /* Guild is always attached to the second-named player in the raw line
    (see LOG_LINE_RE comment above), so isKillPhrasing tells us which side
    of the event that guild-tagged player was on: victim (a kill against
-   that guild) or killer (a death to that guild). */
+   that guild) or killer (a death to that guild). That same tagged name is
+   also tracked per-guild (row.players) — a lightweight per-guild
+   leaderboard, since the log never carries class info for anyone outside
+   our own roster, only names + guild tags. */
 function aggregateByGuild(events){
   const map = new Map();
   const ensure = guild=>{
-    if(!map.has(guild)) map.set(guild, { guild, kills:0, deaths:0 });
+    if(!map.has(guild)) map.set(guild, { guild, kills:0, deaths:0, players:new Map() });
     return map.get(guild);
   };
   events.forEach(e=>{
     const row = ensure(e.guild);
-    if(e.isKillPhrasing) row.kills++; else row.deaths++;
+    const taggedName = e.isKillPhrasing ? e.victim : e.killer;
+    if(!row.players.has(taggedName)) row.players.set(taggedName, { name:taggedName, kills:0, deaths:0 });
+    const pr = row.players.get(taggedName);
+    if(e.isKillPhrasing){ row.kills++; pr.deaths++; } else { row.deaths++; pr.kills++; }
   });
   return [...map.values()].sort((a,b)=> (b.kills+b.deaths) - (a.kills+a.deaths));
 }
@@ -477,6 +543,7 @@ let currentEvents = [];
 
 function renderResults(events, skipped, fileName){
   rawEvents = events;
+  guildListExpanded = false;
 
   document.getElementById("emptyState").style.display = events.length ? "none" : "block";
   document.getElementById("resultsWrap").classList.toggle("visible", events.length > 0);
@@ -529,15 +596,7 @@ function renderFilteredViews(){
     <div class="stat-cell accent-gold"><div class="stat-val gold">${events[0].time}–${events[events.length-1].time}</div><div class="stat-label">Time Span</div></div>
   ` : `<div class="stat-cell" style="grid-column:1/-1;"><div class="stat-label">No matching events</div></div>`;
 
-  const guildAgg = aggregateByGuild(events);
-  document.getElementById("guildTableBody").innerHTML = guildAgg.map(r=>`
-    <tr>
-      <td>${r.guild}</td>
-      <td class="kills">${r.kills}</td>
-      <td class="deaths">${r.deaths}</td>
-      <td class="kd">${fmtKD(r.kills, r.deaths)}</td>
-    </tr>
-  `).join("") || `<tr><td colspan="4" class="mono">No matching events.</td></tr>`;
+  renderGuildBreakdown(events, totalKills, totalDeaths);
 
   const agg = aggregate(events);
   document.getElementById("aggTableBody").innerHTML = agg.map(r=>`
@@ -549,17 +608,128 @@ function renderFilteredViews(){
     </tr>
   `).join("") || `<tr><td colspan="4" class="mono">No matching players.</td></tr>`;
 
-  document.getElementById("eventTableBody").innerHTML = events.map(e=>`
-    <tr>
-      <td class="mono">${e.time}</td>
-      <td>
-        <span class="event-kill">${e.killer}</span>${e.killerChar ? ` <span class="char-tag">(${e.killerChar})</span>` : ""}
-        killed
-        <span class="event-death">${e.victim}</span>${e.victimChar ? ` <span class="char-tag">(${e.victimChar})</span>` : ""}
-      </td>
-      <td class="mono">${e.guild}</td>
-    </tr>
-  `).join("") || `<tr><td colspan="3" class="mono">No matching events.</td></tr>`;
+  renderFeed(events);
+}
+
+/* ---- Guild Breakdown: a hero card for our own roster (the only side we
+   have class data for, via profiles.js) plus a card per opposing guild
+   built from aggregateByGuild()'s totals + its lightweight per-guild
+   player map. Long guild lists collapse behind a "show more" button. ---- */
+let guildListExpanded = false;
+
+function durationMinutes(events){
+  if(events.length < 2) return 0;
+  const diff = timeToSeconds(events[events.length-1].time) - timeToSeconds(events[0].time);
+  return diff > 0 ? diff / 60 : 0;
+}
+
+function classIconFor(name){
+  const profiles = window.GUILD_PROFILES || {};
+  const cls = profiles[name] && profiles[name].class;
+  return cls && window.ClassIcons ? ClassIcons.img(cls, {size:13}) : "";
+}
+
+function barHtml(kills, deaths){
+  return `
+    <div class="gc-bar">
+      <div class="gc-bar-kills" style="flex:${kills || 0.0001}"></div>
+      <div class="gc-bar-deaths" style="flex:${deaths || 0.0001}"></div>
+    </div>
+    <div class="gc-bar-caption"><span>${kills} kills</span><span>${deaths} deaths</span></div>
+  `;
+}
+
+function leaderColHtml(title, rows, valClass){
+  if(!rows.length) return "";
+  return `
+    <div class="gc-leaders-col">
+      <div class="gc-leaders-title">${title}</div>
+      ${rows.map((r,i)=>`
+        <div class="gc-leader-row">
+          <span class="gc-leader-rank">${i+1}</span>
+          ${classIconFor(r.name)}
+          <span class="gc-leader-name">${r.name}</span>
+          <span class="gc-leader-val ${valClass}">${valClass==="green" ? r.kills : r.deaths}</span>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderGuildBreakdown(events, totalKills, totalDeaths){
+  const container = document.getElementById("guildBreakdown");
+  if(!events.length){ container.innerHTML = ""; return; }
+
+  const durMin = durationMinutes(events);
+  const ourPlayers = aggregate(events).filter(r=>ROSTER_SET.has(r.name));
+  const topKillers = [...ourPlayers].sort((a,b)=>b.kills-a.kills).filter(r=>r.kills>0).slice(0,3);
+  const topDeaths  = [...ourPlayers].sort((a,b)=>b.deaths-a.deaths).filter(r=>r.deaths>0).slice(0,3);
+
+  const ourCard = `
+    <div class="guild-card our-guild">
+      <div class="gc-top">
+        <div class="gc-name-block">
+          <span class="gc-name">🏳 OUR GUILD</span>
+          <span class="gc-count">${ourPlayers.length} seen</span>
+        </div>
+        <div>
+          <div class="gc-kd our">${fmtKD(totalKills, totalDeaths)}</div>
+          <div class="gc-kd-label">K/D Ratio</div>
+        </div>
+      </div>
+      <div class="gc-stats-row">
+        <span class="green">Kills <b>${totalKills}</b>${durMin ? ` <span class="gc-rate">(${(totalKills/durMin).toFixed(1)}/min)</span>` : ""}</span>
+        <span class="red">Deaths <b>${totalDeaths}</b>${durMin ? ` <span class="gc-rate">(${(totalDeaths/durMin).toFixed(1)}/min)</span>` : ""}</span>
+      </div>
+      ${(topKillers.length || topDeaths.length) ? `
+      <div class="gc-leaders">
+        ${leaderColHtml("Top Killers", topKillers, "green")}
+        ${leaderColHtml("Most Deaths", topDeaths, "red")}
+      </div>` : ""}
+      ${barHtml(totalKills, totalDeaths)}
+    </div>
+  `;
+
+  const guildAgg = aggregateByGuild(events);
+  const SHOWN = 6;
+  const shown = guildListExpanded ? guildAgg : guildAgg.slice(0, SHOWN);
+  const remaining = guildAgg.length - shown.length;
+
+  const enemyCards = shown.map(g => `
+    <div class="guild-card">
+      <div class="gc-top">
+        <div class="gc-name-block">
+          <span class="gc-name">${g.guild}</span>
+          <span class="gc-count">${g.players.size} seen</span>
+        </div>
+        <div>
+          <div class="gc-kd">${fmtKD(g.kills, g.deaths)}</div>
+          <div class="gc-kd-label">K/D Ratio</div>
+        </div>
+      </div>
+      ${barHtml(g.kills, g.deaths)}
+    </div>
+  `).join("");
+
+  container.innerHTML = ourCard + enemyCards +
+    (remaining > 0 ? `<button class="guild-list-more" id="guildListMoreBtn">Show ${remaining} more guild${remaining===1?"":"s"}</button>` : "");
+
+  const moreBtn = document.getElementById("guildListMoreBtn");
+  if(moreBtn) moreBtn.addEventListener("click", ()=>{ guildListExpanded = true; renderGuildBreakdown(events, totalKills, totalDeaths); });
+}
+
+/* ---- Live-feed Combat Log: newest first, tight rows. ---- */
+function renderFeed(events){
+  document.getElementById("feedCount").textContent = events.length;
+  document.getElementById("feedList").innerHTML = [...events].reverse().map(e=>`
+    <div class="feed-row">
+      <span class="feed-time">${e.time}</span>
+      <span class="feed-killer">${e.killer}</span>${e.killerChar ? `<span class="feed-char">(${e.killerChar})</span>` : ""}
+      <span class="feed-icon" title="killed">⚔</span>
+      <span class="feed-victim">${e.victim}</span>${e.victimChar ? `<span class="feed-char">(${e.victimChar})</span>` : ""}
+      <span class="feed-guild">${e.guild}</span>
+    </div>
+  `).join("") || `<div class="empty-state">No matching events.</div>`;
 }
 
 document.getElementById("playerSearch").addEventListener("input", renderFilteredViews);
