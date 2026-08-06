@@ -43,6 +43,12 @@
 //                                           either a YouTube link or a direct Discord CDN attachment link
 //   DELETE /clips/:id (officer or poster)──►  delete a clip
 //
+// ---- Combat Log (D1-backed: combat_logs) ----
+//   GET  /combat-logs (public)───────►  list every saved log (no events_json — see /combat-logs/:id)
+//   POST /combat-logs (any signed-in member)──►  save a parsed log {title, warDate?, events}
+//   GET  /combat-logs/:id (public)───►  one saved log incl. its full events array
+//   DELETE /combat-logs/:id (officer or poster)──►  delete a saved log
+//
 // Secrets (wrangler secret put): DISCORD_BOT_TOKEN, ADMIN_POST_PASSWORD, BOT_PUSH_SECRET,
 //   DISCORD_CLIENT_SECRET, SESSION_SECRET (signs the login token — any long random string).
 // Vars: DISCORD_CLIENT_ID, GUILD_ID (checked at login — see auth.js isGuildMember; NOT a secret).
@@ -52,7 +58,7 @@
 //   "navOrder" (sidebar link order, see /nav-order),
 //   "ops" (sign-up board edits), "mergeops" (pending Discord-link renames after a merge — see /merge).
 // D1 binding: DB ("purge-guild-db").  Tables: matches, extended_stats, roster_members, profiles,
-//   attendance, vods, vod_notes, clips (see worker/schema.sql).
+//   attendance, vods, vod_notes, clips, combat_logs (see worker/schema.sql).
 
 import { postMessage, patchMessage } from "./discord.js";
 import { readGearStats } from "./gear.js";
@@ -87,6 +93,11 @@ import {
   createClip,
   deleteClip,
   discordVideoUrlFromUrl,
+  listCombatLogs,
+  getCombatLog,
+  getCombatLogOwner,
+  createCombatLog,
+  deleteCombatLog,
 } from "./data.js";
 import { BDO_CLASSES } from "./constants.js";
 import {
@@ -904,6 +915,61 @@ export default {
         return json({ error: "Not signed in as an officer or as the poster." }, 401, request);
       }
       return json(await deleteClip(env, clipMatch[1]), 200, request);
+    }
+
+    // ---- Combat Log: a member saves a parsed log (combat-log.html parses ----
+    // ---- the .log file client-side, this just persists the result) so it's
+    // ---- browsable later without re-uploading, optionally linked to a war.
+    // ---- Same public-read / signed-in-post / officer-or-poster-delete shape
+    // ---- as Clips. ----
+    const MAX_COMBAT_LOG_EVENTS = 20000; // generous headroom over a real war's event count (see combat-log.html)
+
+    if (path === "/combat-logs" && method === "GET") {
+      return json({ logs: await listCombatLogs(env) }, 200, request);
+    }
+
+    if (path === "/combat-logs" && method === "POST") {
+      const session = await sessionFor(request, env);
+      if (!session) return json({ error: "Sign in with Discord to save a combat log." }, 401, request);
+      const body = await readJson(request);
+      const title = String(body?.title || "").trim().slice(0, 200);
+      if (!title) return json({ error: "title required." }, 400, request);
+      if (!Array.isArray(body?.events) || !body.events.length) {
+        return json({ error: "events (non-empty array) required." }, 400, request);
+      }
+      if (body.events.length > MAX_COMBAT_LOG_EVENTS) {
+        return json({ error: `Too many events to save at once (max ${MAX_COMBAT_LOG_EVENTS.toLocaleString()}).` }, 400, request);
+      }
+      let warDate = body?.warDate ? String(body.warDate) : null;
+      if (warDate) {
+        const match = await env.DB.prepare("SELECT date FROM matches WHERE date = ?").bind(warDate).first();
+        if (!match) return json({ error: `No war found for date ${warDate}.` }, 400, request);
+      }
+      const log = await createCombatLog(env, {
+        title,
+        warDate,
+        events: body.events,
+        authorName: session.familyName || session.username,
+        authorDiscordId: session.discordId,
+      });
+      return json({ log }, 200, request);
+    }
+
+    const combatLogMatch = path.match(/^\/combat-logs\/([^/]+)$/);
+    if (combatLogMatch && method === "GET") {
+      const log = await getCombatLog(env, combatLogMatch[1]);
+      if (!log) return json({ error: "Combat log not found." }, 404, request);
+      return json({ log }, 200, request);
+    }
+    if (combatLogMatch && method === "DELETE") {
+      const ownerId = await getCombatLogOwner(env, combatLogMatch[1]);
+      if (ownerId === null) return json({ error: "Combat log not found." }, 404, request);
+      const session = await sessionFor(request, env);
+      const isOwner = Boolean(session) && session.discordId === ownerId;
+      if (!isOwner && !(await isAdminRequest(request, env))) {
+        return json({ error: "Not signed in as an officer or as the uploader." }, 401, request);
+      }
+      return json(await deleteCombatLog(env, combatLogMatch[1]), 200, request);
     }
 
     return json({ error: "Not found." }, 404, request);

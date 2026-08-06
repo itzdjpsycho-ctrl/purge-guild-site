@@ -83,3 +83,21 @@ CREATE TABLE IF NOT EXISTS clips (
   added_by_discord_id TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
+
+-- Combat Log: a member can save a parsed/deduped log upload to the site so
+-- it's browsable later without re-uploading the file, optionally linked to
+-- a war (matches.date) so it surfaces alongside that war's record. Stores
+-- the PARSED events (not the raw .log text) — combat-log.html never
+-- renders anything else, and it's far smaller than the raw export. See
+-- combat-log.html + the /combat-logs routes in worker/src/worker.js.
+CREATE TABLE IF NOT EXISTS combat_logs (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  war_date TEXT,                   -- nullable: matches.date this log is linked to
+  events_json TEXT NOT NULL,       -- [{time,killer,victim,killerChar,victimChar,guild,isKillPhrasing}, ...]
+  event_count INTEGER NOT NULL,    -- denormalized so the list view doesn't need to parse events_json
+  added_by_name TEXT NOT NULL,
+  added_by_discord_id TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_combat_logs_war_date ON combat_logs(war_date);

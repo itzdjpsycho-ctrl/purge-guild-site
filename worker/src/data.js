@@ -525,3 +525,63 @@ export async function deleteClip(env, id) {
   await env.DB.prepare("DELETE FROM clips WHERE id = ?").bind(id).run();
   return { removed: true };
 }
+
+// ---- Combat Log: a member saves a parsed/deduped log to the site so it's
+// browsable later without re-uploading the file, optionally linked to a
+// war. See combat-log.html + the /combat-logs routes. ----
+
+/** List view — everything except events_json, which can be large; fetch a
+ *  single log (getCombatLog) to get the actual events for viewing. */
+export async function listCombatLogs(env) {
+  const { results } = await env.DB.prepare(
+    "SELECT id, title, war_date, event_count, added_by_name, added_by_discord_id, created_at FROM combat_logs ORDER BY created_at DESC"
+  ).all();
+  return results.map((r) => ({
+    id: r.id,
+    title: r.title,
+    warDate: r.war_date || null,
+    eventCount: r.event_count,
+    addedBy: r.added_by_name,
+    addedByDiscordId: r.added_by_discord_id,
+    createdAt: r.created_at,
+  }));
+}
+
+export async function getCombatLog(env, id) {
+  const row = await env.DB.prepare(
+    "SELECT id, title, war_date, events_json, event_count, added_by_name, added_by_discord_id, created_at FROM combat_logs WHERE id = ?"
+  ).bind(id).first();
+  if (!row) return null;
+  return {
+    id: row.id,
+    title: row.title,
+    warDate: row.war_date || null,
+    events: JSON.parse(row.events_json),
+    eventCount: row.event_count,
+    addedBy: row.added_by_name,
+    addedByDiscordId: row.added_by_discord_id,
+    createdAt: row.created_at,
+  };
+}
+
+/** Discord id of the log's uploader, or null if it doesn't exist — used for delete-permission checks before touching anything. */
+export async function getCombatLogOwner(env, id) {
+  const row = await env.DB.prepare("SELECT added_by_discord_id FROM combat_logs WHERE id = ?").bind(id).first();
+  return row ? row.added_by_discord_id : null;
+}
+
+export async function createCombatLog(env, { title, warDate, events, authorName, authorDiscordId }) {
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+  await env.DB.prepare(
+    "INSERT INTO combat_logs (id, title, war_date, events_json, event_count, added_by_name, added_by_discord_id, created_at) VALUES (?,?,?,?,?,?,?,?)"
+  )
+    .bind(id, title, warDate || null, JSON.stringify(events), events.length, authorName, authorDiscordId, createdAt)
+    .run();
+  return { id, title, warDate: warDate || null, eventCount: events.length, addedBy: authorName, createdAt };
+}
+
+export async function deleteCombatLog(env, id) {
+  await env.DB.prepare("DELETE FROM combat_logs WHERE id = ?").bind(id).run();
+  return { removed: true };
+}

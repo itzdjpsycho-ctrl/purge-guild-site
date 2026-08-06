@@ -271,6 +271,63 @@
   .feed-victim{ color:var(--red-bright); font-weight:600; }
   .feed-char{ color:var(--text-faint); font-size:10.5px; margin:0 2px; }
   .feed-guild{ margin-left:auto; font-family:var(--font-mono); font-size:10px; color:var(--text-faint); overflow:hidden; text-overflow:ellipsis; }
+
+  /* ---- Saved Combat Logs ---- */
+  .saved-logs-list{ display:flex; flex-direction:column; gap:8px; }
+  .saved-log-row{
+    display:flex; align-items:center; gap:14px;
+    padding:12px 16px; border-radius:10px;
+    border:1px solid var(--hairline); background:var(--panel);
+  }
+  .saved-log-title{ font-family:var(--font-display); font-weight:600; font-size:13.5px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .saved-log-meta{ font-family:var(--font-mono); font-size:11px; color:var(--text-faint); white-space:nowrap; }
+  .saved-log-war-link{ font-family:var(--font-mono); font-size:11px; color:var(--crimson-glow); text-decoration:none; white-space:nowrap; }
+  .saved-log-war-link:hover{ text-decoration:underline; }
+  .saved-log-actions{ display:flex; gap:8px; flex:none; }
+  .saved-log-btn{
+    background:none; border:1px solid var(--hairline); color:var(--text-muted);
+    font-family:var(--font-mono); font-size:11px; padding:6px 12px; border-radius:999px;
+    cursor:pointer; transition:all 0.14s ease; white-space:nowrap;
+  }
+  .saved-log-btn:hover{ border-color:var(--crimson); color:var(--text); }
+  .saved-log-btn.danger:hover{ border-color:var(--red-bright); color:var(--red-bright); }
+
+  /* ---- Save-to-website panel ---- */
+  .save-panel{
+    display:flex; align-items:flex-end; gap:12px; flex-wrap:wrap;
+    padding:16px 18px; border-radius:10px;
+    border:1px solid var(--hairline); background:var(--panel);
+  }
+  .save-field{ display:flex; flex-direction:column; gap:5px; flex:1; min-width:180px; }
+  .save-field label{ font-family:var(--font-mono); font-size:9px; letter-spacing:0.1em; text-transform:uppercase; color:var(--text-faint); }
+  .save-field input, .save-field select{
+    background:var(--panel-raised); border:1px solid var(--hairline); border-radius:8px;
+    color:var(--text); font-family:var(--font-mono); font-size:12px; padding:8px 12px;
+    outline:none;
+  }
+  .save-field input:focus, .save-field select:focus{ border-color:var(--crimson); }
+  .save-btn{
+    background:var(--crimson-bright); border:1px solid var(--crimson-bright); color:#fff;
+    font-family:var(--font-mono); font-size:12px; font-weight:600; letter-spacing:0.03em;
+    padding:9px 20px; border-radius:8px; cursor:pointer; transition:all 0.14s ease; flex:none;
+  }
+  .save-btn:hover{ filter:brightness(1.1); }
+  .save-btn:disabled{ opacity:0.5; cursor:not-allowed; }
+  .save-signin-hint{ font-family:var(--font-mono); font-size:12px; color:var(--text-faint); padding:14px 0; }
+
+  /* Toast */
+  .toast{
+    position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    border-radius:10px; padding:11px 20px;
+    font-family:var(--font-mono); font-size:12px; color:var(--text-muted);
+    box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    opacity:0; transition:opacity 0.22s ease, transform 0.22s ease;
+    pointer-events:none; z-index:200; white-space:nowrap;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .toast.success{ color:var(--green-bright); border-color:rgba(91,201,118,0.3); }
+  .toast.error{ color:var(--red-bright); }
 </style>
 <link rel="stylesheet" href="app.css">
 </head>
@@ -333,6 +390,13 @@
 </div>
 
 <div class="section">
+  <div class="section-label">Saved Combat Logs</div>
+  <div class="saved-logs-list" id="savedLogsList">
+    <div class="empty-state">Loading…</div>
+  </div>
+</div>
+
+<div class="section">
   <div class="section-label">Load a Log File</div>
   <div class="drop-zone" id="dropZone">
     <div class="drop-zone-icon">📜</div>
@@ -355,6 +419,24 @@
       <span class="dedup-hint">(same kill logged twice within ~15s — a known packet-logger artifact)</span>
     </label>
     <span class="dedup-count" id="dedupCount"></span>
+  </div>
+
+  <div class="section">
+    <div class="section-label">Save to Website</div>
+    <div class="save-panel" id="savePanel" style="display:none;">
+      <div class="save-field">
+        <label>Title</label>
+        <input type="text" id="saveTitleInput" placeholder="e.g. Calpheon 08/06 — Popspolar POV">
+      </div>
+      <div class="save-field">
+        <label>Link to a War (optional)</label>
+        <select id="warLinkSelect">
+          <option value="">— No war linked —</option>
+        </select>
+      </div>
+      <button class="save-btn" id="saveLogBtn" type="button">💾 Save to Website</button>
+    </div>
+    <div class="save-signin-hint" id="saveSigninHint" style="display:none;">Sign in with Discord to save logs to the website.</div>
   </div>
 
   <div class="section">
@@ -403,11 +485,13 @@
 </div>
 
 </main>
+<div class="toast" id="toast"></div>
 </div><!-- /app-shell -->
 
 <script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
 <script src="assets/nav-order.js"></script>
-<script>PurgeAuth.init().then(function(state){ PurgeNavOrder.enableIfGuildMaster(state); });</script>
+<script>window.purgeAuthReady = PurgeAuth.init();
+purgeAuthReady.then(function(state){ PurgeNavOrder.enableIfGuildMaster(state); onAuthReady(state); });</script>
 <!-- Canonical guild data now lives in D1, served by the Worker directly as
      literal JS (byte-shape-identical to the old committed data.js). A plain
      script tag, not document.write — Chrome silently blocks/aborts
@@ -443,6 +527,22 @@ const LOG_LINE_RE = /^\[(\d{1,2}:\d{2}:\d{2})\]\s+(\S+)\s+(has killed|died to)\s
 
 let ROSTER_SET = new Set();
 try{ ROSTER_SET = new Set((window.GUILD_DATA && window.GUILD_DATA.rosterMembers) || []); }catch(e){}
+
+const WORKER_URL = (localStorage.getItem("signupWorkerUrl")
+  || "https://purge-signups.itzdjpsycho.workers.dev").replace(/\/+$/, "");
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+let toastTimer;
+function showToast(msg, type=""){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = "toast show " + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove("show"), 3000);
+}
 
 function parseIkusaLog(text){
   const events = [];
@@ -732,6 +832,153 @@ function renderFeed(events){
   `).join("") || `<div class="empty-state">No matching events.</div>`;
 }
 
+/* ================================================================
+   SAVE TO WEBSITE / SAVED COMBAT LOGS — persists the parsed+deduped
+   events (not the raw file) to the Worker's D1-backed /combat-logs, so a
+   log can be browsed later without re-uploading, optionally linked to a
+   war. Any signed-in member can save; officer or the original uploader
+   can delete. See worker/src/data.js + worker/schema.sql combat_logs.
+================================================================ */
+function onAuthReady(state){
+  const panel = document.getElementById("savePanel");
+  const hint = document.getElementById("saveSigninHint");
+  const loggedIn = Boolean(state && state.loggedIn);
+  panel.style.display = loggedIn ? "" : "none";
+  hint.style.display = loggedIn ? "none" : "";
+}
+
+function populateWarLinkOptions(){
+  const select = document.getElementById("warLinkSelect");
+  const matches = ((window.GUILD_DATA && window.GUILD_DATA.matches) || [])
+    .slice()
+    .sort((a,b)=> b.date.localeCompare(a.date));
+  select.innerHTML = `<option value="">— No war linked —</option>` +
+    matches.map(m => `<option value="${m.date}">${m.date} — ${escapeHtml(m.location)} (${m.result})</option>`).join("");
+}
+
+function fmtRelativeShort(iso){
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.round(diffMs / 60000);
+  if(mins < 1) return "just now";
+  if(mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins / 60);
+  if(hrs < 24) return `${hrs}h ago`;
+  return `${Math.round(hrs / 24)}d ago`;
+}
+
+async function loadSavedLogs(){
+  const container = document.getElementById("savedLogsList");
+  try{
+    const res = await fetch(`${WORKER_URL}/combat-logs`);
+    const data = await res.json();
+    renderSavedLogsList(data.logs || []);
+  }catch(e){
+    container.innerHTML = `<div class="empty-state">Couldn't reach the relay — saved logs unavailable right now.</div>`;
+  }
+}
+
+function renderSavedLogsList(logs){
+  const container = document.getElementById("savedLogsList");
+  if(!logs.length){
+    container.innerHTML = `<div class="empty-state">No combat logs saved yet — parse a file below, then "Save to Website".</div>`;
+    return;
+  }
+  const me = (window.PurgeAuth && window.PurgeAuth.state) || {};
+  container.innerHTML = logs.map(log => {
+    const canDelete = me.isAdmin || (me.discordId && me.discordId === log.addedByDiscordId);
+    return `
+    <div class="saved-log-row" data-id="${log.id}">
+      <span class="saved-log-title" title="${escapeHtml(log.title)}">${escapeHtml(log.title)}</span>
+      ${log.warDate ? `<a class="saved-log-war-link" href="war-scores.html?war=${encodeURIComponent(log.warDate)}">🔗 ${log.warDate}</a>` : ""}
+      <span class="saved-log-meta">${log.eventCount.toLocaleString()} events · ${escapeHtml(log.addedBy)} · ${fmtRelativeShort(log.createdAt)}</span>
+      <div class="saved-log-actions">
+        <button class="saved-log-btn" data-action="view" data-id="${log.id}">View</button>
+        ${canDelete ? `<button class="saved-log-btn danger" data-action="delete" data-id="${log.id}">Delete</button>` : ""}
+      </div>
+    </div>
+  `;
+  }).join("");
+
+  container.querySelectorAll('[data-action="view"]').forEach(btn=>{
+    btn.addEventListener("click", ()=>viewSavedLog(btn.dataset.id));
+  });
+  container.querySelectorAll('[data-action="delete"]').forEach(btn=>{
+    btn.addEventListener("click", ()=>deleteSavedLog(btn.dataset.id, btn));
+  });
+}
+
+async function viewSavedLog(id){
+  try{
+    const res = await fetch(`${WORKER_URL}/combat-logs/${encodeURIComponent(id)}`);
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    renderResults(data.log.events, 0, `Saved: ${data.log.title}`);
+    document.getElementById("saveTitleInput").value = data.log.title;
+    document.getElementById("warLinkSelect").value = data.log.warDate || "";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }catch(e){
+    showToast(`Couldn't load that log — ${e.message}`, "error");
+  }
+}
+
+async function deleteSavedLog(id, btn){
+  if(btn.dataset.confirming !== "1"){
+    btn.dataset.confirming = "1";
+    btn.textContent = "Confirm?";
+    setTimeout(()=>{ btn.dataset.confirming = ""; btn.textContent = "Delete"; }, 3000);
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = "Deleting…";
+  try{
+    const res = await fetch(`${WORKER_URL}/combat-logs/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+      headers: { ...PurgeAuth.headers() },
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    showToast("Combat log deleted", "success");
+    loadSavedLogs();
+  }catch(e){
+    btn.disabled = false;
+    btn.textContent = "Delete";
+    showToast(`Couldn't delete — ${e.message}`, "error");
+  }
+}
+
+async function saveCurrentLog(){
+  const btn = document.getElementById("saveLogBtn");
+  const titleInput = document.getElementById("saveTitleInput");
+  const title = titleInput.value.trim() || document.getElementById("loadedFileName").textContent || "Untitled Combat Log";
+  const warDate = document.getElementById("warLinkSelect").value || null;
+
+  if(!currentEvents.length){ showToast("Nothing to save yet — load a log file first.", "error"); return; }
+
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+  try{
+    const res = await fetch(`${WORKER_URL}/combat-logs`, {
+      method: "POST",
+      headers: { "content-type":"application/json", ...PurgeAuth.headers() },
+      body: JSON.stringify({ title, warDate, events: currentEvents }),
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    showToast(`Saved "${data.log.title}" to the website`, "success");
+    loadSavedLogs();
+  }catch(e){
+    showToast(`Couldn't save — ${e.message}`, "error");
+  }finally{
+    btn.disabled = false;
+    btn.textContent = "💾 Save to Website";
+  }
+}
+
+document.getElementById("saveLogBtn").addEventListener("click", saveCurrentLog);
+
+populateWarLinkOptions();
+loadSavedLogs();
+
 document.getElementById("playerSearch").addEventListener("input", renderFilteredViews);
 document.getElementById("dedupToggle").addEventListener("change", ()=>{ if(rawEvents.length) updateView(); });
 
@@ -768,6 +1015,8 @@ document.getElementById("resetBtn").addEventListener("click", ()=>{
   currentEvents = [];
   fileInput.value = "";
   document.getElementById("playerSearch").value = "";
+  document.getElementById("saveTitleInput").value = "";
+  document.getElementById("warLinkSelect").value = "";
   document.getElementById("loadedFileBar").classList.remove("visible");
   document.getElementById("resultsWrap").classList.remove("visible");
   document.getElementById("emptyState").style.display = "block";
