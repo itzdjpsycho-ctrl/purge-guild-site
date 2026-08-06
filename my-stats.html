@@ -171,6 +171,17 @@
   .not-linked-panel{ max-width:560px; }
   .not-linked-panel p{ color:var(--text-muted); line-height:1.7; font-size:14px; }
 
+  .officer-view-banner{
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+    background:rgba(139,47,217,0.1); border:1px solid var(--crimson);
+    color:var(--text-muted); border-radius:8px;
+    padding:10px 16px; margin:-8px 0 24px;
+    font-family:var(--font-mono); font-size:12px;
+  }
+  .officer-view-banner b{ color:var(--crimson-glow); }
+  .officer-view-banner a{ color:var(--crimson-glow); text-decoration:none; margin-left:auto; }
+  .officer-view-banner a:hover{ text-decoration:underline; }
+
   /* ---- Composed Identity ---- */
   .identity-panel{
     display:grid; grid-template-columns:220px 1fr 260px; gap:28px; align-items:center;
@@ -261,6 +272,11 @@
   <div class="page-eyebrow">Personal Dashboard</div>
   <h1>My <span>Stats</span></h1>
   <div class="page-sub" id="statsSubtitle">Loading…</div>
+</div>
+
+<div class="officer-view-banner" id="officerViewBanner" style="display:none;">
+  <span>🔎</span> Viewing <b id="officerViewName"></b>'s dashboard as an officer — this isn't your own stats.
+  <a href="players.html">← Back to Roster</a>
 </div>
 
 <div id="statsRoot">
@@ -762,17 +778,32 @@ function renderComposedIdentity(data){
 }
 
 /* ================================================================
-   IDENTITY — self only, via Discord OAuth (no ?name= override)
+   IDENTITY — self only via Discord OAuth, EXCEPT an officer may pass
+   ?name=<player> (e.g. the Roster's "View My Stats" button) to inspect
+   anyone else's dashboard. Non-officers requesting ?name= are silently
+   sent back to their own — this is not a general-purpose ?name= page
+   like player.html.
 ================================================================ */
 PurgeAuth.init().then(state=>{
   if(!state.loggedIn) return; // guardPage() already redirects to index.html
-  if(!state.familyName){
+
+  const requestedName = new URLSearchParams(location.search).get("name");
+  const viewingOther = Boolean(requestedName && state.isAdmin);
+  const targetName = viewingOther ? requestedName : state.familyName;
+
+  if(!targetName){
     document.getElementById("statsSubtitle").textContent = "Account not linked.";
     document.getElementById("notLinkedPanel").style.display = "block";
     return;
   }
+
+  if(viewingOther){
+    document.getElementById("officerViewName").textContent = targetName;
+    document.getElementById("officerViewBanner").style.display = "flex";
+  }
+
   document.getElementById("statsColumns").style.display = "grid";
-  buildPage(state.familyName);
+  buildPage(targetName);
 });
 
 function buildPage(playerName){

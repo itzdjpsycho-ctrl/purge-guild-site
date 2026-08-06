@@ -272,6 +272,16 @@
   .card-role-select.role-flex{ color:var(--gold-bright); border-color:rgba(240,195,107,0.5); }
   .card-role-select.role-mainball{ color:var(--cyan-bright); border-color:rgba(155,144,242,0.5); }
 
+  .card-mystats-row{ margin-top:10px; }
+  .card-mystats-btn{
+    width:100%;
+    background:var(--panel-raised); border:1px solid var(--hairline);
+    color:var(--text-muted); font-family:var(--font-mono); font-size:11px;
+    letter-spacing:0.04em; padding:7px 10px; border-radius:6px;
+    cursor:pointer; transition:all 0.14s ease;
+  }
+  .card-mystats-btn:hover{ border-color:var(--crimson); color:var(--crimson-glow); }
+
   .empty-state{
     text-align:center; padding:80px 20px;
     color:var(--text-faint); font-family:var(--font-mono); font-size:13px;
@@ -806,12 +816,29 @@ function render(){
               <option value="flex" ${role==="flex"?"selected":""}>Flex Squad</option>
             </select>
           </div>
+          ${authState.isAdmin ? `
+          <div class="card-mystats-row">
+            <button class="card-mystats-btn" type="button" data-player="${r.name}">📊 View My Stats</button>
+          </div>` : ""}
         </div>
       </a>
     `;
   }).join("");
   wireFlagToggles();
+  wireMyStatsButtons();
   applyCompareVisualState();
+}
+
+/* ---- Officer-only: jump to a player's My Stats page (self-only page otherwise —
+   my-stats.html accepts ?name= from an officer session, see its PurgeAuth.init()). ---- */
+function wireMyStatsButtons(){
+  document.querySelectorAll(".card-mystats-btn").forEach(btn=>{
+    btn.addEventListener("click", e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      window.location.href = `my-stats.html?name=${encodeURIComponent(btn.dataset.player)}`;
+    });
+  });
 }
 
 /* ---- Exception / Vacation toggles: local-instant + publish for everyone ---- */
