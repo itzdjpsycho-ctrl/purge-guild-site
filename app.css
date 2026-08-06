@@ -156,6 +156,11 @@
 }
 .side-nav a.current .ico{ opacity:1; }
 
+/* Guild-Master-only drag-to-reorder (assets/nav-order.js) */
+.side-nav-editable a{ cursor:grab; }
+.side-nav-editable a:active{ cursor:grabbing; }
+.side-nav-editable a.dragging{ opacity:0.35; border-color:var(--crimson-bright, #E0982E); }
+
 .side-nav-label{
   font-family:var(--font-mono, monospace); font-size:9px; letter-spacing:0.18em;
   text-transform:uppercase; color:var(--text-faint, #4E454A);

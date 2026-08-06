@@ -444,7 +444,8 @@
 </footer>
 
 <script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
-<script>PurgeAuth.init();</script>
+<script src="assets/nav-order.js"></script>
+<script>PurgeAuth.init().then(function(state){ PurgeNavOrder.enableIfGuildMaster(state); });</script>
 <!-- Canonical guild data now lives in D1, served by the Worker directly as
      literal JS (byte-shape-identical to the old committed data.js). A plain
      script tag, not document.write — Chrome silently blocks/aborts

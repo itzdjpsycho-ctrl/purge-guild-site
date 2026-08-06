@@ -7,6 +7,7 @@
 //   Website  ──POST /auth/logout─────────────────────────►  no-op (client just discards its token)
 //   Website  ──GET/POST /officers (session-or-password)──►  manage who's an officer, by family name
 //   Website  ──GET/POST /presets (session-or-password)──►  save/load named role-cap presets
+//   Website  ──GET /nav-order (public), POST /nav-order (guildmaster-only)──►  sidebar link order
 //   Website  ──POST /post,/edit,/op (session-or-password)──► posts to Discord as the bot
 //   Website  ──POST /war (public, origin-locked)──────►  Claude vision reads a war result screenshot
 //   Website  ──GET  /state (public, sanitized)──────►  live view
@@ -48,6 +49,7 @@
 // Officers aren't Discord roles — they're a plain list of Discord ids in KV ("officers"),
 // managed from the website itself (bootstrap the first one with ADMIN_POST_PASSWORD).
 // KV binding: SIGNUPS_KV.  Keys: "config", "state", "posted", "links", "officers", "presets",
+//   "navOrder" (sidebar link order, see /nav-order),
 //   "ops" (sign-up board edits), "mergeops" (pending Discord-link renames after a merge — see /merge).
 // D1 binding: DB ("purge-guild-db").  Tables: matches, extended_stats, roster_members, profiles,
 //   attendance, vods, vod_notes, clips (see worker/schema.sql).
@@ -387,6 +389,29 @@ export default {
       presets.sort((a, b) => a.name.localeCompare(b.name));
       await env.SIGNUPS_KV.put("presets", JSON.stringify(presets));
       return json({ ok: true, presets }, 200, request);
+    }
+
+    // ---- sidebar nav order — the left sidebar's link order, reorderable by
+    // drag-and-drop (assets/nav-order.js) and stored globally so every
+    // visitor's sidebar reflects it. GET is public (just applying the saved
+    // order); POST requires guildmaster rank specifically — stricter than the
+    // officer-tier isAdminRequest() used elsewhere, since this changes
+    // site-wide navigation for everyone, not just the requester's own view. ----
+    if (path === "/nav-order" && method === "GET") {
+      const raw = await env.SIGNUPS_KV.get("navOrder");
+      return json({ order: raw ? JSON.parse(raw) : [] }, 200, request);
+    }
+
+    if (path === "/nav-order" && method === "POST") {
+      if ((await rankFor(request, env)) < ROLE_RANK.guildmaster) {
+        return json({ error: "Only a Guild Master can reorder the nav." }, 401, request);
+      }
+      const body = await readJson(request);
+      if (!Array.isArray(body?.order) || !body.order.every((h) => typeof h === "string")) {
+        return json({ error: "order must be an array of href strings." }, 400, request);
+      }
+      await env.SIGNUPS_KV.put("navOrder", JSON.stringify(body.order));
+      return json({ ok: true, order: body.order }, 200, request);
     }
 
     // ---- bot → push the private Discord-id <-> family-name link map (bot-secret gated) ----

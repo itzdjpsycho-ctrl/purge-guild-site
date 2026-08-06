@@ -429,7 +429,9 @@
 <div class="toast" id="toast"></div>
 
 <script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
-<script>window.purgeAuthReady = PurgeAuth.init();</script>
+<script src="assets/nav-order.js"></script>
+<script>window.purgeAuthReady = PurgeAuth.init();
+purgeAuthReady.then(function(state){ PurgeNavOrder.enableIfGuildMaster(state); });</script>
 <!-- Canonical guild data now lives in D1, served by the Worker directly as
      literal JS (byte-shape-identical to the old committed data.js/profiles.js).
      Plain script tags, not document.write — Chrome silently blocks/aborts

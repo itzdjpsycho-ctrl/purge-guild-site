@@ -373,6 +373,7 @@
 <script src="flags.js"></script>
 <script src="class-icons.js"></script>
 <script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script src="assets/nav-order.js"></script>
 <!-- Canonical guild data now lives in D1, served by the Worker directly as
      literal JS (byte-shape-identical to the old committed data.js/profiles.js).
      Plain script tags, not document.write — Chrome silently blocks/aborts
@@ -785,6 +786,7 @@ function renderComposedIdentity(data){
    like player.html.
 ================================================================ */
 PurgeAuth.init().then(state=>{
+  PurgeNavOrder.enableIfGuildMaster(state);
   if(!state.loggedIn) return; // guardPage() already redirects to index.html
 
   const requestedName = new URLSearchParams(location.search).get("name");

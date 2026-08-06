@@ -381,7 +381,9 @@
 </div><!-- /app-shell -->
 
 <script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
-<script>window.purgeAuthReady = PurgeAuth.init();</script>
+<script src="assets/nav-order.js"></script>
+<script>window.purgeAuthReady = PurgeAuth.init();
+purgeAuthReady.then(function(state){ PurgeNavOrder.enableIfGuildMaster(state); });</script>
 <script src="class-icons.js"></script>
 <script>
 /* ================================================================
