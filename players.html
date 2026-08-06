@@ -738,7 +738,6 @@ function render(){
 
   const authState = window.PurgeAuth?.state || {};
   const myFamilyName = (authState.familyName || "").toLowerCase();
-  console.log("[roster-debug] render() authState:", JSON.stringify(authState));
 
   grid.innerHTML = roster.map(r=>{
     const p     = profiles[r.name] || {};
@@ -794,7 +793,7 @@ function render(){
             <span>Last Updated</span>
             <span class="val">${fmtDateShort(p.updatedAt)}</span>
           </div>
-          <div class="card-toggles" onclick="event.preventDefault();event.stopPropagation();">
+          <div class="card-toggles" onclick="event.stopPropagation();">
             <label class="card-toggle-row">
               <span>Exception</span>
               <span class="switch">
@@ -1212,7 +1211,6 @@ document.getElementById("mergeConfirmBtn").addEventListener("click", async ()=>{
 });
 
 window.purgeAuthReady?.then((state) => {
-  console.log("[roster-debug] purgeAuthReady resolved:", JSON.stringify(state));
   if(state?.isAdmin){
     document.getElementById("officersPanel").style.display = "";
     document.getElementById("mergeStatsBtn").style.display = "";
