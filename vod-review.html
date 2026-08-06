@@ -69,17 +69,25 @@
   .form-field input:focus, .form-field textarea:focus{ border-color:var(--crimson); }
   .form-field.grow{ flex:1; min-width:220px; }
 
+  /* ---- Section header (label + a toggle/action button) ---- */
+  .section-head{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    margin-bottom:14px;
+  }
+  .section-head .section-label{ margin-bottom:0; }
+
   /* ---- Filter row ---- */
-  .filter-row{ display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+  .filter-row{ display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
   .filter-row label{
     font-family:var(--font-mono); font-size:10px; letter-spacing:0.08em;
     text-transform:uppercase; color:var(--text-faint);
   }
-  .filter-row select{
+  .filter-row select, .filter-row input{
     background:var(--panel-raised); border:1px solid var(--hairline); border-radius:6px;
     color:var(--text); font-family:var(--font-ui); font-size:13px; padding:8px 12px; outline:none;
   }
-  .filter-row select:focus{ border-color:var(--crimson); }
+  .filter-row select:focus, .filter-row input:focus{ border-color:var(--crimson); }
+  .filter-row input#titleSearch{ width:220px; }
 
   /* ---- VOD grid ---- */
   .vod-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(260px,1fr)); gap:18px; }
@@ -105,8 +113,28 @@
   }
   .vod-card-meta{
     font-family:var(--font-mono); font-size:11px; color:var(--text-faint);
-    display:flex; justify-content:space-between; gap:8px;
+    display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:6px;
   }
+
+  .vod-like-btn{
+    background:none; border:1px solid var(--hairline); color:var(--text-muted);
+    font-family:var(--font-mono); font-size:11px; letter-spacing:0.02em;
+    padding:3px 10px; border-radius:999px; cursor:pointer; transition:all 0.14s ease;
+    display:inline-flex; align-items:center; gap:5px; flex:none;
+  }
+  .vod-like-btn:hover{ border-color:var(--red-bright); color:var(--red-bright); }
+  .vod-like-btn.liked{ color:var(--red-bright); border-color:var(--red-bright); }
+
+  /* ---- Loading skeleton (shown while the VOD list is fetching) ---- */
+  .vod-card-skeleton{
+    background:var(--panel); border:1px solid var(--hairline); border-radius:10px;
+    overflow:hidden; animation:vod-skeleton-pulse 1.4s ease-in-out infinite;
+  }
+  .vod-card-skeleton .skel-thumb{ width:100%; aspect-ratio:16/9; background:var(--panel-raised); }
+  .vod-card-skeleton .skel-body{ padding:12px 14px; display:flex; flex-direction:column; gap:8px; }
+  .vod-card-skeleton .skel-line{ height:10px; border-radius:4px; background:var(--panel-raised); }
+  .vod-card-skeleton .skel-line.short{ width:55%; }
+  @keyframes vod-skeleton-pulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.45; } }
 
   /* ---- Detail view ---- */
   .detail-head{
@@ -172,6 +200,9 @@
     padding:10px 12px; cursor:pointer; transition:border-color 0.14s ease;
   }
   .note-item:hover{ border-color:var(--crimson); }
+  /* Note nearest the current playhead while the video is playing (see the
+     onStateChange-driven poller in the script block below). */
+  .note-item.active-note{ border-color:var(--crimson); background:var(--panel-raised); }
   .note-item-head{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
   .note-time{ font-family:var(--font-mono); font-size:12px; color:var(--crimson-glow); font-weight:600; }
   .note-author{ font-family:var(--font-mono); font-size:10px; color:var(--text-faint); }
@@ -234,32 +265,44 @@
 <div id="listView">
 
   <div class="section">
-    <div class="section-label">Post a VOD</div>
-    <form class="panel add-vod-form" id="addVodForm">
-      <div class="form-field grow">
-        <label for="vodTitle">Title</label>
-        <input type="text" id="vodTitle" placeholder="e.g. Calpheon 6/23 — front line collapse" required maxlength="200">
-      </div>
-      <div class="form-field grow">
-        <label for="vodUrl">YouTube URL</label>
-        <input type="url" id="vodUrl" placeholder="https://www.youtube.com/watch?v=…" required>
-      </div>
-      <div class="form-field">
-        <label for="vodClass">Class</label>
-        <select id="vodClass"><option value="">General</option></select>
-      </div>
-      <button class="btn purple" type="submit" id="addVodBtn">+ Add VOD</button>
-    </form>
-    <div class="form-error" id="addVodError" style="display:none;"></div>
+    <div class="section-head">
+      <div class="section-label">Post a VOD</div>
+      <button class="btn purple" type="button" id="togglePostFormBtn">+ Post a VOD</button>
+    </div>
+    <div id="postFormWrap" style="display:none;">
+      <form class="panel add-vod-form" id="addVodForm">
+        <div class="form-field grow">
+          <label for="vodTitle">Title</label>
+          <input type="text" id="vodTitle" placeholder="e.g. Calpheon 6/23 — front line collapse" required maxlength="200">
+        </div>
+        <div class="form-field grow">
+          <label for="vodUrl">YouTube URL</label>
+          <input type="url" id="vodUrl" placeholder="https://www.youtube.com/watch?v=…" required>
+        </div>
+        <div class="form-field">
+          <label for="vodClass">Class</label>
+          <select id="vodClass"><option value="">General</option></select>
+        </div>
+        <button class="btn purple" type="submit" id="addVodBtn">+ Add VOD</button>
+      </form>
+      <div class="form-error" id="addVodError" style="display:none;"></div>
+    </div>
   </div>
 
   <div class="section">
     <div class="section-label">All VODs</div>
     <div class="filter-row">
-      <label for="classFilter">Filter by class</label>
+      <input type="text" id="titleSearch" placeholder="Search by title…">
+      <label for="classFilter">Class</label>
       <select id="classFilter">
         <option value="">All Classes</option>
         <option value="__general">General (no class)</option>
+      </select>
+      <label for="vodSort">Sort</label>
+      <select id="vodSort">
+        <option value="newest">Newest first</option>
+        <option value="oldest">Oldest first</option>
+        <option value="notes">Most notes</option>
       </select>
     </div>
     <div class="vod-grid" id="vodGrid"></div>
@@ -277,7 +320,10 @@
       <div class="detail-title" id="detailTitle"></div>
       <div class="detail-meta" id="detailMeta"></div>
     </div>
-    <button class="clear-wars-btn" id="deleteVodBtn" type="button" style="display:none;">Delete VOD</button>
+    <div style="display:flex; align-items:center; gap:10px; flex:none;">
+      <button class="vod-like-btn" id="detailLikeBtn" type="button">🤍 <span id="detailLikeCount">0</span></button>
+      <button class="clear-wars-btn" id="deleteVodBtn" type="button" style="display:none;">Delete VOD</button>
+    </div>
   </div>
 
   <div class="video-layout">
@@ -287,7 +333,7 @@
         <canvas id="drawCanvas"></canvas>
       </div>
       <div class="draw-toolbar">
-        <button class="btn purple" id="drawToggleBtn" type="button">✏️ Draw</button>
+        <button class="btn purple" id="drawToggleBtn" type="button" title="Pauses the video. Sketch over the frame, then check &quot;Attach drawing&quot; on a note to save it to a timestamp.">✏️ Draw</button>
         <span class="color-swatch selected" data-color="#5FDCF5" style="background:#5FDCF5;" title="Cyan"></span>
         <span class="color-swatch" data-color="#E8BC55" style="background:#E8BC55;" title="Gold"></span>
         <span class="color-swatch" data-color="#D65A45" style="background:#D65A45;" title="Red"></span>
@@ -296,7 +342,7 @@
         <button class="btn" id="undoStrokeBtn" type="button">Undo</button>
         <button class="btn" id="clearDrawBtn" type="button">Clear</button>
       </div>
-      <div class="draw-hint">Draw pauses the video. Click "Add Note" with "Attach drawing" checked to save this sketch to a timestamp. Drag the video's bottom-right corner to resize it.</div>
+      <div class="draw-hint">Drag the video's bottom-right corner to resize it.</div>
     </div>
 
     <div class="notes-panel">
@@ -379,20 +425,46 @@ function fmtDate(iso){
   try{ return new Date(iso).toLocaleString(undefined, { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }); }
   catch(e){ return iso; }
 }
+/** Finer-grained than players.html's day-only relativeTime() — VODs are
+ *  routinely posted the same day, so this needs minute/hour resolution. */
+function relativeTime(iso){
+  const then = new Date(iso).getTime();
+  if (isNaN(then)) return "";
+  const mins = Math.max(0, Math.floor((Date.now() - then) / 60000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  const weeks = Math.floor(days / 7);
+  return `${weeks}w ago`;
+}
 
 /* ---- list view ---- */
 const vodGrid = document.getElementById("vodGrid");
 const vodEmptyState = document.getElementById("vodEmptyState");
 let allVods = [];
 
+const SKELETON_CARD = `
+  <div class="vod-card-skeleton">
+    <div class="skel-thumb"></div>
+    <div class="skel-body">
+      <div class="skel-line"></div>
+      <div class="skel-line short"></div>
+    </div>
+  </div>`;
+
 async function loadVodList(){
-  vodGrid.innerHTML = "";
+  vodGrid.innerHTML = SKELETON_CARD.repeat(6);
+  vodEmptyState.style.display = "none";
   try{
     const res = await fetch(`${WORKER_URL}/vods`);
     const data = await res.json();
     allVods = data.vods || [];
     renderVodGrid();
   } catch(e){
+    vodGrid.innerHTML = "";
     vodEmptyState.textContent = "Couldn't load VODs — try refreshing.";
     vodEmptyState.style.display = "block";
   }
@@ -400,9 +472,19 @@ async function loadVodList(){
 
 function renderVodGrid(){
   const filter = document.getElementById("classFilter").value;
-  const vods = filter === "__general" ? allVods.filter(v => !v.class)
+  const search = document.getElementById("titleSearch").value.trim().toLowerCase();
+  const sort = document.getElementById("vodSort").value;
+
+  let vods = filter === "__general" ? allVods.filter(v => !v.class)
     : filter ? allVods.filter(v => v.class === filter)
     : allVods;
+  if (search) vods = vods.filter(v => v.title.toLowerCase().includes(search));
+
+  vods = vods.slice().sort((a, b) => {
+    if (sort === "oldest") return a.createdAt.localeCompare(b.createdAt);
+    if (sort === "notes") return b.noteCount - a.noteCount;
+    return b.createdAt.localeCompare(a.createdAt);
+  });
 
   vodEmptyState.style.display = vods.length ? "none" : "block";
   vodEmptyState.textContent = allVods.length ? "No VODs match this filter." : "No VODs posted yet — be the first to share one.";
@@ -416,8 +498,13 @@ function renderVodGrid(){
       <div class="vod-card-body">
         <div class="vod-card-title">${escapeHtml(v.title)}</div>
         <div class="vod-card-meta">
-          <span>${escapeHtml(v.addedBy)}</span>
+          <span>${escapeHtml(v.addedBy)} · ${relativeTime(v.createdAt)}</span>
           <span>${v.noteCount} note${v.noteCount === 1 ? "" : "s"}</span>
+        </div>
+        <div class="vod-card-meta" style="justify-content:flex-end;">
+          <button class="vod-like-btn${v.likedByMe ? " liked" : ""}" data-like-id="${escapeHtml(v.id)}" type="button">
+            ${v.likedByMe ? "❤️" : "🤍"} <span>${v.likeCount}</span>
+          </button>
         </div>
       </div>
     </div>
@@ -425,8 +512,44 @@ function renderVodGrid(){
   vodGrid.querySelectorAll(".vod-card").forEach(card => {
     card.addEventListener("click", () => openVod(card.dataset.id));
   });
+  vodGrid.querySelectorAll(".vod-like-btn").forEach(btn => {
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      toggleCardLike(btn.dataset.likeId, btn);
+    });
+  });
+}
+
+async function toggleCardLike(id, btn){
+  btn.disabled = true;
+  try{
+    const res = await fetch(`${WORKER_URL}/vods/${encodeURIComponent(id)}/like`, {
+      method: "POST",
+      headers: { ...PurgeAuth.headers() },
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+    const vod = allVods.find(v => v.id === id);
+    if (vod){ vod.likedByMe = body.liked; vod.likeCount = body.likeCount; }
+    btn.classList.toggle("liked", body.liked);
+    btn.innerHTML = `${body.liked ? "❤️" : "🤍"} <span>${body.likeCount}</span>`;
+  } catch(err){
+    alert(err.message || "Couldn't update like.");
+  } finally {
+    btn.disabled = false;
+  }
 }
 document.getElementById("classFilter").addEventListener("change", renderVodGrid);
+document.getElementById("titleSearch").addEventListener("input", renderVodGrid);
+document.getElementById("vodSort").addEventListener("change", renderVodGrid);
+
+/* ---- collapsible post form ---- */
+const postFormWrap = document.getElementById("postFormWrap");
+document.getElementById("togglePostFormBtn").addEventListener("click", () => {
+  const opening = postFormWrap.style.display === "none";
+  postFormWrap.style.display = opening ? "block" : "none";
+  if (opening) document.getElementById("vodTitle").focus();
+});
 
 document.getElementById("addVodForm").addEventListener("submit", async e => {
   e.preventDefault();
@@ -449,6 +572,7 @@ document.getElementById("addVodForm").addEventListener("submit", async e => {
     document.getElementById("vodTitle").value = "";
     document.getElementById("vodUrl").value = "";
     document.getElementById("vodClass").value = "";
+    postFormWrap.style.display = "none";
     await loadVodList();
     openVod(body.vod.id);
   } catch(err){
@@ -479,11 +603,44 @@ function createPlayer(videoId){
   ytPlayer = new YT.Player("ytPlayer", {
     videoId,
     playerVars: { rel: 0, modestbranding: 1 },
+    events: { onStateChange: handlePlayerStateChange },
   });
 }
 function loadVideo(videoId){
   if (ytApiReady) createPlayer(videoId);
   else pendingVideoId = videoId;
+}
+
+/* ---- active-note highlighting: only polls while the video is actually ---- */
+/* ---- playing, so it costs nothing while paused/idle. ---- */
+let currentNotes = [];
+let activeNoteInterval = null;
+function handlePlayerStateChange(e){
+  if (e.data === YT.PlayerState.PLAYING){
+    stopActiveNotePolling();
+    activeNoteInterval = setInterval(updateActiveNote, 1000);
+    updateActiveNote();
+  } else {
+    stopActiveNotePolling();
+  }
+}
+function stopActiveNotePolling(){
+  if (activeNoteInterval){ clearInterval(activeNoteInterval); activeNoteInterval = null; }
+}
+function updateActiveNote(){
+  if (!ytPlayer?.getCurrentTime || !currentNotes.length) return;
+  const t = ytPlayer.getCurrentTime();
+  // currentNotes is chronological (server-sorted by timestamp), so the last
+  // one at or before the playhead is the "active" one.
+  let active = null;
+  for (const n of currentNotes){
+    if (n.timestampSeconds <= t) active = n; else break;
+  }
+  document.querySelectorAll(".note-item").forEach(el => {
+    const isActive = active && el.dataset.id === active.id;
+    el.classList.toggle("active-note", Boolean(isActive));
+    if (isActive) el.scrollIntoView({ block: "nearest" });
+  });
 }
 
 /* ---- drawing canvas ---- */
@@ -591,8 +748,33 @@ function applyVodData(data){
   deleteBtn.dataset.confirming = "";
   deleteBtn.textContent = "Delete VOD";
 
+  const likeBtn = document.getElementById("detailLikeBtn");
+  likeBtn.classList.toggle("liked", Boolean(currentVod.likedByMe));
+  likeBtn.innerHTML = `${currentVod.likedByMe ? "❤️" : "🤍"} <span id="detailLikeCount">${currentVod.likeCount}</span>`;
+
   renderNotes(data.notes);
 }
+
+document.getElementById("detailLikeBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("detailLikeBtn");
+  btn.disabled = true;
+  try{
+    const res = await fetch(`${WORKER_URL}/vods/${encodeURIComponent(currentVod.id)}/like`, {
+      method: "POST",
+      headers: { ...PurgeAuth.headers() },
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+    currentVod.likedByMe = body.liked;
+    currentVod.likeCount = body.likeCount;
+    btn.classList.toggle("liked", body.liked);
+    btn.innerHTML = `${body.liked ? "❤️" : "🤍"} <span id="detailLikeCount">${body.likeCount}</span>`;
+  } catch(err){
+    alert(err.message || "Couldn't update like.");
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 async function openVod(id){
   try{
@@ -625,6 +807,7 @@ async function refreshNotes(){
 }
 
 function closeDetail(){
+  stopActiveNotePolling();
   detailView.style.display = "none";
   listView.style.display = "block";
   currentVod = null;
@@ -662,6 +845,7 @@ document.getElementById("deleteVodBtn").addEventListener("click", async () => {
 });
 
 function renderNotes(notes){
+  currentNotes = notes;
   const list = document.getElementById("notesList");
   const empty = document.getElementById("notesEmptyState");
   empty.style.display = notes.length ? "none" : "block";

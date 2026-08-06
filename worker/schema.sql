@@ -57,6 +57,16 @@ CREATE TABLE IF NOT EXISTS vod_notes (
 );
 CREATE INDEX IF NOT EXISTS idx_vod_notes_vod_id ON vod_notes(vod_id);
 
+-- One row per (vod, member) who liked it — PRIMARY KEY doubles as the
+-- uniqueness constraint that makes the like a toggle. See toggleVodLike()
+-- in worker/src/data.js.
+CREATE TABLE IF NOT EXISTS vod_likes (
+  vod_id TEXT NOT NULL,
+  discord_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (vod_id, discord_id)
+);
+
 -- Clips: a lighter-weight board than VOD Review — just a video link + a
 -- single class tag, no timestamped notes/drawings. Members post highlight/fail
 -- clips here for browsing by class. Two sources: a YouTube link (embedded via

@@ -27,11 +27,12 @@
 //   POST /roster (x-bot-secret)──────►  replace rosterMembers wholesale (/roster sync)
 //   POST /attendance (x-bot-secret)──►  push a freshly-computed attendance summary
 //
-// ---- VOD Review (D1-backed: vods, vod_notes) ----
-//   GET  /vods (public)──────────────►  list every posted VOD (+ note count)
+// ---- VOD Review (D1-backed: vods, vod_notes, vod_likes) ----
+//   GET  /vods (public, personalized if signed in)──►  list every posted VOD (+ note/like count, likedByMe)
 //   POST /vods (any signed-in member)──►  post a YouTube link {title, youtubeUrl}
-//   GET  /vods/:id (public)──────────►  one VOD + its timestamped notes
-//   DELETE /vods/:id (officer or poster)──►  delete a VOD + all its notes
+//   GET  /vods/:id (public, personalized if signed in)──►  one VOD + its timestamped notes
+//   DELETE /vods/:id (officer or poster)──►  delete a VOD + all its notes and likes
+//   POST /vods/:id/like (any signed-in member)──►  toggle a like on the VOD
 //   POST /vods/:id/notes (any signed-in member)──►  add a timestamped note, optionally with a drawing
 //   DELETE /vods/:id/notes/:noteId (officer or note author)──►  delete a note
 //
@@ -78,6 +79,7 @@ import {
   deleteVod,
   addVodNote,
   deleteVodNote,
+  toggleVodLike,
   listClips,
   getClipOwner,
   createClip,
@@ -728,7 +730,8 @@ export default {
     // ---- officer or the original poster/author can delete. ----
 
     if (path === "/vods" && method === "GET") {
-      return json({ vods: await listVods(env) }, 200, request);
+      const session = await sessionFor(request, env);
+      return json({ vods: await listVods(env, session?.discordId) }, 200, request);
     }
 
     if (path === "/vods" && method === "POST") {
@@ -755,7 +758,8 @@ export default {
 
     const vodDetailMatch = path.match(/^\/vods\/([^/]+)$/);
     if (vodDetailMatch && method === "GET") {
-      const data = await getVod(env, vodDetailMatch[1]);
+      const session = await sessionFor(request, env);
+      const data = await getVod(env, vodDetailMatch[1], session?.discordId);
       if (!data) return json({ error: "VOD not found." }, 404, request);
       return json(data, 200, request);
     }
@@ -769,6 +773,15 @@ export default {
         return json({ error: "Not signed in as an officer or as the poster." }, 401, request);
       }
       return json(await deleteVod(env, vodDetailMatch[1]), 200, request);
+    }
+
+    const vodLikeMatch = path.match(/^\/vods\/([^/]+)\/like$/);
+    if (vodLikeMatch && method === "POST") {
+      const session = await sessionFor(request, env);
+      if (!session) return json({ error: "Sign in with Discord to like a VOD." }, 401, request);
+      const result = await toggleVodLike(env, vodLikeMatch[1], session.discordId);
+      if (!result) return json({ error: "VOD not found." }, 404, request);
+      return json(result, 200, request);
     }
 
     const vodNotesMatch = path.match(/^\/vods\/([^/]+)\/notes$/);

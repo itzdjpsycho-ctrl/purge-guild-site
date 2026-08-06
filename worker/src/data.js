@@ -332,12 +332,16 @@ export function youtubeIdFromUrl(url) {
   return m ? m[1] : null;
 }
 
-export async function listVods(env) {
-  const { results } = await env.DB.prepare(
-    `SELECT v.id, v.title, v.youtube_id, v.class, v.added_by_name, v.created_at,
-            (SELECT COUNT(*) FROM vod_notes n WHERE n.vod_id = v.id) AS note_count
-     FROM vods v ORDER BY v.created_at DESC`
-  ).all();
+export async function listVods(env, discordId) {
+  const [{ results }, likedIds] = await Promise.all([
+    env.DB.prepare(
+      `SELECT v.id, v.title, v.youtube_id, v.class, v.added_by_name, v.created_at,
+              (SELECT COUNT(*) FROM vod_notes n WHERE n.vod_id = v.id) AS note_count,
+              (SELECT COUNT(*) FROM vod_likes l WHERE l.vod_id = v.id) AS like_count
+       FROM vods v ORDER BY v.created_at DESC`
+    ).all(),
+    likedVodIds(env, discordId),
+  ]);
   return results.map((r) => ({
     id: r.id,
     title: r.title,
@@ -346,15 +350,31 @@ export async function listVods(env) {
     addedBy: r.added_by_name,
     createdAt: r.created_at,
     noteCount: r.note_count,
+    likeCount: r.like_count,
+    likedByMe: likedIds.has(r.id),
   }));
 }
 
-export async function getVod(env, id) {
+/** Set of vod ids `discordId` has liked, or an empty set if signed out — one
+ *  query, so callers can mark `likedByMe` without an N+1 per row. */
+async function likedVodIds(env, discordId) {
+  if (!discordId) return new Set();
+  const { results } = await env.DB.prepare("SELECT vod_id FROM vod_likes WHERE discord_id = ?")
+    .bind(discordId)
+    .all();
+  return new Set(results.map((r) => r.vod_id));
+}
+
+export async function getVod(env, id, discordId) {
   const row = await env.DB.prepare("SELECT * FROM vods WHERE id = ?").bind(id).first();
   if (!row) return null;
-  const { results } = await env.DB.prepare(
-    "SELECT * FROM vod_notes WHERE vod_id = ? ORDER BY timestamp_seconds ASC"
-  ).bind(id).all();
+  const [{ results }, likeCountRow, liked] = await Promise.all([
+    env.DB.prepare("SELECT * FROM vod_notes WHERE vod_id = ? ORDER BY timestamp_seconds ASC").bind(id).all(),
+    env.DB.prepare("SELECT COUNT(*) AS n FROM vod_likes WHERE vod_id = ?").bind(id).first(),
+    discordId
+      ? env.DB.prepare("SELECT 1 FROM vod_likes WHERE vod_id = ? AND discord_id = ?").bind(id, discordId).first()
+      : null,
+  ]);
   return {
     vod: {
       id: row.id,
@@ -364,6 +384,8 @@ export async function getVod(env, id) {
       addedBy: row.added_by_name,
       addedByDiscordId: row.added_by_discord_id,
       createdAt: row.created_at,
+      likeCount: likeCountRow.n,
+      likedByMe: Boolean(liked),
     },
     notes: results.map((n) => ({
       id: n.id,
@@ -405,9 +427,29 @@ export async function createVod(env, { title, youtubeId, className, authorName, 
 export async function deleteVod(env, id) {
   await env.DB.batch([
     env.DB.prepare("DELETE FROM vod_notes WHERE vod_id = ?").bind(id),
+    env.DB.prepare("DELETE FROM vod_likes WHERE vod_id = ?").bind(id),
     env.DB.prepare("DELETE FROM vods WHERE id = ?").bind(id),
   ]);
   return { removed: true };
+}
+
+/** Toggles discordId's like on a vod. Returns null if the vod doesn't exist,
+ *  otherwise the new { liked, likeCount }. */
+export async function toggleVodLike(env, vodId, discordId) {
+  const vod = await env.DB.prepare("SELECT id FROM vods WHERE id = ?").bind(vodId).first();
+  if (!vod) return null;
+  const existing = await env.DB.prepare("SELECT 1 FROM vod_likes WHERE vod_id = ? AND discord_id = ?")
+    .bind(vodId, discordId)
+    .first();
+  if (existing) {
+    await env.DB.prepare("DELETE FROM vod_likes WHERE vod_id = ? AND discord_id = ?").bind(vodId, discordId).run();
+  } else {
+    await env.DB.prepare("INSERT INTO vod_likes (vod_id, discord_id, created_at) VALUES (?,?,?)")
+      .bind(vodId, discordId, new Date().toISOString())
+      .run();
+  }
+  const { n } = await env.DB.prepare("SELECT COUNT(*) AS n FROM vod_likes WHERE vod_id = ?").bind(vodId).first();
+  return { liked: !existing, likeCount: n };
 }
 
 export async function addVodNote(env, vodId, { timestampSeconds, text, drawing, authorName, authorDiscordId }) {
