@@ -816,16 +816,20 @@ document.querySelectorAll(".perf-tab").forEach(tab=>{
   });
 });
 
-/* ---- Trooper: anyone with a lifetime K/D above the threshold ---- */
+/* ---- Trooper: anyone above the K/D threshold FOR THE MOST RECENT WAR ----
+   WEEK only (same Monday-start week grouping as Weekly Update) — resets
+   each new conquest war week rather than tracking career K/D. ---- */
 const TROOPER_KD_THRESHOLD = 2.0;
 
 function renderTrooperPanel(){
-  const qualified = buildOverall(allMatches)
+  const weekMatches = getMostRecentWeekMatches(allMatches);
+  const qualified = buildOverall(weekMatches)
     .filter(r=>r.played>0 && (kd(r.kills,r.deaths) ?? 0) > TROOPER_KD_THRESHOLD)
     .sort((a,b)=>kd(b.kills,b.deaths)-kd(a.kills,a.deaths));
 
-  document.getElementById("trooperSub").textContent =
-    `${qualified.length} player${qualified.length!==1?"s":""} above ${TROOPER_KD_THRESHOLD.toFixed(1)} K/D, all-time`;
+  document.getElementById("trooperSub").textContent = weekMatches.length
+    ? `${qualified.length} player${qualified.length!==1?"s":""} above ${TROOPER_KD_THRESHOLD.toFixed(1)} K/D · ${weekLabel(weekKey(weekMatches[weekMatches.length-1].date))}`
+    : "No wars logged this week.";
 
   document.getElementById("trooperGrid").innerHTML = qualified.map(r=>`
     <div class="trooper-card">
