@@ -371,6 +371,10 @@
     letter-spacing:0.06em; text-transform:uppercase; color:var(--text-faint);
     padding:10px 12px; border-bottom:1px solid var(--hairline); white-space:nowrap;
   }
+  .war-modal-table-wrap th.sortable{ cursor:pointer; user-select:none; }
+  .war-modal-table-wrap th.sortable:hover{ color:var(--text-muted); }
+  .war-modal-table-wrap th.sorted{ color:var(--gold-bright); }
+  .war-modal-table-wrap th .sort-arrow{ display:inline-block; margin-left:4px; opacity:0.7; font-size:9px; }
   .war-modal-table-wrap td{
     padding:9px 12px; border-bottom:1px solid var(--hairline-soft);
     font-size:13px; white-space:nowrap;
@@ -681,6 +685,22 @@ lightbox.addEventListener("click", e=>{ if(e.target===lightbox) closeLightbox();
 const warModal      = document.getElementById("warModal");
 const warModalClose = document.getElementById("warModalClose");
 
+// rows/cols for the war currently open, plus the click-header-to-sort state —
+// mirrors war-scores.html's sortRows()/sortState pattern.
+let warModalRows = [], warModalCols = [];
+let warModalSort = { key:"kd", dir:"desc" };
+
+function sortRows(rows, key, dir){
+  const mult = dir === "asc" ? 1 : -1;
+  return [...rows].sort((a,b)=>{
+    let av = a[key], bv = b[key];
+    if (av === null || av === undefined) av = -Infinity;
+    if (bv === null || bv === undefined) bv = -Infinity;
+    if (typeof av === "string") return av.localeCompare(bv) * mult;
+    return (av - bv) * mult;
+  });
+}
+
 function openWarModal(date){
   const m = getAllMatches().find(x=>x.date===date);
   if(!m) return;
@@ -689,10 +709,9 @@ function openWarModal(date){
   const roles    = loadRoles();
   const profiles = loadProfiles();
 
-  let rows, cols;
   if(ext){
-    cols = WAR_MODAL_EXT_COLS;
-    rows = ext.map(p=>{
+    warModalCols = WAR_MODAL_EXT_COLS;
+    warModalRows = ext.map(p=>{
       const [name,kills,deaths,streak,dmgDone,dmgTaken,cc,hpHealed,allyHpHealed,fortDmg,cannonsLanded,objDestroyed,cannonDist,traps,timeDead,timeAlive] = p;
       return {
         name, kills, deaths, kd: kd(kills,deaths),
@@ -702,13 +721,13 @@ function openWarModal(date){
       };
     });
   } else {
-    cols = WAR_MODAL_BASIC_COLS;
-    rows = m.players.map(([name,k,d])=>({
+    warModalCols = WAR_MODAL_BASIC_COLS;
+    warModalRows = m.players.map(([name,k,d])=>({
       name, kills:k, deaths:d, kd: kd(k,d),
       role: roles[name] || "", class: (profiles[name]||{}).class || "",
     }));
   }
-  rows.sort((a,b)=> (b.kd ?? -1) - (a.kd ?? -1));
+  warModalSort = { key:"kd", dir:"desc" };
 
   const dt = new Date(m.date+"T00:00:00");
   const dateStr = dt.toLocaleDateString("en-US",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
@@ -720,13 +739,22 @@ function openWarModal(date){
     `<span>${m.location} · Node War${ext ? " · Extended Stats" : ""}</span>` +
     `<a href="war-scores.html?war=${encodeURIComponent(m.date)}">Open on War Scores →</a>`;
 
-  document.getElementById("warModalHead").innerHTML = cols.map(([key,label])=>{
+  renderWarModalTable();
+  warModal.classList.add("open");
+}
+
+function renderWarModalTable(){
+  const sorted = sortRows(warModalRows, warModalSort.key, warModalSort.dir);
+
+  document.getElementById("warModalHead").innerHTML = warModalCols.map(([key,label])=>{
     const cls = (key==="name"||key==="role"||key==="class") ? "" : "num";
-    return `<th class="${cls}">${label}</th>`;
+    const isSorted = warModalSort.key === key;
+    const arrow = isSorted ? (warModalSort.dir === "asc" ? "▲" : "▼") : "";
+    return `<th class="${cls} sortable ${isSorted?'sorted':''}" data-key="${key}">${label}<span class="sort-arrow">${arrow}</span></th>`;
   }).join("");
 
-  document.getElementById("warModalBody").innerHTML = rows.map(r=>{
-    const cells = cols.map(([key,label,fmt])=>{
+  document.getElementById("warModalBody").innerHTML = sorted.map(r=>{
+    const cells = warModalCols.map(([key,label,fmt])=>{
       if(key==="class") return `<td class="td-class">${ClassIcons.img(r.class,{size:14})}${r.class||""}</td>`;
       if(key==="name") return `<td>${r.name}</td>`;
       if(key==="role") return `<td>${fmtRole(r.role)}</td>`;
@@ -736,8 +764,19 @@ function openWarModal(date){
     return `<tr class="${r.name===playerName ? "is-you" : ""}">${cells}</tr>`;
   }).join("");
 
-  warModal.classList.add("open");
+  document.querySelectorAll("#warModalHead th[data-key]").forEach(th=>{
+    th.addEventListener("click", ()=>{
+      const key = th.dataset.key;
+      if(warModalSort.key === key){
+        warModalSort.dir = warModalSort.dir === "asc" ? "desc" : "asc";
+      } else {
+        warModalSort = { key, dir: (key==="name"||key==="role"||key==="class") ? "asc" : "desc" };
+      }
+      renderWarModalTable();
+    });
+  });
 }
+
 function closeWarModal(){ warModal.classList.remove("open"); }
 warModalClose.addEventListener("click", closeWarModal);
 warModal.addEventListener("click", e=>{ if(e.target===warModal) closeWarModal(); });
