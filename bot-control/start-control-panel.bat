@@ -41,18 +41,21 @@ if not exist "node_modules" (
   echo.
 )
 
-echo Opening the control panel window. This launcher window can stay open in the background.
+echo Opening the control panel window...
 echo.
 
-call npm start
-set "EXITCODE=%errorlevel%"
+REM "start """" ..." launches Electron as its own detached process (not a
+REM child of this console), so it keeps running after this launcher window
+REM closes — you don't need to babysit a cmd window for the app to stay up.
+REM Calling electron.exe directly (not the npm-generated electron.cmd shim)
+REM avoids "start" spawning an extra visible cmd /K window to run the shim.
+REM App path is "." (cwd is already this folder, from "cd /d" above) rather
+REM than a quoted "%~dp0" — %~dp0 always ends in a backslash, and a trailing
+REM backslash right before a closing quote is parsed as an escaped quote,
+REM corrupting the argument and making Electron fail to find the app.
+start "" "%~dp0node_modules\electron\dist\electron.exe" "."
 
-echo.
-echo ============================================
-echo   Control panel closed ^(exit code %EXITCODE%^).
-echo ============================================
-if not "%EXITCODE%"=="0" (
-  echo If that closed unexpectedly, scroll up for the error above.
-  echo.
-)
-pause
+REM Give it a couple seconds so a hard failure (corrupt install, etc.) still
+REM shows up here before the window vanishes, instead of failing silently.
+timeout /t 2 /nobreak >nul
+exit /b 0
