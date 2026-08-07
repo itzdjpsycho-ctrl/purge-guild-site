@@ -69,6 +69,7 @@ import {
   buildAttendance,
   addOrReplaceMatch,
   removeMatch,
+  removeAllMatches,
   mergeMatchNames,
   setRosterMembers,
   setProfileClass,
@@ -619,6 +620,21 @@ export default {
       else return json({ error: `Unknown op.type "${opType}".` }, 400, request);
 
       return json({ ok: true, result }, 200, request);
+    }
+
+    // ---- delete EVERY war directly from D1 ----
+    // Wipes the guild's entire war/extended-stats history in one shot —
+    // irreversible, affects every visitor. Gated to guildmaster rank
+    // specifically (same bar as /nav-order), stricter than the plain
+    // officer-tier isAdminRequest() used for single-war removal below.
+    // No bot-secret path — this is a website-only "Clear ALL Wars" action,
+    // nothing on the Discord bot side ever needs to call it.
+    if (path === "/matches" && method === "DELETE") {
+      if ((await rankFor(request, env)) < ROLE_RANK.guildmaster) {
+        return json({ error: "Only a Guild Master can clear all wars." }, 401, request);
+      }
+      const result = await removeAllMatches(env);
+      return json(result, 200, request);
     }
 
     // ---- delete a war directly from D1 ----

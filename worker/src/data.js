@@ -116,6 +116,17 @@ export async function removeMatch(env, date) {
   return { removed: true, location: match.location };
 }
 
+/** Delete every war and its extended stats. Irreversible — see worker.js's DELETE /matches route for the guildmaster gate. */
+export async function removeAllMatches(env) {
+  const { results } = await env.DB.prepare("SELECT COUNT(*) AS n FROM matches").all();
+  const count = results?.[0]?.n || 0;
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM matches"),
+    env.DB.prepare("DELETE FROM extended_stats"),
+  ]);
+  return { removed: true, count };
+}
+
 /**
  * Combine two players' entire war history (mirrors bot/src/lib/data.js
  * mergeNames() exactly — see there for the rename-vs-merge-additive-stats

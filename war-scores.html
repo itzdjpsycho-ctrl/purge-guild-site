@@ -2370,6 +2370,9 @@ function renderPanel(panel, rows, title, meta, resultClass, resultLabel, showHof
               ? `<button class="clear-wars-btn" id="clearWarsBtn" type="button">Clear Added Wars</button>`
               : `<button class="clear-wars-btn" id="removeWarBtn" type="button">Remove This War</button>`)
           : ""}
+        ${currentMatchKey === "overall" && (window.PurgeAuth?.rank?.() || 0) >= window.PurgeAuth.ROLE_RANK.guildmaster
+          ? `<button class="clear-wars-btn" id="clearAllWarsBtn" type="button" title="Guild Master only — permanently deletes every war for everyone, not just your own local test data">Clear ALL Wars</button>`
+          : ""}
       </div>
     </div>
     ${hofHTML}
@@ -2754,6 +2757,47 @@ document.addEventListener("click", async e=>{
         btn.textContent = "Clear Added Wars";
         btn.style.background = "";
       }, 3000);
+    }
+  }
+
+  if (e.target && e.target.id === "clearAllWarsBtn"){
+    const btn = e.target;
+    if (btn.dataset.confirming !== "1"){
+      btn.dataset.confirming = "1";
+      btn.textContent = "Tap again to DELETE ALL WARS";
+      btn.style.background = "rgba(178,64,47,0.28)";
+      setTimeout(()=>{
+        btn.dataset.confirming = "";
+        btn.textContent = "Clear ALL Wars";
+        btn.style.background = "";
+      }, 3000);
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Deleting every war…";
+    btn.style.background = "rgba(178,64,47,0.28)";
+    try{
+      const res = await fetch(`${WORKER_URL}/matches`, {
+        method:"DELETE",
+        headers:{ ...PurgeAuth.headers() },
+      });
+      if (!res.ok){
+        const body = await res.json().catch(()=>({}));
+        throw new Error(body.error || `HTTP ${res.status}`);
+      }
+      localStorage.removeItem("nodeWarDynamicMatches");
+      localStorage.removeItem("nodeWarDynamicExtended");
+      btn.textContent = "All wars deleted — reloading…";
+      setTimeout(()=>{ location.reload(); }, 1200);
+    } catch(err){
+      btn.disabled = false;
+      btn.textContent = `Couldn't clear — ${err.message}`;
+      btn.style.background = "rgba(178,64,47,0.28)";
+      setTimeout(()=>{
+        btn.textContent = "Clear ALL Wars";
+        btn.style.background = "";
+      }, 5000);
     }
   }
 
