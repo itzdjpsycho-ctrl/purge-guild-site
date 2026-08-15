@@ -236,6 +236,11 @@
   }
   .zone-body{ display:none; border-top:1px solid var(--hairline-soft); }
   .zone-panel.open .zone-body{ display:block; }
+  .zone-panel.all-hidden .zone-header{ opacity:0.55; }
+  .zone-empty-note{
+    padding:22px 18px; text-align:center;
+    font-family:var(--font-mono); font-size:11.5px; color:var(--text-faint);
+  }
 
   .piece-table{ width:100%; border-collapse:collapse; }
   .piece-table th{
@@ -385,6 +390,7 @@
   <div class="control-bar">
     <input type="text" id="pieceSearch" placeholder="Search by name or #…" autocomplete="off">
     <label class="control-check"><input type="checkbox" id="hideFound"> Hide found</label>
+    <label class="control-check"><input type="checkbox" id="hideUnconfirmed" checked> Hide unconfirmed</label>
     <div class="control-spacer"></div>
     <button class="btn" id="expandAllBtn" type="button">Expand All</button>
     <button class="btn" id="collapseAllBtn" type="button">Collapse All</button>
@@ -742,6 +748,7 @@ function renderZones(){
   const layers = activeLayers();
   const search = document.getElementById("pieceSearch").value.trim().toLowerCase();
   const hideFound = document.getElementById("hideFound").checked;
+  const hideUnconfirmed = document.getElementById("hideUnconfirmed").checked;
   const container = document.getElementById("zoneContainer");
   let anyVisible = false;
 
@@ -753,19 +760,21 @@ function renderZones(){
       const zoneCompletedCount = zone.pieces.filter(p => (stateMap[p.n] || 0) === 2).length;
       const zonePct = Math.round((zoneCompletedCount / zone.pieces.length) * 100);
       const isOpen = openZones[ly].has(zi);
+      let zoneVisibleCount = 0;
 
       const rows = zone.pieces.map(p => {
         const state = stateMap[p.n] || 0;
         const isCompleted = state === 2, isActive = state === 1;
+        const located = !(p.x === 0 && p.z === 0);
         const matchesSearch = !search
           || p.name.toLowerCase().includes(search)
           || String(p.n) === search
           || layer.zoneLabel(zone.theme).toLowerCase().includes(search);
         const hiddenByFound = hideFound && isCompleted;
-        const rowHidden = !matchesSearch || hiddenByFound;
-        if (matchesSearch && !hiddenByFound) anyVisible = true;
+        const hiddenByUnconfirmed = hideUnconfirmed && !located;
+        const rowHidden = !matchesSearch || hiddenByFound || hiddenByUnconfirmed;
+        if (!rowHidden){ zoneVisibleCount++; anyVisible = true; }
 
-        const located = !(p.x === 0 && p.z === 0);
         const coordsHtml = located
           ? `${fmtNum(p.x)}, ${fmtNum(p.z)} <button class="copy-btn" data-x="${p.x}" data-z="${p.z}" type="button">Copy</button>`
           : `<span class="piece-coords unlocated">Not yet reported</span>`;
@@ -781,8 +790,17 @@ function renderZones(){
           </tr>`;
       }).join("");
 
+      const zoneBodyHtml = zoneVisibleCount > 0
+        ? `<table class="piece-table">
+             <thead><tr><th></th><th>#</th><th>Piece</th><th>Reward</th><th>Coordinates (X, Z)</th></tr></thead>
+             <tbody>${rows}</tbody>
+           </table>`
+        : `<div class="zone-empty-note">${search
+            ? "No pieces here match your search."
+            : "Every piece in this zone is still unconfirmed on bdoworkshop.com — nothing to show with “Hide unconfirmed” on."}</div>`;
+
       return `
-        <div class="panel zone-panel ${isOpen ? "open" : ""}" data-layer="${ly}" data-zone="${zi}">
+        <div class="panel zone-panel ${isOpen ? "open" : ""} ${zoneVisibleCount === 0 ? "all-hidden" : ""}" data-layer="${ly}" data-zone="${zi}">
           <div class="zone-header" data-layer="${ly}" data-zone-toggle="${zi}">
             <span class="zone-chevron">▶</span>
             <span class="zone-title">${layer.zoneLabel(zone.theme)}</span>
@@ -791,10 +809,7 @@ function renderZones(){
             <span class="zone-progress-text">${zoneCompletedCount}/${zone.pieces.length} completed</span>
           </div>
           <div class="zone-body">
-            <table class="piece-table">
-              <thead><tr><th></th><th>#</th><th>Piece</th><th>Reward</th><th>Coordinates (X, Z)</th></tr></thead>
-              <tbody>${rows}</tbody>
-            </table>
+            ${zoneBodyHtml}
           </div>
         </div>`;
     }).join("");
@@ -863,6 +878,7 @@ document.getElementById("layerTabs").addEventListener("click", e => {
 
 document.getElementById("pieceSearch").addEventListener("input", renderZones);
 document.getElementById("hideFound").addEventListener("change", () => { renderZones(); renderMapDots(); });
+document.getElementById("hideUnconfirmed").addEventListener("change", renderZones); // map already excludes these — nothing to re-plot
 
 document.getElementById("expandAllBtn").addEventListener("click", () => {
   activeLayers().forEach(ly => { openZones[ly] = new Set(LAYERS[ly].data.map((_, i) => i)); });
