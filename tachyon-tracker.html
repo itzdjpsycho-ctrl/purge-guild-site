@@ -711,26 +711,35 @@ function initMapInteraction(){
 }
 
 function renderStats(){
-  let totalPieces = 0, completedCount = 0, activeCount = 0, located = 0, knownCoins = 0;
+  const hideUnconfirmed = document.getElementById("hideUnconfirmed").checked;
+  // "countedTotal"/"completedCount" respect Hide Unconfirmed (an unconfirmed
+  // piece isn't trackable — no location, no map pin — so it shouldn't pad the
+  // denominator once it's hidden). "locatedTotal"/"located" stay on the true
+  // full count regardless — that stat's whole purpose is showing how much of
+  // the real 100/200 is confirmed yet, which a filtered denominator would
+  // make meaningless (always 100%).
+  let countedTotal = 0, completedCount = 0, activeCount = 0, located = 0, locatedTotal = 0, knownCoins = 0;
   activeLayers().forEach(ly => {
     const allPieces = LAYERS[ly].data.flatMap(z => z.pieces);
     const stateMap = getStateMap(ly);
-    totalPieces += allPieces.length;
-    completedCount += allPieces.filter(p => (stateMap[p.n] || 0) === 2).length;
-    activeCount += allPieces.filter(p => (stateMap[p.n] || 0) === 1).length;
+    const countedPieces = hideUnconfirmed ? allPieces.filter(p => !(p.x === 0 && p.z === 0)) : allPieces;
+    countedTotal += countedPieces.length;
+    completedCount += countedPieces.filter(p => (stateMap[p.n] || 0) === 2).length;
+    activeCount += countedPieces.filter(p => (stateMap[p.n] || 0) === 1).length;
     located += allPieces.filter(p => !(p.x === 0 && p.z === 0)).length;
+    locatedTotal += allPieces.length;
     knownCoins += allPieces.reduce((s,p) => s + (p.c || 0), 0);
   });
-  const pct = Math.round((completedCount / totalPieces) * 100);
+  const pct = countedTotal ? Math.round((completedCount / countedTotal) * 100) : 0;
 
   document.getElementById("tachStats").innerHTML = `
     <div class="tach-stat">
-      <div class="tach-stat-val cyan">${completedCount}/${totalPieces}</div>
+      <div class="tach-stat-val cyan">${completedCount}/${countedTotal}</div>
       <div class="tach-stat-label">Completed (this browser)</div>
       <div class="tach-progress-track"><div class="tach-progress-fill" style="width:${pct}%"></div></div>
     </div>
     <div class="tach-stat">
-      <div class="tach-stat-val">${located}/${totalPieces}</div>
+      <div class="tach-stat-val">${located}/${locatedTotal}</div>
       <div class="tach-stat-label">Locations Confirmed</div>
     </div>
     <div class="tach-stat">
@@ -757,8 +766,13 @@ function renderZones(){
     const stateMap = getStateMap(ly);
 
     const zonesHtml = layer.data.map((zone, zi) => {
-      const zoneCompletedCount = zone.pieces.filter(p => (stateMap[p.n] || 0) === 2).length;
-      const zonePct = Math.round((zoneCompletedCount / zone.pieces.length) * 100);
+      // Same rule as the top stat strip: an unconfirmed piece has no
+      // location to ever act on, so once Hide Unconfirmed is on it drops
+      // out of both the "N pieces" count and the completed denominator.
+      const zoneDenomPieces = hideUnconfirmed ? zone.pieces.filter(p => !(p.x === 0 && p.z === 0)) : zone.pieces;
+      const zoneTotal = zoneDenomPieces.length;
+      const zoneCompletedCount = zoneDenomPieces.filter(p => (stateMap[p.n] || 0) === 2).length;
+      const zonePct = zoneTotal ? Math.round((zoneCompletedCount / zoneTotal) * 100) : 0;
       const isOpen = openZones[ly].has(zi);
       let zoneVisibleCount = 0;
 
@@ -804,9 +818,9 @@ function renderZones(){
           <div class="zone-header" data-layer="${ly}" data-zone-toggle="${zi}">
             <span class="zone-chevron">▶</span>
             <span class="zone-title">${layer.zoneLabel(zone.theme)}</span>
-            <span class="zone-meta">${zone.pieces.length} pieces</span>
+            <span class="zone-meta">${zoneTotal} ${hideUnconfirmed && zoneTotal !== zone.pieces.length ? "confirmed" : "pieces"}</span>
             <div class="zone-progress-track"><div class="zone-progress-fill" style="width:${zonePct}%"></div></div>
-            <span class="zone-progress-text">${zoneCompletedCount}/${zone.pieces.length} completed</span>
+            <span class="zone-progress-text">${zoneTotal ? `${zoneCompletedCount}/${zoneTotal} completed` : "no confirmed pieces"}</span>
           </div>
           <div class="zone-body">
             ${zoneBodyHtml}
@@ -878,7 +892,7 @@ document.getElementById("layerTabs").addEventListener("click", e => {
 
 document.getElementById("pieceSearch").addEventListener("input", renderZones);
 document.getElementById("hideFound").addEventListener("change", () => { renderZones(); renderMapDots(); });
-document.getElementById("hideUnconfirmed").addEventListener("change", renderZones); // map already excludes these — nothing to re-plot
+document.getElementById("hideUnconfirmed").addEventListener("change", () => { renderStats(); renderZones(); }); // map already excludes these — nothing to re-plot
 
 document.getElementById("expandAllBtn").addEventListener("click", () => {
   activeLayers().forEach(ly => { openZones[ly] = new Set(LAYERS[ly].data.map((_, i) => i)); });
