@@ -106,41 +106,76 @@
   .map-panel{ padding:16px 18px 14px; margin-bottom:22px; }
   .map-panel-head{
     display:flex; align-items:baseline; justify-content:space-between;
-    margin-bottom:12px;
+    margin-bottom:12px; flex-wrap:wrap; gap:10px;
   }
   .map-caption{
     font-family:var(--font-mono); font-size:11px; color:var(--text-faint);
   }
+  .map-legend{ display:flex; gap:16px; align-items:center; }
+  .map-legend-item{
+    display:flex; align-items:center; gap:6px;
+    font-family:var(--font-mono); font-size:10.5px; color:var(--text-muted);
+  }
+  .map-legend-dot{
+    width:11px; height:11px; border-radius:50%; display:inline-flex;
+    align-items:center; justify-content:center;
+    border:1.5px solid rgba(255,255,255,0.85); background:var(--crimson-bright);
+    font-size:7px; color:#0A1A28; font-weight:800;
+  }
+  .map-legend-dot.state-active{ box-shadow:0 0 0 3px rgba(255,255,255,0.5); }
+  .map-legend-dot.state-completed{ background:var(--text-faint); }
   .map-viewport{
     position:relative; overflow:hidden;
-    width:680px; height:576px; max-width:100%;
-    margin:0 auto; border-radius:6px;
-    background:#04202c;
+    width:100%; height:640px;
+    border-radius:6px; background:#04202c;
     box-shadow:inset 0 0 0 1px var(--hairline);
+    cursor:grab; user-select:none; touch-action:none;
   }
+  .map-viewport.dragging{ cursor:grabbing; }
+  .map-tiles{ position:absolute; inset:0; }
   .map-tiles img{
     position:absolute; display:block;
-    image-rendering:pixelated; pointer-events:none; user-select:none;
+    pointer-events:none; user-select:none;
   }
-  .map-dots{ position:absolute; inset:0; }
+  .map-dots{ position:absolute; inset:0; pointer-events:none; }
   .map-dot{
-    position:absolute;
-    width:10px; height:10px; margin:-5px 0 0 -5px;
+    position:absolute; pointer-events:auto;
+    width:16px; height:16px; margin:-8px 0 0 -8px;
     border-radius:50%; cursor:pointer;
-    border:1.5px solid rgba(255,255,255,0.9);
-    box-shadow:0 0 5px rgba(0,0,0,0.7);
-    transition:transform 0.12s ease, opacity 0.15s ease;
+    border:2px solid rgba(255,255,255,0.9);
+    box-shadow:0 1px 5px rgba(0,0,0,0.75);
+    display:flex; align-items:center; justify-content:center;
+    transition:transform 0.12s ease;
   }
-  .map-dot:hover{ transform:scale(1.7); z-index:5; }
+  .map-dot:hover{ transform:scale(1.25); z-index:6; }
   .map-dot.layer-trace{ background:var(--crimson-bright); }
   .map-dot.layer-legacy{ background:var(--gold-bright); }
-  .map-dot.dot-found{ opacity:0.3; }
+  .map-dot.state-active{
+    box-shadow:0 0 0 3px rgba(255,255,255,0.95), 0 0 12px 2px rgba(255,255,255,0.55);
+    animation:dotPulse 1.3s ease-in-out infinite; z-index:5;
+  }
+  .map-dot.state-completed{ background:var(--text-faint); border-color:rgba(255,255,255,0.55); opacity:0.85; }
+  .map-dot .dot-check{ display:none; color:#0A1A28; font-size:10px; font-weight:800; }
+  .map-dot.state-completed .dot-check{ display:block; }
   .map-dot.dot-hidden{ display:none; }
+  @keyframes dotPulse{
+    0%,100%{ box-shadow:0 0 0 3px rgba(255,255,255,0.95), 0 0 12px 2px rgba(255,255,255,0.55); }
+    50%{ box-shadow:0 0 0 5px rgba(255,255,255,0.5), 0 0 18px 4px rgba(255,255,255,0.3); }
+  }
+  .map-controls{ position:absolute; top:10px; right:10px; display:flex; flex-direction:column; gap:6px; z-index:10; }
+  .map-ctrl-btn{
+    width:30px; height:30px; border-radius:6px;
+    background:rgba(8,20,30,0.88); border:1px solid var(--hairline);
+    color:var(--text); font-family:var(--font-mono); font-size:16px; font-weight:700;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:all 0.14s ease;
+  }
+  .map-ctrl-btn:hover{ background:rgba(44,147,176,0.3); border-color:var(--crimson); }
+  .map-ctrl-btn.fit{ font-size:9px; letter-spacing:0.04em; }
   .map-hint{
     margin-top:10px; text-align:center;
     font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint);
   }
-  tr.row-flash td{ background:rgba(95,220,245,0.16) !important; transition:background 1.4s ease; }
 
   /* ---- Control bar ---- */
   .control-bar{
@@ -211,8 +246,14 @@
   .piece-table tr:last-child td{ border-bottom:none; }
   .piece-table tr.found td{ color:var(--text-faint); }
   .piece-table tr.found .piece-name{ text-decoration:line-through; }
+  .piece-table tr.active td{ background:rgba(232,188,85,0.05); }
   .piece-table tr:hover td{ background:rgba(255,255,255,0.015); }
   .piece-table tr.piece-hidden{ display:none; }
+  .active-badge{
+    font-family:var(--font-mono); font-size:9px; color:var(--gold-bright);
+    background:rgba(232,188,85,0.12); border:1px solid var(--gold);
+    padding:1px 7px; border-radius:999px; margin-left:8px;
+  }
 
   .piece-check{ accent-color:var(--green-bright); width:15px; height:15px; cursor:pointer; }
   .piece-num{ color:var(--text-faint); }
@@ -315,13 +356,23 @@
   <div class="panel map-panel">
     <div class="map-panel-head">
       <span class="section-heading" style="margin:0;">Overview Map</span>
+      <div class="map-legend">
+        <span class="map-legend-item"><span class="map-legend-dot"></span> Not started</span>
+        <span class="map-legend-item"><span class="map-legend-dot state-active"></span> Active</span>
+        <span class="map-legend-item"><span class="map-legend-dot state-completed">✓</span> Completed</span>
+      </div>
       <span class="map-caption" id="mapCaption"></span>
     </div>
     <div class="map-viewport" id="mapViewport">
       <div class="map-tiles" id="mapTiles"></div>
       <div class="map-dots" id="mapDots"></div>
+      <div class="map-controls">
+        <button class="map-ctrl-btn" id="mapZoomIn" type="button" title="Zoom in">+</button>
+        <button class="map-ctrl-btn" id="mapZoomOut" type="button" title="Zoom out">−</button>
+        <button class="map-ctrl-btn fit" id="mapFit" type="button" title="Reset view">FIT</button>
+      </div>
     </div>
-    <div class="map-hint">Real BDO world map tiles, hotlinked from bdoworkshop.com — pieces are plotted from their reported X/Z using that site's own published coordinate math. Click a pin to jump to it below.</div>
+    <div class="map-hint">Real BDO world map tiles, hotlinked from bdoworkshop.com. Scroll or use +/− to zoom, drag to pan. Click a pin to cycle it: not started → 🎯 Active → ✓ Completed.</div>
   </div>
 
   <div class="control-bar">
@@ -342,8 +393,9 @@
   <div class="panel" style="padding:18px 22px; font-family:var(--font-ui); font-size:13px; line-height:1.7; color:var(--text-muted);">
     <b style="color:var(--text);">Tachyon Traces</b> is the puzzle-collection layer — find the marked spots, collect the piece, cash in for Agris Gold Coin.
     <b style="color:var(--text);">Tachyon Legacy</b> is a parallel combat layer with its own 100 markers and its own reward track. Coordinates below are raw
-    in-game world X/Z — use the <b>Copy</b> button to grab them for the in-game World Map search or a third-party tool. Found/not-found checkmarks are
-    saved only in <b>your own browser</b> (not shared with the guild) — same as the Squad Roles board on War Scores.
+    in-game world X/Z — use the <b>Copy</b> button to grab them for the in-game World Map search or a third-party tool. Clicking a pin on the map (or the
+    checkbox in the table) cycles it through <b>not started → Active → Completed</b>; that progress is saved only in <b>your own browser</b>
+    (not shared with the guild) — same as the Squad Roles board on War Scores.
   </div>
 </div>
 
@@ -394,14 +446,41 @@ const LAYERS = {
 let currentLayer = "trace";
 const openZones = { trace: new Set([0]), legacy: new Set([0]) }; // first zone open by default per layer
 
-function getFoundSet(layer){
+/* ================================================================
+   PER-PIECE STATE — replaces the old plain "found" boolean with a
+   3-way cycle: 0 = not started (absent from storage), 1 = Active,
+   2 = Completed. Storage format is {num: state}, one object per
+   layer under the same localStorage keys the old array-of-found-
+   nums format used — a piece already checked off under the old
+   format is migrated in place to Completed the first time it's read.
+================================================================ */
+function getStateMap(layer){
   try{
     const raw = localStorage.getItem(LAYERS[layer].storageKey);
-    return new Set(raw ? JSON.parse(raw) : []);
-  }catch(e){ return new Set(); }
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)){
+      const migrated = {};
+      parsed.forEach(num => { migrated[num] = 2; });
+      localStorage.setItem(LAYERS[layer].storageKey, JSON.stringify(migrated));
+      return migrated;
+    }
+    return (parsed && typeof parsed === "object") ? parsed : {};
+  }catch(e){ return {}; }
 }
-function saveFoundSet(layer, set){
-  localStorage.setItem(LAYERS[layer].storageKey, JSON.stringify([...set]));
+function saveStateMap(layer, map){
+  localStorage.setItem(LAYERS[layer].storageKey, JSON.stringify(map));
+}
+function setPieceState(layer, num, state){
+  const map = getStateMap(layer);
+  if (state === 0) delete map[num]; else map[num] = state;
+  saveStateMap(layer, map);
+}
+function cyclePieceState(layer, num){
+  const map = getStateMap(layer);
+  const next = ((map[num] || 0) + 1) % 3;
+  setPieceState(layer, num, next);
+  return next;
 }
 
 function showToast(msg){
@@ -414,82 +493,95 @@ function showToast(msg){
 
 function fmtNum(n){ return n.toLocaleString("en-US"); }
 
-function zoneIndexForPiece(layer, num){
-  return LAYERS[layer].data.findIndex(z => z.pieces.some(p => p.n === num));
-}
-
 /* ================================================================
-   OVERVIEW MAP — real BDO world-map tiles hotlinked from
-   bdoworkshop.com/images/map/{level}/{tileX}_{tileY}.webp, with
-   pins placed using that same site's own published coordinate
-   transform (read out of its client bundle, not guessed):
+   OVERVIEW MAP — a real pan/zoom slippy map, not a static crop.
+   Tiles are hotlinked live from bdoworkshop.com/images/map/
+   {level}/{tileX}_{tileY}.webp (levels 8/16/32/64/128 — 8 is the
+   coarsest, 128 the sharpest) using that same site's own published
+   coordinate transform, read out of its client bundle rather than
+   guessed:
      sectorX = (worldX - sx0*sector) / sector
      sectorY = ((sz1+1)*sector - worldZ) / sector
-     tilePx  = sectorCoord * (TILE_PX / (TILE_PX/level))   [= sectorCoord * level's px-per-sector]
-   At level 8 (the coarsest/lightest tile set — 512px tiles, 64
-   sectors each) that's a flat 8 px-per-sector, which is all this
-   static overview needs. World params (sector/sx0/sz1) come from
-   the same "map" page's props.world, pulled 2026-08-15.
-   Only a shared crop around where every marker actually falls is
-   fetched — 2 real tiles + the sea fallback, not the whole world.
+     level L's pixels-per-sector == L itself (512px tiles, TILE_PX/L
+       sectors each — the two TILE_PX terms cancel)
+   World params (sector/sx0/sz1/levels) come from that page's
+   props.world, pulled 2026-08-15. Tiles that 404 (no art for that
+   cell — open ocean) just stay hidden, so no level's full tile-
+   existence list needs to be hardcoded; only the tiles actually
+   scrolled into view ever get requested, same as a real user
+   panning bdoworkshop.com's own map would generate.
 ================================================================ */
-const MAP_LEVEL = 8;
+const MAP_LEVELS = [8, 16, 32, 64, 128]; // ascending
 const MAP_TILE_PX = 512;
 const MAP_SECTOR = 12800, MAP_SX0 = -134, MAP_SZ1 = 140;
-// Pixels-per-sector at this level = TILE_PX / (sectors-per-tile), and
-// sectors-per-tile itself = TILE_PX / MAP_LEVEL — the two TILE_PX terms
-// cancel, leaving pixels-per-sector == MAP_LEVEL exactly (= 8 here).
-const MAP_PX_PER_SECTOR = MAP_LEVEL;
-const MAP_TILES_AT_LEVEL8 = new Set(["0_0","0_1","0_2","1_0","1_1","1_2","1_3","2_1","2_2","2_3","3_1","3_2","3_3"]);
-// Crop box in native level-8 mosaic pixels — covers both layers' full
-// marker spread (trace px 1559-1823/py 603-802, legacy px 1587-1822/
-// py 604-780) plus padding, rounded to a clean box.
-const MAP_CROP = { x0: 1480, y0: 520, w: 424, h: 360 };
-const MAP_SCALE = 1.6; // display px per native mosaic px -> 680x576 viewport
 
-function worldToMapPx(x, z){
-  const sectorX = (x - MAP_SX0 * MAP_SECTOR) / MAP_SECTOR;
-  const sectorY = ((MAP_SZ1 + 1) * MAP_SECTOR - z) / MAP_SECTOR;
-  return {
-    x: (sectorX * MAP_PX_PER_SECTOR - MAP_CROP.x0) * MAP_SCALE,
-    y: (sectorY * MAP_PX_PER_SECTOR - MAP_CROP.y0) * MAP_SCALE,
-  };
+function sectorX(worldX){ return (worldX - MAP_SX0 * MAP_SECTOR) / MAP_SECTOR; }
+function sectorY(worldZ){ return ((MAP_SZ1 + 1) * MAP_SECTOR - worldZ) / MAP_SECTOR; }
+function pickLevel(pxPerSector){
+  return MAP_LEVELS.find(L => L >= pxPerSector) ?? MAP_LEVELS[MAP_LEVELS.length - 1];
 }
 
-function buildMapTiles(){
-  const tileEl = document.getElementById("mapTiles");
-  const tx0 = Math.floor(MAP_CROP.x0 / MAP_TILE_PX);
-  const tx1 = Math.floor((MAP_CROP.x0 + MAP_CROP.w - 1) / MAP_TILE_PX);
-  const ty0 = Math.floor(MAP_CROP.y0 / MAP_TILE_PX);
-  const ty1 = Math.floor((MAP_CROP.y0 + MAP_CROP.h - 1) / MAP_TILE_PX);
-  const frag = document.createDocumentFragment();
+// Default view centers on the centroid of every located piece across
+// both layers (sector-space), at a zoom that comfortably fits the
+// ~33x25-sector spread of the whole cluster.
+const MAP_DEFAULT = { cx: 209.75, cz: 84.48, N: 20 };
+const mapView = { cx: MAP_DEFAULT.cx, cz: MAP_DEFAULT.cz, N: MAP_DEFAULT.N, min: 6, max: 400 };
+const tileImgCache = {}; // "L_tx_ty" -> <img>, kept across pans/zooms for reuse
+
+function renderMapTiles(){
+  const vp = document.getElementById("mapViewport");
+  const W = vp.clientWidth, H = vp.clientHeight;
+  const { cx, cz, N } = mapView;
+  const L = pickLevel(N);
+  const g = MAP_TILE_PX / L; // sectors per tile at this level
+  const ke = g * N; // rendered tile size in screen px
+
+  const leftSector = cx - W / (2 * N);
+  const topSector  = cz - H / (2 * N);
+  const tx0 = Math.floor(leftSector / g) - 1;
+  const tx1 = Math.floor((leftSector + W / N) / g) + 1;
+  const ty0 = Math.floor(topSector / g) - 1;
+  const ty1 = Math.floor((topSector + H / N) / g) + 1;
+
+  const tilesEl = document.getElementById("mapTiles");
+  const neededKeys = new Set();
+
   for (let ty = ty0; ty <= ty1; ty++){
     for (let tx = tx0; tx <= tx1; tx++){
-      const left = (tx * MAP_TILE_PX - MAP_CROP.x0) * MAP_SCALE;
-      const top  = (ty * MAP_TILE_PX - MAP_CROP.y0) * MAP_SCALE;
-      const size = MAP_TILE_PX * MAP_SCALE;
-      // sea base first (matches bdoworkshop's own draw order), then the
-      // real tile on top if that cell has one.
-      const sea = document.createElement("img");
-      sea.src = `https://bdoworkshop.com/images/map/sea_${MAP_LEVEL}.webp`;
-      sea.style.cssText = `left:${left}px; top:${top}px; width:${size}px; height:${size}px;`;
-      frag.appendChild(sea);
-      const key = `${tx}_${ty}`;
-      if (MAP_TILES_AT_LEVEL8.has(key)){
-        const img = document.createElement("img");
-        img.src = `https://bdoworkshop.com/images/map/${MAP_LEVEL}/${key}.webp`;
-        img.style.cssText = `left:${left}px; top:${top}px; width:${size}px; height:${size}px;`;
-        frag.appendChild(img);
+      const key = `${L}_${tx}_${ty}`;
+      neededKeys.add(key);
+      const left = (tx * g - cx) * N + W / 2;
+      const top  = (ty * g - cz) * N + H / 2;
+      let img = tileImgCache[key];
+      if (!img){
+        img = document.createElement("img");
+        img.alt = "";
+        img.addEventListener("error", () => { img.dataset.failed = "1"; img.style.display = "none"; });
+        img.src = `https://bdoworkshop.com/images/map/${L}/${tx}_${ty}.webp`;
+        tileImgCache[key] = img;
+        tilesEl.appendChild(img);
       }
+      if (img.dataset.failed !== "1") img.style.display = "block";
+      img.style.left = left + "px";
+      img.style.top = top + "px";
+      img.style.width = ke + "px";
+      img.style.height = ke + "px";
     }
   }
-  tileEl.appendChild(frag);
+  // Cached tiles from a previous pan/zoom that aren't needed this frame
+  // stay in the DOM (fast to bring back) but hidden.
+  for (const key in tileImgCache){
+    if (!neededKeys.has(key)) tileImgCache[key].style.display = "none";
+  }
 }
 
-function renderMap(){
+function renderMapDots(){
+  const vp = document.getElementById("mapViewport");
+  const W = vp.clientWidth, H = vp.clientHeight;
+  const { cx, cz, N } = mapView;
   const layer = LAYERS[currentLayer];
   const allPieces = layer.data.flatMap(z => z.pieces);
-  const found = getFoundSet(currentLayer);
+  const stateMap = getStateMap(currentLayer);
   const hideFound = document.getElementById("hideFound").checked;
   const located = allPieces.filter(p => !(p.x === 0 && p.z === 0));
 
@@ -497,15 +589,26 @@ function renderMap(){
   dotsEl.innerHTML = "";
   const frag = document.createDocumentFragment();
   located.forEach(p => {
-    const pos = worldToMapPx(p.x, p.z);
-    const isFound = found.has(p.n);
+    const screenX = (sectorX(p.x) - cx) * N + W / 2;
+    const screenY = (sectorY(p.z) - cz) * N + H / 2;
+    const state = stateMap[p.n] || 0;
+    const isActive = state === 1, isCompleted = state === 2;
+
     const dot = document.createElement("div");
-    dot.className = `map-dot layer-${currentLayer} ${isFound ? "dot-found" : ""} ${hideFound && isFound ? "dot-hidden" : ""}`;
-    dot.style.left = pos.x + "px";
-    dot.style.top = pos.y + "px";
+    dot.className = `map-dot layer-${currentLayer} ${isActive ? "state-active" : ""} ${isCompleted ? "state-completed" : ""} ${hideFound && isCompleted ? "dot-hidden" : ""}`;
+    dot.style.left = screenX + "px";
+    dot.style.top = screenY + "px";
     dot.title = `#${p.n} ${p.name}${p.c !== null ? ` — 🪙 ${p.c}` : ""}`;
     dot.dataset.num = p.n;
-    dot.addEventListener("click", () => jumpToPiece(p.n));
+    dot.innerHTML = `<span class="dot-check">✓</span>`;
+    dot.addEventListener("click", () => {
+      if (mapDragMoved) return; // a drag that happened to start on a pin, not a click
+      const next = cyclePieceState(currentLayer, p.n);
+      renderStats();
+      renderZones();
+      renderMapDots();
+      showToast(next === 1 ? `#${p.n} marked Active` : next === 2 ? `#${p.n} marked Completed` : `#${p.n} reset`);
+    });
     frag.appendChild(dot);
   });
   dotsEl.appendChild(frag);
@@ -514,33 +617,87 @@ function renderMap(){
     `${located.length}/${allPieces.length} pieces plotted · ${allPieces.length - located.length} not yet located`;
 }
 
-function jumpToPiece(num){
-  const zi = zoneIndexForPiece(currentLayer, num);
-  if (zi === -1) return;
-  openZones[currentLayer].add(zi);
-  renderZones();
-  requestAnimationFrame(() => {
-    const row = document.querySelector(`tr[data-num="${num}"]`);
-    if (!row) return;
-    row.scrollIntoView({ behavior: "smooth", block: "center" });
-    row.classList.add("row-flash");
-    setTimeout(() => row.classList.remove("row-flash"), 1500);
+function renderMap(){
+  renderMapTiles();
+  renderMapDots();
+}
+
+/* ---- pan / zoom interaction ---- */
+const getMapViewportEl = () => document.getElementById("mapViewport");
+let mapDragging = false, mapDragMoved = false, mapDragStart = null, mapDragViewStart = null;
+
+function clampMapView(){
+  mapView.N = Math.min(mapView.max, Math.max(mapView.min, mapView.N));
+}
+function zoomMapAt(factor, clientX, clientY){
+  const rect = getMapViewportEl().getBoundingClientRect();
+  const mx = clientX - rect.left, my = clientY - rect.top;
+  const sxAtCursor = mapView.cx + (mx - rect.width / 2) / mapView.N;
+  const syAtCursor = mapView.cz + (my - rect.height / 2) / mapView.N;
+  mapView.N *= factor;
+  clampMapView();
+  mapView.cx = sxAtCursor - (mx - rect.width / 2) / mapView.N;
+  mapView.cz = syAtCursor - (my - rect.height / 2) / mapView.N;
+  renderMap();
+}
+
+function initMapInteraction(){
+  const vp = getMapViewportEl();
+  vp.addEventListener("wheel", e => {
+    e.preventDefault();
+    zoomMapAt(e.deltaY < 0 ? 1.18 : 1 / 1.18, e.clientX, e.clientY);
+  }, { passive: false });
+
+  vp.addEventListener("mousedown", e => {
+    if (e.button !== 0) return;
+    mapDragging = true; mapDragMoved = false;
+    mapDragStart = { x: e.clientX, y: e.clientY };
+    mapDragViewStart = { cx: mapView.cx, cz: mapView.cz };
+    vp.classList.add("dragging");
+  });
+  window.addEventListener("mousemove", e => {
+    if (!mapDragging) return;
+    const dx = e.clientX - mapDragStart.x, dy = e.clientY - mapDragStart.y;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) mapDragMoved = true;
+    mapView.cx = mapDragViewStart.cx - dx / mapView.N;
+    mapView.cz = mapDragViewStart.cz - dy / mapView.N;
+    renderMap();
+  });
+  window.addEventListener("mouseup", () => {
+    if (!mapDragging) return;
+    mapDragging = false;
+    vp.classList.remove("dragging");
+    setTimeout(() => { mapDragMoved = false; }, 0); // let the trailing click see it first
+  });
+
+  document.getElementById("mapZoomIn").addEventListener("click", () => {
+    const r = vp.getBoundingClientRect();
+    zoomMapAt(1.5, r.left + r.width / 2, r.top + r.height / 2);
+  });
+  document.getElementById("mapZoomOut").addEventListener("click", () => {
+    const r = vp.getBoundingClientRect();
+    zoomMapAt(1 / 1.5, r.left + r.width / 2, r.top + r.height / 2);
+  });
+  document.getElementById("mapFit").addEventListener("click", () => {
+    mapView.cx = MAP_DEFAULT.cx; mapView.cz = MAP_DEFAULT.cz; mapView.N = MAP_DEFAULT.N;
+    renderMap();
   });
 }
 
 function renderStats(){
   const layer = LAYERS[currentLayer];
   const allPieces = layer.data.flatMap(z => z.pieces);
-  const found = getFoundSet(currentLayer);
-  const foundCount = allPieces.filter(p => found.has(p.n)).length;
+  const stateMap = getStateMap(currentLayer);
+  const completedCount = allPieces.filter(p => (stateMap[p.n] || 0) === 2).length;
+  const activeCount = allPieces.filter(p => (stateMap[p.n] || 0) === 1).length;
   const located = allPieces.filter(p => !(p.x === 0 && p.z === 0)).length;
   const knownCoins = allPieces.reduce((s,p) => s + (p.c || 0), 0);
-  const pct = Math.round((foundCount / allPieces.length) * 100);
+  const pct = Math.round((completedCount / allPieces.length) * 100);
 
   document.getElementById("tachStats").innerHTML = `
     <div class="tach-stat">
-      <div class="tach-stat-val cyan">${foundCount}/${allPieces.length}</div>
-      <div class="tach-stat-label">Found (this browser)</div>
+      <div class="tach-stat-val cyan">${completedCount}/${allPieces.length}</div>
+      <div class="tach-stat-label">Completed (this browser)</div>
       <div class="tach-progress-track"><div class="tach-progress-fill" style="width:${pct}%"></div></div>
     </div>
     <div class="tach-stat">
@@ -552,32 +709,33 @@ function renderStats(){
       <div class="tach-stat-label">Agris Gold Coin (known)</div>
     </div>
     <div class="tach-stat">
-      <div class="tach-stat-val">${layer.data.length}</div>
-      <div class="tach-stat-label">Zones</div>
+      <div class="tach-stat-val gold">🎯 ${activeCount}</div>
+      <div class="tach-stat-label">Active</div>
     </div>
   `;
 }
 
 function renderZones(){
   const layer = LAYERS[currentLayer];
-  const found = getFoundSet(currentLayer);
+  const stateMap = getStateMap(currentLayer);
   const search = document.getElementById("pieceSearch").value.trim().toLowerCase();
   const hideFound = document.getElementById("hideFound").checked;
   const container = document.getElementById("zoneContainer");
   let anyVisible = false;
 
   container.innerHTML = layer.data.map((zone, zi) => {
-    const zoneFoundCount = zone.pieces.filter(p => found.has(p.n)).length;
-    const zonePct = Math.round((zoneFoundCount / zone.pieces.length) * 100);
+    const zoneCompletedCount = zone.pieces.filter(p => (stateMap[p.n] || 0) === 2).length;
+    const zonePct = Math.round((zoneCompletedCount / zone.pieces.length) * 100);
     const isOpen = openZones[currentLayer].has(zi);
 
     const rows = zone.pieces.map(p => {
-      const isFound = found.has(p.n);
+      const state = stateMap[p.n] || 0;
+      const isCompleted = state === 2, isActive = state === 1;
       const matchesSearch = !search
         || p.name.toLowerCase().includes(search)
         || String(p.n) === search
         || layer.zoneLabel(zone.theme).toLowerCase().includes(search);
-      const hiddenByFound = hideFound && isFound;
+      const hiddenByFound = hideFound && isCompleted;
       const rowHidden = !matchesSearch || hiddenByFound;
       if (matchesSearch && !hiddenByFound) anyVisible = true;
 
@@ -588,10 +746,10 @@ function renderZones(){
       const coinHtml = p.c !== null ? `🪙 ${p.c}` : `<span class="piece-coin unknown">—</span>`;
 
       return `
-        <tr class="${isFound ? "found" : ""} ${rowHidden ? "piece-hidden" : ""}" data-num="${p.n}">
-          <td><input type="checkbox" class="piece-check" ${isFound ? "checked" : ""} data-num="${p.n}"></td>
+        <tr class="${isCompleted ? "found" : ""} ${isActive ? "active" : ""} ${rowHidden ? "piece-hidden" : ""}" data-num="${p.n}">
+          <td><input type="checkbox" class="piece-check" ${isCompleted ? "checked" : ""} data-num="${p.n}"></td>
           <td class="piece-num">#${p.n}</td>
-          <td class="piece-name">${p.name}</td>
+          <td class="piece-name">${p.name}${isActive ? ' <span class="active-badge">🎯 ACTIVE</span>' : ""}</td>
           <td class="piece-coin ${p.c === null ? "unknown" : ""}">${coinHtml}</td>
           <td class="piece-coords ${located ? "" : "unlocated"}">${coordsHtml}</td>
         </tr>`;
@@ -604,7 +762,7 @@ function renderZones(){
           <span class="zone-title">${layer.zoneLabel(zone.theme)}</span>
           <span class="zone-meta">${zone.pieces.length} pieces</span>
           <div class="zone-progress-track"><div class="zone-progress-fill" style="width:${zonePct}%"></div></div>
-          <span class="zone-progress-text">${zoneFoundCount}/${zone.pieces.length} found</span>
+          <span class="zone-progress-text">${zoneCompletedCount}/${zone.pieces.length} completed</span>
         </div>
         <div class="zone-body">
           <table class="piece-table">
@@ -629,12 +787,10 @@ function renderZones(){
     cb.addEventListener("click", e => e.stopPropagation());
     cb.addEventListener("change", () => {
       const num = Number(cb.dataset.num);
-      const set = getFoundSet(currentLayer);
-      if (cb.checked) set.add(num); else set.delete(num);
-      saveFoundSet(currentLayer, set);
+      setPieceState(currentLayer, num, cb.checked ? 2 : 0);
       renderStats();
       renderZones();
-      renderMap();
+      renderMapDots();
     });
   });
   container.querySelectorAll(".copy-btn").forEach(btn => {
@@ -666,11 +822,13 @@ document.getElementById("layerTabs").addEventListener("click", e => {
   document.querySelectorAll(".layer-tab").forEach(t => t.classList.remove("active"));
   tab.classList.add("active");
   currentLayer = tab.dataset.layer;
-  renderAll();
+  renderStats();
+  renderZones();
+  renderMapDots(); // tiles are shared/unaffected by which layer is active
 });
 
 document.getElementById("pieceSearch").addEventListener("input", renderZones);
-document.getElementById("hideFound").addEventListener("change", () => { renderZones(); renderMap(); });
+document.getElementById("hideFound").addEventListener("change", () => { renderZones(); renderMapDots(); });
 
 document.getElementById("expandAllBtn").addEventListener("click", () => {
   openZones[currentLayer] = new Set(LAYERS[currentLayer].data.map((_, i) => i));
@@ -688,14 +846,14 @@ document.getElementById("resetBtn").addEventListener("click", function(){
     setTimeout(() => { this.dataset.confirming = ""; this.textContent = "Reset Progress"; }, 3000);
     return;
   }
-  saveFoundSet(currentLayer, new Set());
+  saveStateMap(currentLayer, {});
   this.dataset.confirming = "";
   this.textContent = "Reset Progress";
   renderAll();
   showToast(`${currentLayer === "trace" ? "Traces" : "Legacy"} progress reset`);
 });
 
-buildMapTiles();
+initMapInteraction();
 renderAll();
 </script>
 </body>
