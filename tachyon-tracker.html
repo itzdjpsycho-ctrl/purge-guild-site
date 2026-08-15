@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tachyon Puzzle Tracker — Purge</title>
+<link rel="icon" href="assets/branding/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/branding/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/branding/favicon-16.png">
+<link rel="apple-touch-icon" href="assets/branding/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Design tokens live in app.css now (single canonical :root, loaded after
+     this inline block so it wins the cascade) — not redefined per-page. */
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; }
+
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-ui);
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+
+  body::before{
+    content:"";
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(44,147,176,0.16), transparent 65%),
+      radial-gradient(ellipse 35% 45% at 100% 100%, rgba(124,111,224,0.07), transparent 60%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
+  }
+
+  nav, header, main, footer{ position:relative; z-index:1; }
+
+  .panel{ background:var(--panel); border:1px solid var(--hairline); }
+  .section{ margin-bottom:30px; }
+  .section-label{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.18em;
+    text-transform:uppercase; color:var(--text-faint); margin-bottom:14px;
+  }
+
+  /* ---- Source note ---- */
+  .source-note{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:12px 18px; margin-bottom:26px;
+    background:var(--panel); border:1px solid var(--hairline);
+    clip-path:var(--panel-clip, none);
+    font-family:var(--font-mono); font-size:11.5px; color:var(--text-muted);
+  }
+  .source-note a{ color:var(--crimson-glow); text-decoration:none; }
+  .source-note a:hover{ text-decoration:underline; }
+  .source-note b{ color:var(--text); }
+
+  /* ---- Layer tabs ---- */
+  .layer-tabs{ display:flex; gap:10px; margin-bottom:18px; }
+  .layer-tab{
+    font-family:var(--font-mono); font-size:12.5px; letter-spacing:0.03em;
+    padding:11px 20px; cursor:pointer;
+    border:1px solid var(--hairline); background:var(--panel);
+    color:var(--text-muted); transition:all 0.16s ease;
+    clip-path:polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+    display:flex; align-items:center; gap:9px;
+  }
+  .layer-tab .layer-tab-count{
+    font-size:10px; color:var(--text-faint); background:rgba(255,255,255,0.05);
+    padding:2px 7px; border-radius:999px;
+  }
+  .layer-tab:hover{ color:var(--text); border-color:rgba(255,255,255,0.18); }
+  .layer-tab.active{
+    color:var(--crimson-glow); border-color:var(--crimson);
+    background:rgba(44,147,176,0.16);
+    box-shadow:inset 0 0 0 1px rgba(95,220,245,0.25);
+  }
+  .layer-tab.active .layer-tab-count{ color:var(--crimson-glow); background:rgba(95,220,245,0.14); }
+
+  /* ---- Summary stat strip ---- */
+  .tach-stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
+  .tach-stat{
+    background:var(--panel); border:1px solid var(--hairline);
+    clip-path:var(--panel-clip, none);
+    padding:16px 18px; text-align:center;
+  }
+  .tach-stat-val{ font-family:var(--font-mono); font-size:22px; font-weight:700; color:var(--text); }
+  .tach-stat-val.gold{ color:var(--gold-bright); }
+  .tach-stat-val.cyan{ color:var(--crimson-glow); }
+  .tach-stat-label{
+    font-family:var(--font-mono); font-size:9px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--text-faint); margin-top:5px;
+  }
+  .tach-progress-track{
+    margin-top:9px; height:5px; border-radius:999px;
+    background:rgba(255,255,255,0.06); overflow:hidden;
+  }
+  .tach-progress-fill{
+    height:100%; border-radius:999px;
+    background:linear-gradient(90deg, var(--crimson), var(--crimson-bright));
+    transition:width 0.25s ease;
+  }
+
+  /* ---- Control bar ---- */
+  .control-bar{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    margin-bottom:18px;
+  }
+  .control-bar input[type="text"]{
+    background:var(--panel-raised); border:1px solid var(--hairline); border-radius:6px;
+    color:var(--text); font-family:var(--font-ui); font-size:13px; padding:9px 12px; outline:none;
+    min-width:220px;
+  }
+  .control-bar input[type="text"]:focus{ border-color:var(--crimson); }
+  .control-check{
+    display:flex; align-items:center; gap:7px;
+    font-family:var(--font-mono); font-size:11.5px; color:var(--text-muted);
+    cursor:pointer; user-select:none;
+  }
+  .control-check input{ accent-color:var(--crimson-bright); width:14px; height:14px; cursor:pointer; }
+  .control-spacer{ flex:1; }
+
+  /* ---- Zone accordion ---- */
+  .zone-panel{ margin-bottom:12px; overflow:hidden; }
+  .zone-header{
+    display:flex; align-items:center; gap:14px;
+    padding:14px 18px; cursor:pointer; user-select:none;
+    transition:background 0.14s ease;
+  }
+  .zone-header:hover{ background:rgba(255,255,255,0.02); }
+  .zone-chevron{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-faint);
+    transition:transform 0.18s ease; flex:none; width:12px;
+  }
+  .zone-panel.open .zone-chevron{ transform:rotate(90deg); }
+  .zone-title{
+    font-family:var(--font-display); font-size:16px; font-weight:600; color:var(--text);
+    flex:none;
+  }
+  .zone-meta{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-faint);
+    flex:none;
+  }
+  .zone-progress-track{
+    flex:1; max-width:220px; height:6px; border-radius:999px;
+    background:rgba(255,255,255,0.06); overflow:hidden;
+  }
+  .zone-progress-fill{
+    height:100%; border-radius:999px;
+    background:linear-gradient(90deg, var(--gold), var(--gold-bright));
+  }
+  .zone-progress-text{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-muted); flex:none;
+  }
+  .zone-body{ display:none; border-top:1px solid var(--hairline-soft); }
+  .zone-panel.open .zone-body{ display:block; }
+
+  .piece-table{ width:100%; border-collapse:collapse; }
+  .piece-table th{
+    text-align:left; padding:9px 18px;
+    font-family:var(--font-mono); font-size:9.5px; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--text-faint);
+    border-bottom:1px solid var(--hairline-soft);
+    background:rgba(255,255,255,0.015);
+  }
+  .piece-table td{
+    padding:9px 18px; border-bottom:1px solid var(--hairline-soft);
+    font-family:var(--font-mono); font-size:12.5px; color:var(--text-muted);
+  }
+  .piece-table tr:last-child td{ border-bottom:none; }
+  .piece-table tr.found td{ color:var(--text-faint); }
+  .piece-table tr.found .piece-name{ text-decoration:line-through; }
+  .piece-table tr:hover td{ background:rgba(255,255,255,0.015); }
+  .piece-table tr.piece-hidden{ display:none; }
+
+  .piece-check{ accent-color:var(--green-bright); width:15px; height:15px; cursor:pointer; }
+  .piece-num{ color:var(--text-faint); }
+  .piece-name{ color:var(--text); }
+  .piece-coin{ color:var(--gold-bright); white-space:nowrap; }
+  .piece-coin.unknown{ color:var(--text-faint); }
+  .piece-coords{ white-space:nowrap; }
+  .piece-coords.unlocated{ color:var(--text-faint); font-style:italic; }
+  .copy-btn{
+    background:none; border:1px solid var(--hairline); color:var(--text-faint);
+    font-family:var(--font-mono); font-size:10px; padding:3px 9px; border-radius:5px;
+    cursor:pointer; transition:all 0.14s ease; margin-left:8px;
+  }
+  .copy-btn:hover{ color:var(--crimson-glow); border-color:var(--crimson); }
+  .copy-btn:disabled{ opacity:0.3; cursor:not-allowed; }
+  .copy-btn.copied{ color:var(--green-bright); border-color:var(--green-bright); }
+
+  .empty-state{
+    padding:30px; text-align:center;
+    font-family:var(--font-mono); font-size:12px; color:var(--text-faint);
+  }
+
+  .reset-btn{
+    background:none; border:1px solid var(--hairline); color:var(--text-muted);
+    font-family:var(--font-mono); font-size:11.5px; letter-spacing:0.04em;
+    padding:8px 15px; border-radius:999px; cursor:pointer; transition:all 0.14s ease;
+  }
+  .reset-btn:hover{ color:var(--red-bright); border-color:var(--red-bright); }
+
+  /* ---- Toast ---- */
+  .toast{
+    position:fixed; bottom:26px; right:26px; z-index:80;
+    background:var(--panel); border:1px solid var(--crimson);
+    color:var(--text); font-family:var(--font-mono); font-size:12px;
+    padding:11px 18px; border-radius:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.4);
+    opacity:0; transform:translateY(8px); pointer-events:none;
+    transition:opacity 0.18s ease, transform 0.18s ease;
+  }
+  .toast.visible{ opacity:1; transform:translateY(0); }
+</style>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<video class="bg-video" autoplay muted loop playsinline aria-hidden="true">
+  <source src="nanotech_background_3840.webm" type="video/webm">
+</video>
+<div class="bg-video-scrim"></div>
+
+<div class="app-shell">
+<aside class="app-sidebar">
+  <a class="app-brand" href="index.html">
+    <span class="app-brand-logo">⚔</span>
+    <span class="app-brand-text">
+      <span class="app-brand-name">Purge</span>
+      <span class="app-brand-sub">Node War</span>
+    </span>
+  </a>
+  <div class="side-nav-label">Menu</div>
+  <nav class="side-nav">
+    <a href="index.html"><span class="ico">🏠</span> Home</a>
+    <a href="war-scores.html"><span class="ico">⚔️</span> War Scores</a>
+    <a href="players.html"><span class="ico">👥</span> Roster</a>
+    <a href="my-stats.html"><span class="ico">🪪</span> My Stats</a>
+    <a href="dashboard.html"><span class="ico">📊</span> Dashboard</a>
+    <a href="signups.html"><span class="ico">📝</span> Sign Ups</a>
+    <a href="combat-log.html"><span class="ico">📜</span> Combat Log</a>
+    <a href="vod-review.html"><span class="ico">🎬</span> VOD Review</a>
+    <a href="clips.html"><span class="ico">🎞️</span> Clips</a>
+    <a href="tachyon-tracker.html" class="current"><span class="ico">🧩</span> Tachyon Tracker</a>
+  </nav>
+  <div id="authWidget" class="auth-widget"></div>
+  <div class="app-sidebar-foot">
+    <b>Purge</b> · BDO Guild<br>
+    Node War Log
+  </div>
+</aside>
+
+<main class="app-content">
+
+<div class="page-head">
+  <div class="page-eyebrow">World Event</div>
+  <h1>Tachyon Puzzle Tracker</h1>
+  <div class="page-sub">Track your progress across Tachyon Traces (puzzle) and Tachyon Legacy (combat) — 100 markers each, split into 7 zones.</div>
+</div>
+
+<div class="source-note">
+  📡 Location and reward data pulled from <b>bdoworkshop.com</b>'s community-maintained Tachyon map on <b>Aug 15, 2026</b>. That tracker is still being filled in by players — markers with no reported coordinates yet are shown as <b>Not yet reported</b> below. For the live version (with screenshots and any updates since), see <a href="https://bdoworkshop.com/map" target="_blank" rel="noopener">bdoworkshop.com/map ↗</a>.
+</div>
+
+<div class="section">
+  <div class="layer-tabs" id="layerTabs">
+    <div class="layer-tab active" data-layer="trace">🧩 Tachyon Traces <span class="layer-tab-count">Puzzle</span></div>
+    <div class="layer-tab" data-layer="legacy">⚔️ Tachyon Legacy <span class="layer-tab-count">Combat</span></div>
+  </div>
+
+  <div class="tach-stats" id="tachStats"></div>
+
+  <div class="control-bar">
+    <input type="text" id="pieceSearch" placeholder="Search by name or #…" autocomplete="off">
+    <label class="control-check"><input type="checkbox" id="hideFound"> Hide found</label>
+    <div class="control-spacer"></div>
+    <button class="btn" id="expandAllBtn" type="button">Expand All</button>
+    <button class="btn" id="collapseAllBtn" type="button">Collapse All</button>
+    <button class="reset-btn" id="resetBtn" type="button" data-confirming="">Reset Progress</button>
+  </div>
+
+  <div id="zoneContainer"></div>
+  <div class="empty-state" id="emptyState" style="display:none;">No pieces match your search.</div>
+</div>
+
+<div class="section">
+  <div class="section-label">About This Data</div>
+  <div class="panel" style="padding:18px 22px; font-family:var(--font-ui); font-size:13px; line-height:1.7; color:var(--text-muted);">
+    <b style="color:var(--text);">Tachyon Traces</b> is the puzzle-collection layer — find the marked spots, collect the piece, cash in for Agris Gold Coin.
+    <b style="color:var(--text);">Tachyon Legacy</b> is a parallel combat layer with its own 100 markers and its own reward track. Coordinates below are raw
+    in-game world X/Z — use the <b>Copy</b> button to grab them for the in-game World Map search or a third-party tool. Found/not-found checkmarks are
+    saved only in <b>your own browser</b> (not shared with the guild) — same as the Squad Roles board on War Scores.
+  </div>
+</div>
+
+</main>
+</div><!-- /app-shell -->
+
+<div class="toast" id="toast"></div>
+
+<script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script src="assets/nav-order.js"></script>
+<script>PurgeAuth.init().then(function(state){ PurgeNavOrder.enableIfGuildMaster(state); });</script>
+<script>
+/* ================================================================
+   TACHYON PUZZLE TRACKER — reference data snapshotted from
+   bdoworkshop.com/map (Inertia "map" page props: markers[], layer
+   "trace" = Tachyon Traces / puzzle, layer "legacy" = Tachyon
+   Legacy / combat). Grouped by theme (7 zones x ~14-15 pieces each,
+   last zone has 10). coins:null / x:0,z:0 means that marker hasn't
+   been reported to the community tracker yet — NOT a real location,
+   so it's rendered as "Not yet reported" rather than a fake coord.
+   Pulled 2026-08-15 — re-pull from the source if it goes stale.
+================================================================ */
+const TACHYON_TRACES = [
+  {theme:"Tachyon Legacy - Onslaught I",pieces:[{n:1,name:"Tachyon Traces I",c:15,x:1161020,z:747180},{n:2,name:"Tachyon Traces II",c:15,x:1189330,z:721636},{n:3,name:"Tachyon Traces III",c:15,x:1118520,z:751713},{n:4,name:"Tachyon Traces IV",c:20,x:1157660,z:839844},{n:5,name:"Tachyon Traces V",c:25,x:1163230,z:697405},{n:6,name:"Tachyon Traces VI",c:25,x:1189350,z:780403},{n:7,name:"Tachyon Traces VII",c:25,x:1162370,z:761878},{n:8,name:"Tachyon Traces VIII",c:30,x:1156090,z:718157},{n:9,name:"Tachyon Traces IX",c:30,x:1145790,z:746076},{n:10,name:"Tachyon Traces X",c:25,x:1201900,z:722189},{n:11,name:"Tachyon Traces XI",c:null,x:0,z:0},{n:12,name:"Tachyon Traces XII",c:null,x:0,z:0},{n:13,name:"Tachyon Traces XIII",c:null,x:0,z:0},{n:14,name:"Tachyon Traces XIV",c:null,x:0,z:0},{n:15,name:"Tachyon Traces XV",c:null,x:0,z:0}]},
+  {theme:"Tachyon Legacy - Onslaught II",pieces:[{n:16,name:"Tachyon Traces XVI",c:15,x:891590,z:730182},{n:17,name:"Tachyon Traces XVII",c:15,x:872254,z:740605},{n:18,name:"Tachyon Traces XVIII",c:15,x:856673,z:735446},{n:19,name:"Tachyon Traces XIX",c:15,x:860426,z:767797},{n:20,name:"Tachyon Traces XX",c:25,x:865106,z:768618},{n:21,name:"Tachyon Traces XXI",c:25,x:840886,z:740422},{n:22,name:"Tachyon Traces XXII",c:25,x:829629,z:745591},{n:23,name:"Tachyon Traces XXIII",c:25,x:845211,z:770127},{n:24,name:"Tachyon Traces XXIV",c:30,x:879240,z:765514},{n:25,name:"Tachyon Traces XXV",c:25,x:888424,z:770878},{n:26,name:"Tachyon Traces XXVI",c:null,x:0,z:0},{n:27,name:"Tachyon Traces XXVII",c:null,x:0,z:0},{n:28,name:"Tachyon Traces XXVIII",c:null,x:0,z:0},{n:29,name:"Tachyon Traces XXIX",c:null,x:0,z:0},{n:30,name:"Tachyon Traces XXX",c:null,x:0,z:0}]},
+  {theme:"Tachyon Legacy - Onslaught III",pieces:[{n:31,name:"Tachyon Traces XXXI",c:15,x:993623,z:744344},{n:32,name:"Tachyon Traces XXXII",c:15,x:982930,z:716203},{n:33,name:"Tachyon Traces XXXIII",c:15,x:995553,z:702597},{n:34,name:"Tachyon Traces XXXIV",c:30,x:952703,z:787786},{n:35,name:"Tachyon Traces XXXV",c:25,x:991365,z:720371},{n:36,name:"Tachyon Traces XXXVI",c:30,x:984959,z:757974},{n:37,name:"Tachyon Traces XXXVII",c:30,x:965836,z:784398},{n:38,name:"Tachyon Traces XXXVIII",c:30,x:963977,z:765662},{n:39,name:"Tachyon Traces XXXIX",c:30,x:987324,z:788483},{n:40,name:"Tachyon Traces XL",c:20,x:935010,z:757144},{n:41,name:"Tachyon Traces XLI",c:null,x:0,z:0},{n:42,name:"Tachyon Traces XLII",c:null,x:0,z:0},{n:43,name:"Tachyon Traces XLIII",c:null,x:0,z:0},{n:44,name:"Tachyon Traces XLIV",c:null,x:0,z:0},{n:45,name:"Tachyon Traces XLV",c:null,x:0,z:0}]},
+  {theme:"Tachyon Legacy - Onslaught IV",pieces:[{n:46,name:"Tachyon Traces XLVI",c:15,x:1086150,z:776047},{n:47,name:"Tachyon Traces XLVII",c:15,x:1096460,z:718853},{n:48,name:"Tachyon Traces XLVIII",c:15,x:1084330,z:740199},{n:49,name:"Tachyon Traces XLIX",c:30,x:1046270,z:818529},{n:50,name:"Tachyon Traces L",c:30,x:1061420,z:835247},{n:51,name:"Tachyon Traces LI",c:25,x:1041420,z:780378},{n:52,name:"Tachyon Traces LII",c:30,x:1046960,z:839048},{n:53,name:"Tachyon Traces LIII",c:30,x:1072410,z:745512},{n:54,name:"Tachyon Traces LIV",c:30,x:1081300,z:807830},{n:55,name:"Tachyon Traces LV",c:30,x:1066320,z:823891},{n:56,name:"Tachyon Traces LVI",c:null,x:0,z:0},{n:57,name:"Tachyon Traces LVII",c:null,x:0,z:0},{n:58,name:"Tachyon Traces LVIII",c:null,x:0,z:0},{n:59,name:"Tachyon Traces LIX",c:null,x:0,z:0},{n:60,name:"Tachyon Traces LX",c:null,x:0,z:0}]},
+  {theme:"Tachyon Legacy - Onslaught V",pieces:[{n:61,name:"Tachyon Traces LXI",c:15,x:803317,z:529156},{n:62,name:"Tachyon Traces LXII",c:15,x:872980,z:522133},{n:63,name:"Tachyon Traces LXIII",c:15,x:823416,z:641458},{n:64,name:"Tachyon Traces LXIV",c:30,x:856665,z:649246},{n:65,name:"Tachyon Traces LXV",c:30,x:887192,z:644513},{n:66,name:"Tachyon Traces LXVI",c:30,x:779813,z:585026},{n:67,name:"Tachyon Traces LXVII",c:30,x:851389,z:608685},{n:68,name:"Tachyon Traces LXVIII",c:25,x:942110,z:604140},{n:69,name:"Tachyon Traces LXIX",c:30,x:901639,z:590858},{n:70,name:"Tachyon Traces LXX",c:30,x:945480,z:642634},{n:71,name:"Tachyon Traces LXXI",c:null,x:0,z:0},{n:72,name:"Tachyon Traces LXXII",c:null,x:0,z:0},{n:73,name:"Tachyon Traces LXXIII",c:null,x:0,z:0},{n:74,name:"Tachyon Traces LXXIV",c:null,x:0,z:0},{n:75,name:"Tachyon Traces LXXV",c:null,x:0,z:0}]},
+  {theme:"Tachyon Legacy - Onslaught VI",pieces:[{n:76,name:"Tachyon Traces LXXVI",c:15,x:880673,z:693956},{n:77,name:"Tachyon Traces LXXVII",c:15,x:917432,z:687693},{n:78,name:"Tachyon Traces LXXVIII",c:15,x:794283,z:704920},{n:79,name:"Tachyon Traces LXXIX",c:30,x:865036,z:692701},{n:80,name:"Tachyon Traces LXXX",c:25,x:904898,z:678055},{n:81,name:"Tachyon Traces LXXXI",c:25,x:898096,z:693390},{n:82,name:"Tachyon Traces LXXXII",c:25,x:845340,z:677080},{n:83,name:"Tachyon Traces LXXXIII",c:25,x:906504,z:659035},{n:84,name:"Tachyon Traces LXXXIV",c:25,x:828213,z:695066},{n:85,name:"Tachyon Traces LXXXV",c:30,x:786942,z:683040},{n:86,name:"Tachyon Traces LXXXVI",c:null,x:0,z:0},{n:87,name:"Tachyon Traces LXXXVII",c:null,x:0,z:0},{n:88,name:"Tachyon Traces LXXXVIII",c:null,x:0,z:0},{n:89,name:"Tachyon Traces LXXXIX",c:null,x:0,z:0},{n:90,name:"Tachyon Traces XC",c:null,x:0,z:0}]},
+  {theme:"Tachyon Legacy - Onslaught VII",pieces:[{n:91,name:"Tachyon Traces XCI",c:null,x:0,z:0},{n:92,name:"Tachyon Traces XCII",c:null,x:0,z:0},{n:93,name:"Tachyon Traces XCIII",c:null,x:0,z:0},{n:94,name:"Tachyon Traces XCIV",c:null,x:0,z:0},{n:95,name:"Tachyon Traces XCV",c:null,x:0,z:0},{n:96,name:"Tachyon Traces XCVI",c:null,x:0,z:0},{n:97,name:"Tachyon Traces XCVII",c:null,x:0,z:0},{n:98,name:"Tachyon Traces XCVIII",c:null,x:0,z:0},{n:99,name:"Tachyon Traces XCIX",c:null,x:0,z:0},{n:100,name:"Tachyon Traces C",c:null,x:0,z:0}]}
+];
+
+const TACHYON_LEGACY = [
+  {theme:"Tachyon Legacy - Supremacy I",pieces:[{n:1,name:"Tachyon Legacy I",c:10,x:1186200,z:754538},{n:2,name:"Tachyon Legacy II",c:10,x:1198350,z:764938},{n:3,name:"Tachyon Legacy III",c:10,x:1184710,z:801340},{n:4,name:"Tachyon Legacy IV",c:10,x:1200650,z:793038},{n:5,name:"Tachyon Legacy V",c:10,x:1171800,z:753478},{n:6,name:"Tachyon Legacy VI",c:10,x:1143620,z:825431},{n:7,name:"Tachyon Legacy VII",c:10,x:1142690,z:807556},{n:8,name:"Tachyon Legacy VIII",c:10,x:1162650,z:777672},{n:9,name:"Tachyon Legacy IX",c:10,x:1146340,z:765141},{n:10,name:"Tachyon Legacy X",c:10,x:1171480,z:773297},{n:11,name:"Tachyon Legacy XI",c:10,x:1185950,z:766706},{n:12,name:"Tachyon Legacy XII",c:10,x:1172650,z:789176},{n:13,name:"Tachyon Legacy XIII",c:10,x:1178010,z:825892},{n:14,name:"Tachyon Legacy XIV",c:10,x:1200540,z:837891},{n:15,name:"Tachyon Legacy XV",c:10,x:0,z:0}]},
+  {theme:"Tachyon Legacy - Supremacy II",pieces:[{n:16,name:"Tachyon Legacy XVI",c:10,x:859377,z:757752},{n:17,name:"Tachyon Legacy XVII",c:10,x:842591,z:758618},{n:18,name:"Tachyon Legacy XVIII",c:10,x:852887,z:792554},{n:19,name:"Tachyon Legacy XIX",c:10,x:831400,z:779038},{n:20,name:"Tachyon Legacy XX",c:10,x:834314,z:760283},{n:21,name:"Tachyon Legacy XXI",c:10,x:887595,z:735745},{n:22,name:"Tachyon Legacy XXII",c:10,x:828109,z:734095},{n:23,name:"Tachyon Legacy XXIII",c:10,x:824673,z:751545},{n:24,name:"Tachyon Legacy XXIV",c:10,x:887637,z:741370},{n:25,name:"Tachyon Legacy XXV",c:10,x:918456,z:747837},{n:26,name:"Tachyon Legacy XXVI",c:10,x:917968,z:772885},{n:27,name:"Tachyon Legacy XXVII",c:10,x:871910,z:801596},{n:28,name:"Tachyon Legacy XXVIII",c:10,x:862002,z:804557},{n:29,name:"Tachyon Legacy XXIX",c:10,x:880244,z:793640},{n:30,name:"Tachyon Legacy XXX",c:10,x:0,z:0}]},
+  {theme:"Tachyon Legacy - Supremacy III",pieces:[{n:31,name:"Tachyon Legacy XXXI",c:10,x:938849,z:725764},{n:32,name:"Tachyon Legacy XXXII",c:10,x:1001690,z:707650},{n:33,name:"Tachyon Legacy XXXIII",c:10,x:949615,z:745026},{n:34,name:"Tachyon Legacy XXXIV",c:10,x:924116,z:726406},{n:35,name:"Tachyon Legacy XXXV",c:10,x:951187,z:722680},{n:36,name:"Tachyon Legacy XXXVI",c:10,x:997467,z:720562},{n:37,name:"Tachyon Legacy XXXVII",c:10,x:980521,z:724318},{n:38,name:"Tachyon Legacy XXXVIII",c:10,x:967044,z:731512},{n:39,name:"Tachyon Legacy XXXIX",c:10,x:965162,z:750621},{n:40,name:"Tachyon Legacy XL",c:10,x:920130,z:706089},{n:41,name:"Tachyon Legacy XLI",c:10,x:967801,z:727098},{n:42,name:"Tachyon Legacy XLII",c:10,x:951665,z:732060},{n:43,name:"Tachyon Legacy XLIII",c:10,x:981970,z:746928},{n:44,name:"Tachyon Legacy XLIV",c:10,x:1007260,z:713553},{n:45,name:"Tachyon Legacy XLV",c:10,x:0,z:0}]},
+  {theme:"Tachyon Legacy - Supremacy IV",pieces:[{n:46,name:"Tachyon Legacy XLVI",c:10,x:1080790,z:753279},{n:47,name:"Tachyon Legacy XLVII",c:10,x:1092020,z:701402},{n:48,name:"Tachyon Legacy XLVIII",c:10,x:1089750,z:755617},{n:49,name:"Tachyon Legacy XLIX",c:10,x:1078660,z:827323},{n:50,name:"Tachyon Legacy L",c:10,x:1063310,z:815528},{n:51,name:"Tachyon Legacy LI",c:10,x:1071210,z:803151},{n:52,name:"Tachyon Legacy LII",c:10,x:1067740,z:764956},{n:53,name:"Tachyon Legacy LIII",c:10,x:1104580,z:750471},{n:54,name:"Tachyon Legacy LIV",c:10,x:1034980,z:835335},{n:55,name:"Tachyon Legacy LV",c:10,x:1059250,z:823418},{n:56,name:"Tachyon Legacy LVI",c:10,x:1101560,z:774065},{n:57,name:"Tachyon Legacy LVII",c:10,x:1103750,z:728373},{n:58,name:"Tachyon Legacy LVIII",c:10,x:1084170,z:747874},{n:59,name:"Tachyon Legacy LIX",c:10,x:1052170,z:808382},{n:60,name:"Tachyon Legacy LX",c:10,x:0,z:0}]},
+  {theme:"Tachyon Legacy - Supremacy V",pieces:[{n:61,name:"Tachyon Legacy LXI",c:10,x:891186,z:570282},{n:62,name:"Tachyon Legacy LXII",c:10,x:876984,z:597152},{n:63,name:"Tachyon Legacy LXIII",c:10,x:905693,z:622838},{n:64,name:"Tachyon Legacy LXIV",c:10,x:905836,z:652531},{n:65,name:"Tachyon Legacy LXV",c:10,x:867930,z:631047},{n:66,name:"Tachyon Legacy LXVI",c:10,x:868915,z:570300},{n:67,name:"Tachyon Legacy LXVII",c:10,x:845844,z:570789},{n:68,name:"Tachyon Legacy LXVIII",c:10,x:830726,z:557469},{n:69,name:"Tachyon Legacy LXIX",c:10,x:852610,z:634509},{n:70,name:"Tachyon Legacy LXX",c:10,x:863972,z:610287},{n:71,name:"Tachyon Legacy LXXI",c:10,x:916687,z:581956},{n:72,name:"Tachyon Legacy LXXII",c:10,x:936005,z:589110},{n:73,name:"Tachyon Legacy LXXIII",c:10,x:917535,z:636760},{n:74,name:"Tachyon Legacy LXXIV",c:10,x:837241,z:603848},{n:75,name:"Tachyon Legacy LXXV",c:10,x:0,z:0}]},
+  {theme:"Tachyon Legacy - Supremacy VI",pieces:[{n:76,name:"Tachyon Legacy LXXVI",c:10,x:856553,z:706783},{n:77,name:"Tachyon Legacy LXXVII",c:10,x:851415,z:726798},{n:78,name:"Tachyon Legacy LXXVIII",c:10,x:865848,z:699125},{n:79,name:"Tachyon Legacy LXXIX",c:10,x:851882,z:715508},{n:80,name:"Tachyon Legacy LXXX",c:10,x:876764,z:696090},{n:81,name:"Tachyon Legacy LXXXI",c:10,x:881272,z:721960},{n:82,name:"Tachyon Legacy LXXXII",c:10,x:875029,z:683059},{n:83,name:"Tachyon Legacy LXXXIII",c:10,x:876092,z:675160},{n:84,name:"Tachyon Legacy LXXXIV",c:10,x:859997,z:668887},{n:85,name:"Tachyon Legacy LXXXV",c:10,x:907402,z:693483},{n:86,name:"Tachyon Legacy LXXXVI",c:10,x:921236,z:672316},{n:87,name:"Tachyon Legacy LXXXVII",c:10,x:911970,z:680173},{n:88,name:"Tachyon Legacy LXXXVIII",c:10,x:861591,z:658794},{n:89,name:"Tachyon Legacy LXXXIX",c:10,x:867349,z:653789},{n:90,name:"Tachyon Legacy XC",c:10,x:869262,z:662519}]},
+  {theme:"Tachyon Legacy - Supremacy VII",pieces:[{n:91,name:"Tachyon Legacy XCI",c:null,x:0,z:0},{n:92,name:"Tachyon Legacy XCII",c:null,x:0,z:0},{n:93,name:"Tachyon Legacy XCIII",c:null,x:0,z:0},{n:94,name:"Tachyon Legacy XCIV",c:null,x:0,z:0},{n:95,name:"Tachyon Legacy XCV",c:null,x:0,z:0},{n:96,name:"Tachyon Legacy XCVI",c:null,x:0,z:0},{n:97,name:"Tachyon Legacy XCVII",c:null,x:0,z:0},{n:98,name:"Tachyon Legacy XCVIII",c:null,x:0,z:0},{n:99,name:"Tachyon Legacy XCIX",c:null,x:0,z:0},{n:100,name:"Tachyon Legacy C",c:null,x:0,z:0}]}
+];
+
+const LAYERS = {
+  trace:  { data: TACHYON_TRACES,  storageKey: "tachyonTrackerFound_trace",  zoneLabel: t => t.replace("Tachyon Legacy - Onslaught ", "Onslaught ") },
+  legacy: { data: TACHYON_LEGACY,  storageKey: "tachyonTrackerFound_legacy", zoneLabel: t => t.replace("Tachyon Legacy - Supremacy ", "Supremacy ") },
+};
+
+let currentLayer = "trace";
+const openZones = { trace: new Set([0]), legacy: new Set([0]) }; // first zone open by default per layer
+
+function getFoundSet(layer){
+  try{
+    const raw = localStorage.getItem(LAYERS[layer].storageKey);
+    return new Set(raw ? JSON.parse(raw) : []);
+  }catch(e){ return new Set(); }
+}
+function saveFoundSet(layer, set){
+  localStorage.setItem(LAYERS[layer].storageKey, JSON.stringify([...set]));
+}
+
+function showToast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("visible");
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove("visible"), 1800);
+}
+
+function fmtNum(n){ return n.toLocaleString("en-US"); }
+
+function renderStats(){
+  const layer = LAYERS[currentLayer];
+  const allPieces = layer.data.flatMap(z => z.pieces);
+  const found = getFoundSet(currentLayer);
+  const foundCount = allPieces.filter(p => found.has(p.n)).length;
+  const located = allPieces.filter(p => !(p.x === 0 && p.z === 0)).length;
+  const knownCoins = allPieces.reduce((s,p) => s + (p.c || 0), 0);
+  const pct = Math.round((foundCount / allPieces.length) * 100);
+
+  document.getElementById("tachStats").innerHTML = `
+    <div class="tach-stat">
+      <div class="tach-stat-val cyan">${foundCount}/${allPieces.length}</div>
+      <div class="tach-stat-label">Found (this browser)</div>
+      <div class="tach-progress-track"><div class="tach-progress-fill" style="width:${pct}%"></div></div>
+    </div>
+    <div class="tach-stat">
+      <div class="tach-stat-val">${located}/${allPieces.length}</div>
+      <div class="tach-stat-label">Locations Confirmed</div>
+    </div>
+    <div class="tach-stat">
+      <div class="tach-stat-val gold">🪙 ${fmtNum(knownCoins)}</div>
+      <div class="tach-stat-label">Agris Gold Coin (known)</div>
+    </div>
+    <div class="tach-stat">
+      <div class="tach-stat-val">${layer.data.length}</div>
+      <div class="tach-stat-label">Zones</div>
+    </div>
+  `;
+}
+
+function renderZones(){
+  const layer = LAYERS[currentLayer];
+  const found = getFoundSet(currentLayer);
+  const search = document.getElementById("pieceSearch").value.trim().toLowerCase();
+  const hideFound = document.getElementById("hideFound").checked;
+  const container = document.getElementById("zoneContainer");
+  let anyVisible = false;
+
+  container.innerHTML = layer.data.map((zone, zi) => {
+    const zoneFoundCount = zone.pieces.filter(p => found.has(p.n)).length;
+    const zonePct = Math.round((zoneFoundCount / zone.pieces.length) * 100);
+    const isOpen = openZones[currentLayer].has(zi);
+
+    const rows = zone.pieces.map(p => {
+      const isFound = found.has(p.n);
+      const matchesSearch = !search
+        || p.name.toLowerCase().includes(search)
+        || String(p.n) === search
+        || layer.zoneLabel(zone.theme).toLowerCase().includes(search);
+      const hiddenByFound = hideFound && isFound;
+      const rowHidden = !matchesSearch || hiddenByFound;
+      if (matchesSearch && !hiddenByFound) anyVisible = true;
+
+      const located = !(p.x === 0 && p.z === 0);
+      const coordsHtml = located
+        ? `${fmtNum(p.x)}, ${fmtNum(p.z)} <button class="copy-btn" data-x="${p.x}" data-z="${p.z}" type="button">Copy</button>`
+        : `<span class="piece-coords unlocated">Not yet reported</span>`;
+      const coinHtml = p.c !== null ? `🪙 ${p.c}` : `<span class="piece-coin unknown">—</span>`;
+
+      return `
+        <tr class="${isFound ? "found" : ""} ${rowHidden ? "piece-hidden" : ""}" data-num="${p.n}">
+          <td><input type="checkbox" class="piece-check" ${isFound ? "checked" : ""} data-num="${p.n}"></td>
+          <td class="piece-num">#${p.n}</td>
+          <td class="piece-name">${p.name}</td>
+          <td class="piece-coin ${p.c === null ? "unknown" : ""}">${coinHtml}</td>
+          <td class="piece-coords ${located ? "" : "unlocated"}">${coordsHtml}</td>
+        </tr>`;
+    }).join("");
+
+    return `
+      <div class="panel zone-panel ${isOpen ? "open" : ""}" data-zone="${zi}">
+        <div class="zone-header" data-zone-toggle="${zi}">
+          <span class="zone-chevron">▶</span>
+          <span class="zone-title">${layer.zoneLabel(zone.theme)}</span>
+          <span class="zone-meta">${zone.pieces.length} pieces</span>
+          <div class="zone-progress-track"><div class="zone-progress-fill" style="width:${zonePct}%"></div></div>
+          <span class="zone-progress-text">${zoneFoundCount}/${zone.pieces.length} found</span>
+        </div>
+        <div class="zone-body">
+          <table class="piece-table">
+            <thead><tr><th></th><th>#</th><th>Piece</th><th>Reward</th><th>Coordinates (X, Z)</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }).join("");
+
+  document.getElementById("emptyState").style.display = anyVisible ? "none" : "block";
+
+  container.querySelectorAll("[data-zone-toggle]").forEach(el => {
+    el.addEventListener("click", () => {
+      const zi = Number(el.dataset.zoneToggle);
+      if (openZones[currentLayer].has(zi)) openZones[currentLayer].delete(zi);
+      else openZones[currentLayer].add(zi);
+      renderZones();
+    });
+  });
+  container.querySelectorAll(".piece-check").forEach(cb => {
+    cb.addEventListener("click", e => e.stopPropagation());
+    cb.addEventListener("change", () => {
+      const num = Number(cb.dataset.num);
+      const set = getFoundSet(currentLayer);
+      if (cb.checked) set.add(num); else set.delete(num);
+      saveFoundSet(currentLayer, set);
+      renderStats();
+      renderZones();
+    });
+  });
+  container.querySelectorAll(".copy-btn").forEach(btn => {
+    btn.addEventListener("click", async e => {
+      e.stopPropagation();
+      const coords = `${btn.dataset.x}, ${btn.dataset.z}`;
+      try{
+        await navigator.clipboard.writeText(coords);
+        btn.textContent = "Copied";
+        btn.classList.add("copied");
+        showToast(`Copied ${coords}`);
+        setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 1500);
+      }catch(err){
+        showToast("Couldn't copy — clipboard blocked");
+      }
+    });
+  });
+}
+
+function renderAll(){
+  renderStats();
+  renderZones();
+}
+
+document.getElementById("layerTabs").addEventListener("click", e => {
+  const tab = e.target.closest(".layer-tab");
+  if (!tab) return;
+  document.querySelectorAll(".layer-tab").forEach(t => t.classList.remove("active"));
+  tab.classList.add("active");
+  currentLayer = tab.dataset.layer;
+  renderAll();
+});
+
+document.getElementById("pieceSearch").addEventListener("input", renderZones);
+document.getElementById("hideFound").addEventListener("change", renderZones);
+
+document.getElementById("expandAllBtn").addEventListener("click", () => {
+  openZones[currentLayer] = new Set(LAYERS[currentLayer].data.map((_, i) => i));
+  renderZones();
+});
+document.getElementById("collapseAllBtn").addEventListener("click", () => {
+  openZones[currentLayer] = new Set();
+  renderZones();
+});
+
+document.getElementById("resetBtn").addEventListener("click", function(){
+  if (this.dataset.confirming !== "1"){
+    this.dataset.confirming = "1";
+    this.textContent = "Tap again to reset";
+    setTimeout(() => { this.dataset.confirming = ""; this.textContent = "Reset Progress"; }, 3000);
+    return;
+  }
+  saveFoundSet(currentLayer, new Set());
+  this.dataset.confirming = "";
+  this.textContent = "Reset Progress";
+  renderAll();
+  showToast(`${currentLayer === "trace" ? "Traces" : "Legacy"} progress reset`);
+});
+
+renderAll();
+</script>
+</body>
+</html>
