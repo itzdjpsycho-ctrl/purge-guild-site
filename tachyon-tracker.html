@@ -102,6 +102,46 @@
     transition:width 0.25s ease;
   }
 
+  /* ---- Overview map ---- */
+  .map-panel{ padding:16px 18px 14px; margin-bottom:22px; }
+  .map-panel-head{
+    display:flex; align-items:baseline; justify-content:space-between;
+    margin-bottom:12px;
+  }
+  .map-caption{
+    font-family:var(--font-mono); font-size:11px; color:var(--text-faint);
+  }
+  .map-viewport{
+    position:relative; overflow:hidden;
+    width:680px; height:576px; max-width:100%;
+    margin:0 auto; border-radius:6px;
+    background:#04202c;
+    box-shadow:inset 0 0 0 1px var(--hairline);
+  }
+  .map-tiles img{
+    position:absolute; display:block;
+    image-rendering:pixelated; pointer-events:none; user-select:none;
+  }
+  .map-dots{ position:absolute; inset:0; }
+  .map-dot{
+    position:absolute;
+    width:10px; height:10px; margin:-5px 0 0 -5px;
+    border-radius:50%; cursor:pointer;
+    border:1.5px solid rgba(255,255,255,0.9);
+    box-shadow:0 0 5px rgba(0,0,0,0.7);
+    transition:transform 0.12s ease, opacity 0.15s ease;
+  }
+  .map-dot:hover{ transform:scale(1.7); z-index:5; }
+  .map-dot.layer-trace{ background:var(--crimson-bright); }
+  .map-dot.layer-legacy{ background:var(--gold-bright); }
+  .map-dot.dot-found{ opacity:0.3; }
+  .map-dot.dot-hidden{ display:none; }
+  .map-hint{
+    margin-top:10px; text-align:center;
+    font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint);
+  }
+  tr.row-flash td{ background:rgba(95,220,245,0.16) !important; transition:background 1.4s ease; }
+
   /* ---- Control bar ---- */
   .control-bar{
     display:flex; align-items:center; gap:12px; flex-wrap:wrap;
@@ -272,6 +312,18 @@
 
   <div class="tach-stats" id="tachStats"></div>
 
+  <div class="panel map-panel">
+    <div class="map-panel-head">
+      <span class="section-heading" style="margin:0;">Overview Map</span>
+      <span class="map-caption" id="mapCaption"></span>
+    </div>
+    <div class="map-viewport" id="mapViewport">
+      <div class="map-tiles" id="mapTiles"></div>
+      <div class="map-dots" id="mapDots"></div>
+    </div>
+    <div class="map-hint">Real BDO world map tiles, hotlinked from bdoworkshop.com — pieces are plotted from their reported X/Z using that site's own published coordinate math. Click a pin to jump to it below.</div>
+  </div>
+
   <div class="control-bar">
     <input type="text" id="pieceSearch" placeholder="Search by name or #…" autocomplete="off">
     <label class="control-check"><input type="checkbox" id="hideFound"> Hide found</label>
@@ -361,6 +413,120 @@ function showToast(msg){
 }
 
 function fmtNum(n){ return n.toLocaleString("en-US"); }
+
+function zoneIndexForPiece(layer, num){
+  return LAYERS[layer].data.findIndex(z => z.pieces.some(p => p.n === num));
+}
+
+/* ================================================================
+   OVERVIEW MAP — real BDO world-map tiles hotlinked from
+   bdoworkshop.com/images/map/{level}/{tileX}_{tileY}.webp, with
+   pins placed using that same site's own published coordinate
+   transform (read out of its client bundle, not guessed):
+     sectorX = (worldX - sx0*sector) / sector
+     sectorY = ((sz1+1)*sector - worldZ) / sector
+     tilePx  = sectorCoord * (TILE_PX / (TILE_PX/level))   [= sectorCoord * level's px-per-sector]
+   At level 8 (the coarsest/lightest tile set — 512px tiles, 64
+   sectors each) that's a flat 8 px-per-sector, which is all this
+   static overview needs. World params (sector/sx0/sz1) come from
+   the same "map" page's props.world, pulled 2026-08-15.
+   Only a shared crop around where every marker actually falls is
+   fetched — 2 real tiles + the sea fallback, not the whole world.
+================================================================ */
+const MAP_LEVEL = 8;
+const MAP_TILE_PX = 512;
+const MAP_SECTOR = 12800, MAP_SX0 = -134, MAP_SZ1 = 140;
+// Pixels-per-sector at this level = TILE_PX / (sectors-per-tile), and
+// sectors-per-tile itself = TILE_PX / MAP_LEVEL — the two TILE_PX terms
+// cancel, leaving pixels-per-sector == MAP_LEVEL exactly (= 8 here).
+const MAP_PX_PER_SECTOR = MAP_LEVEL;
+const MAP_TILES_AT_LEVEL8 = new Set(["0_0","0_1","0_2","1_0","1_1","1_2","1_3","2_1","2_2","2_3","3_1","3_2","3_3"]);
+// Crop box in native level-8 mosaic pixels — covers both layers' full
+// marker spread (trace px 1559-1823/py 603-802, legacy px 1587-1822/
+// py 604-780) plus padding, rounded to a clean box.
+const MAP_CROP = { x0: 1480, y0: 520, w: 424, h: 360 };
+const MAP_SCALE = 1.6; // display px per native mosaic px -> 680x576 viewport
+
+function worldToMapPx(x, z){
+  const sectorX = (x - MAP_SX0 * MAP_SECTOR) / MAP_SECTOR;
+  const sectorY = ((MAP_SZ1 + 1) * MAP_SECTOR - z) / MAP_SECTOR;
+  return {
+    x: (sectorX * MAP_PX_PER_SECTOR - MAP_CROP.x0) * MAP_SCALE,
+    y: (sectorY * MAP_PX_PER_SECTOR - MAP_CROP.y0) * MAP_SCALE,
+  };
+}
+
+function buildMapTiles(){
+  const tileEl = document.getElementById("mapTiles");
+  const tx0 = Math.floor(MAP_CROP.x0 / MAP_TILE_PX);
+  const tx1 = Math.floor((MAP_CROP.x0 + MAP_CROP.w - 1) / MAP_TILE_PX);
+  const ty0 = Math.floor(MAP_CROP.y0 / MAP_TILE_PX);
+  const ty1 = Math.floor((MAP_CROP.y0 + MAP_CROP.h - 1) / MAP_TILE_PX);
+  const frag = document.createDocumentFragment();
+  for (let ty = ty0; ty <= ty1; ty++){
+    for (let tx = tx0; tx <= tx1; tx++){
+      const left = (tx * MAP_TILE_PX - MAP_CROP.x0) * MAP_SCALE;
+      const top  = (ty * MAP_TILE_PX - MAP_CROP.y0) * MAP_SCALE;
+      const size = MAP_TILE_PX * MAP_SCALE;
+      // sea base first (matches bdoworkshop's own draw order), then the
+      // real tile on top if that cell has one.
+      const sea = document.createElement("img");
+      sea.src = `https://bdoworkshop.com/images/map/sea_${MAP_LEVEL}.webp`;
+      sea.style.cssText = `left:${left}px; top:${top}px; width:${size}px; height:${size}px;`;
+      frag.appendChild(sea);
+      const key = `${tx}_${ty}`;
+      if (MAP_TILES_AT_LEVEL8.has(key)){
+        const img = document.createElement("img");
+        img.src = `https://bdoworkshop.com/images/map/${MAP_LEVEL}/${key}.webp`;
+        img.style.cssText = `left:${left}px; top:${top}px; width:${size}px; height:${size}px;`;
+        frag.appendChild(img);
+      }
+    }
+  }
+  tileEl.appendChild(frag);
+}
+
+function renderMap(){
+  const layer = LAYERS[currentLayer];
+  const allPieces = layer.data.flatMap(z => z.pieces);
+  const found = getFoundSet(currentLayer);
+  const hideFound = document.getElementById("hideFound").checked;
+  const located = allPieces.filter(p => !(p.x === 0 && p.z === 0));
+
+  const dotsEl = document.getElementById("mapDots");
+  dotsEl.innerHTML = "";
+  const frag = document.createDocumentFragment();
+  located.forEach(p => {
+    const pos = worldToMapPx(p.x, p.z);
+    const isFound = found.has(p.n);
+    const dot = document.createElement("div");
+    dot.className = `map-dot layer-${currentLayer} ${isFound ? "dot-found" : ""} ${hideFound && isFound ? "dot-hidden" : ""}`;
+    dot.style.left = pos.x + "px";
+    dot.style.top = pos.y + "px";
+    dot.title = `#${p.n} ${p.name}${p.c !== null ? ` — 🪙 ${p.c}` : ""}`;
+    dot.dataset.num = p.n;
+    dot.addEventListener("click", () => jumpToPiece(p.n));
+    frag.appendChild(dot);
+  });
+  dotsEl.appendChild(frag);
+
+  document.getElementById("mapCaption").textContent =
+    `${located.length}/${allPieces.length} pieces plotted · ${allPieces.length - located.length} not yet located`;
+}
+
+function jumpToPiece(num){
+  const zi = zoneIndexForPiece(currentLayer, num);
+  if (zi === -1) return;
+  openZones[currentLayer].add(zi);
+  renderZones();
+  requestAnimationFrame(() => {
+    const row = document.querySelector(`tr[data-num="${num}"]`);
+    if (!row) return;
+    row.scrollIntoView({ behavior: "smooth", block: "center" });
+    row.classList.add("row-flash");
+    setTimeout(() => row.classList.remove("row-flash"), 1500);
+  });
+}
 
 function renderStats(){
   const layer = LAYERS[currentLayer];
@@ -468,6 +634,7 @@ function renderZones(){
       saveFoundSet(currentLayer, set);
       renderStats();
       renderZones();
+      renderMap();
     });
   });
   container.querySelectorAll(".copy-btn").forEach(btn => {
@@ -490,6 +657,7 @@ function renderZones(){
 function renderAll(){
   renderStats();
   renderZones();
+  renderMap();
 }
 
 document.getElementById("layerTabs").addEventListener("click", e => {
@@ -502,7 +670,7 @@ document.getElementById("layerTabs").addEventListener("click", e => {
 });
 
 document.getElementById("pieceSearch").addEventListener("input", renderZones);
-document.getElementById("hideFound").addEventListener("change", renderZones);
+document.getElementById("hideFound").addEventListener("change", () => { renderZones(); renderMap(); });
 
 document.getElementById("expandAllBtn").addEventListener("click", () => {
   openZones[currentLayer] = new Set(LAYERS[currentLayer].data.map((_, i) => i));
@@ -527,6 +695,7 @@ document.getElementById("resetBtn").addEventListener("click", function(){
   showToast(`${currentLayer === "trace" ? "Traces" : "Legacy"} progress reset`);
 });
 
+buildMapTiles();
 renderAll();
 </script>
 </body>
