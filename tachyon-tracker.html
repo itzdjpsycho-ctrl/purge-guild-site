@@ -197,6 +197,12 @@
   .control-spacer{ flex:1; }
 
   /* ---- Zone accordion ---- */
+  .layer-group-label{
+    font-family:var(--font-display); font-size:14px; font-weight:700;
+    color:var(--text-muted); margin:22px 0 10px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .layer-group-label:first-child{ margin-top:0; }
   .zone-panel{ margin-bottom:12px; overflow:hidden; }
   .zone-header{
     display:flex; align-items:center; gap:14px;
@@ -349,6 +355,7 @@
   <div class="layer-tabs" id="layerTabs">
     <div class="layer-tab active" data-layer="trace">🧩 Tachyon Traces <span class="layer-tab-count">Puzzle</span></div>
     <div class="layer-tab" data-layer="legacy">⚔️ Tachyon Legacy <span class="layer-tab-count">Combat</span></div>
+    <div class="layer-tab" data-layer="all">🗺️ All <span class="layer-tab-count">Both</span></div>
   </div>
 
   <div class="tach-stats" id="tachStats"></div>
@@ -443,8 +450,15 @@ const LAYERS = {
   legacy: { data: TACHYON_LEGACY,  storageKey: "tachyonTrackerFound_legacy", zoneLabel: t => t.replace("Tachyon Legacy - Supremacy ", "Supremacy ") },
 };
 
-let currentLayer = "trace";
+let currentLayer = "trace"; // "trace" | "legacy" | "all"
 const openZones = { trace: new Set([0]), legacy: new Set([0]) }; // first zone open by default per layer
+
+// The "All" tab shows both layers at once (map, table, and stats) —
+// everything that used to assume a single `currentLayer` now loops
+// over this instead.
+function activeLayers(){
+  return currentLayer === "all" ? ["trace", "legacy"] : [currentLayer];
+}
 
 /* ================================================================
    PER-PIECE STATE — replaces the old plain "found" boolean with a
@@ -579,42 +593,48 @@ function renderMapDots(){
   const vp = document.getElementById("mapViewport");
   const W = vp.clientWidth, H = vp.clientHeight;
   const { cx, cz, N } = mapView;
-  const layer = LAYERS[currentLayer];
-  const allPieces = layer.data.flatMap(z => z.pieces);
-  const stateMap = getStateMap(currentLayer);
   const hideFound = document.getElementById("hideFound").checked;
-  const located = allPieces.filter(p => !(p.x === 0 && p.z === 0));
-
   const dotsEl = document.getElementById("mapDots");
   dotsEl.innerHTML = "";
   const frag = document.createDocumentFragment();
-  located.forEach(p => {
-    const screenX = (sectorX(p.x) - cx) * N + W / 2;
-    const screenY = (sectorY(p.z) - cz) * N + H / 2;
-    const state = stateMap[p.n] || 0;
-    const isActive = state === 1, isCompleted = state === 2;
+  let totalLocated = 0, totalPieces = 0;
 
-    const dot = document.createElement("div");
-    dot.className = `map-dot layer-${currentLayer} ${isActive ? "state-active" : ""} ${isCompleted ? "state-completed" : ""} ${hideFound && isCompleted ? "dot-hidden" : ""}`;
-    dot.style.left = screenX + "px";
-    dot.style.top = screenY + "px";
-    dot.title = `#${p.n} ${p.name}${p.c !== null ? ` — 🪙 ${p.c}` : ""}`;
-    dot.dataset.num = p.n;
-    dot.innerHTML = `<span class="dot-check">✓</span>`;
-    dot.addEventListener("click", () => {
-      if (mapDragMoved) return; // a drag that happened to start on a pin, not a click
-      const next = cyclePieceState(currentLayer, p.n);
-      renderStats();
-      renderZones();
-      renderMapDots();
-      showToast(next === 1 ? `#${p.n} marked Active` : next === 2 ? `#${p.n} marked Completed` : `#${p.n} reset`);
+  activeLayers().forEach(ly => {
+    const allPieces = LAYERS[ly].data.flatMap(z => z.pieces);
+    const stateMap = getStateMap(ly);
+    const located = allPieces.filter(p => !(p.x === 0 && p.z === 0));
+    totalLocated += located.length;
+    totalPieces += allPieces.length;
+
+    located.forEach(p => {
+      const screenX = (sectorX(p.x) - cx) * N + W / 2;
+      const screenY = (sectorY(p.z) - cz) * N + H / 2;
+      const state = stateMap[p.n] || 0;
+      const isActive = state === 1, isCompleted = state === 2;
+
+      const dot = document.createElement("div");
+      dot.className = `map-dot layer-${ly} ${isActive ? "state-active" : ""} ${isCompleted ? "state-completed" : ""} ${hideFound && isCompleted ? "dot-hidden" : ""}`;
+      dot.style.left = screenX + "px";
+      dot.style.top = screenY + "px";
+      dot.title = `${ly === "trace" ? "Traces" : "Legacy"} #${p.n} ${p.name}${p.c !== null ? ` — 🪙 ${p.c}` : ""}`;
+      dot.dataset.num = p.n;
+      dot.dataset.layer = ly;
+      dot.innerHTML = `<span class="dot-check">✓</span>`;
+      dot.addEventListener("click", () => {
+        if (mapDragMoved) return; // a drag that happened to start on a pin, not a click
+        const next = cyclePieceState(ly, p.n);
+        renderStats();
+        renderZones();
+        renderMapDots();
+        showToast(next === 1 ? `#${p.n} marked Active` : next === 2 ? `#${p.n} marked Completed` : `#${p.n} reset`);
+      });
+      frag.appendChild(dot);
     });
-    frag.appendChild(dot);
   });
   dotsEl.appendChild(frag);
 
   document.getElementById("mapCaption").textContent =
-    `${located.length}/${allPieces.length} pieces plotted · ${allPieces.length - located.length} not yet located`;
+    `${totalLocated}/${totalPieces} pieces plotted · ${totalPieces - totalLocated} not yet located`;
 }
 
 function renderMap(){
@@ -685,23 +705,26 @@ function initMapInteraction(){
 }
 
 function renderStats(){
-  const layer = LAYERS[currentLayer];
-  const allPieces = layer.data.flatMap(z => z.pieces);
-  const stateMap = getStateMap(currentLayer);
-  const completedCount = allPieces.filter(p => (stateMap[p.n] || 0) === 2).length;
-  const activeCount = allPieces.filter(p => (stateMap[p.n] || 0) === 1).length;
-  const located = allPieces.filter(p => !(p.x === 0 && p.z === 0)).length;
-  const knownCoins = allPieces.reduce((s,p) => s + (p.c || 0), 0);
-  const pct = Math.round((completedCount / allPieces.length) * 100);
+  let totalPieces = 0, completedCount = 0, activeCount = 0, located = 0, knownCoins = 0;
+  activeLayers().forEach(ly => {
+    const allPieces = LAYERS[ly].data.flatMap(z => z.pieces);
+    const stateMap = getStateMap(ly);
+    totalPieces += allPieces.length;
+    completedCount += allPieces.filter(p => (stateMap[p.n] || 0) === 2).length;
+    activeCount += allPieces.filter(p => (stateMap[p.n] || 0) === 1).length;
+    located += allPieces.filter(p => !(p.x === 0 && p.z === 0)).length;
+    knownCoins += allPieces.reduce((s,p) => s + (p.c || 0), 0);
+  });
+  const pct = Math.round((completedCount / totalPieces) * 100);
 
   document.getElementById("tachStats").innerHTML = `
     <div class="tach-stat">
-      <div class="tach-stat-val cyan">${completedCount}/${allPieces.length}</div>
+      <div class="tach-stat-val cyan">${completedCount}/${totalPieces}</div>
       <div class="tach-stat-label">Completed (this browser)</div>
       <div class="tach-progress-track"><div class="tach-progress-fill" style="width:${pct}%"></div></div>
     </div>
     <div class="tach-stat">
-      <div class="tach-stat-val">${located}/${allPieces.length}</div>
+      <div class="tach-stat-val">${located}/${totalPieces}</div>
       <div class="tach-stat-label">Locations Confirmed</div>
     </div>
     <div class="tach-stat">
@@ -716,78 +739,89 @@ function renderStats(){
 }
 
 function renderZones(){
-  const layer = LAYERS[currentLayer];
-  const stateMap = getStateMap(currentLayer);
+  const layers = activeLayers();
   const search = document.getElementById("pieceSearch").value.trim().toLowerCase();
   const hideFound = document.getElementById("hideFound").checked;
   const container = document.getElementById("zoneContainer");
   let anyVisible = false;
 
-  container.innerHTML = layer.data.map((zone, zi) => {
-    const zoneCompletedCount = zone.pieces.filter(p => (stateMap[p.n] || 0) === 2).length;
-    const zonePct = Math.round((zoneCompletedCount / zone.pieces.length) * 100);
-    const isOpen = openZones[currentLayer].has(zi);
+  container.innerHTML = layers.map(ly => {
+    const layer = LAYERS[ly];
+    const stateMap = getStateMap(ly);
 
-    const rows = zone.pieces.map(p => {
-      const state = stateMap[p.n] || 0;
-      const isCompleted = state === 2, isActive = state === 1;
-      const matchesSearch = !search
-        || p.name.toLowerCase().includes(search)
-        || String(p.n) === search
-        || layer.zoneLabel(zone.theme).toLowerCase().includes(search);
-      const hiddenByFound = hideFound && isCompleted;
-      const rowHidden = !matchesSearch || hiddenByFound;
-      if (matchesSearch && !hiddenByFound) anyVisible = true;
+    const zonesHtml = layer.data.map((zone, zi) => {
+      const zoneCompletedCount = zone.pieces.filter(p => (stateMap[p.n] || 0) === 2).length;
+      const zonePct = Math.round((zoneCompletedCount / zone.pieces.length) * 100);
+      const isOpen = openZones[ly].has(zi);
 
-      const located = !(p.x === 0 && p.z === 0);
-      const coordsHtml = located
-        ? `${fmtNum(p.x)}, ${fmtNum(p.z)} <button class="copy-btn" data-x="${p.x}" data-z="${p.z}" type="button">Copy</button>`
-        : `<span class="piece-coords unlocated">Not yet reported</span>`;
-      const coinHtml = p.c !== null ? `🪙 ${p.c}` : `<span class="piece-coin unknown">—</span>`;
+      const rows = zone.pieces.map(p => {
+        const state = stateMap[p.n] || 0;
+        const isCompleted = state === 2, isActive = state === 1;
+        const matchesSearch = !search
+          || p.name.toLowerCase().includes(search)
+          || String(p.n) === search
+          || layer.zoneLabel(zone.theme).toLowerCase().includes(search);
+        const hiddenByFound = hideFound && isCompleted;
+        const rowHidden = !matchesSearch || hiddenByFound;
+        if (matchesSearch && !hiddenByFound) anyVisible = true;
+
+        const located = !(p.x === 0 && p.z === 0);
+        const coordsHtml = located
+          ? `${fmtNum(p.x)}, ${fmtNum(p.z)} <button class="copy-btn" data-x="${p.x}" data-z="${p.z}" type="button">Copy</button>`
+          : `<span class="piece-coords unlocated">Not yet reported</span>`;
+        const coinHtml = p.c !== null ? `🪙 ${p.c}` : `<span class="piece-coin unknown">—</span>`;
+
+        return `
+          <tr class="${isCompleted ? "found" : ""} ${isActive ? "active" : ""} ${rowHidden ? "piece-hidden" : ""}" data-layer="${ly}" data-num="${p.n}">
+            <td><input type="checkbox" class="piece-check" ${isCompleted ? "checked" : ""} data-layer="${ly}" data-num="${p.n}"></td>
+            <td class="piece-num">#${p.n}</td>
+            <td class="piece-name">${p.name}${isActive ? ' <span class="active-badge">🎯 ACTIVE</span>' : ""}</td>
+            <td class="piece-coin ${p.c === null ? "unknown" : ""}">${coinHtml}</td>
+            <td class="piece-coords ${located ? "" : "unlocated"}">${coordsHtml}</td>
+          </tr>`;
+      }).join("");
 
       return `
-        <tr class="${isCompleted ? "found" : ""} ${isActive ? "active" : ""} ${rowHidden ? "piece-hidden" : ""}" data-num="${p.n}">
-          <td><input type="checkbox" class="piece-check" ${isCompleted ? "checked" : ""} data-num="${p.n}"></td>
-          <td class="piece-num">#${p.n}</td>
-          <td class="piece-name">${p.name}${isActive ? ' <span class="active-badge">🎯 ACTIVE</span>' : ""}</td>
-          <td class="piece-coin ${p.c === null ? "unknown" : ""}">${coinHtml}</td>
-          <td class="piece-coords ${located ? "" : "unlocated"}">${coordsHtml}</td>
-        </tr>`;
+        <div class="panel zone-panel ${isOpen ? "open" : ""}" data-layer="${ly}" data-zone="${zi}">
+          <div class="zone-header" data-layer="${ly}" data-zone-toggle="${zi}">
+            <span class="zone-chevron">▶</span>
+            <span class="zone-title">${layer.zoneLabel(zone.theme)}</span>
+            <span class="zone-meta">${zone.pieces.length} pieces</span>
+            <div class="zone-progress-track"><div class="zone-progress-fill" style="width:${zonePct}%"></div></div>
+            <span class="zone-progress-text">${zoneCompletedCount}/${zone.pieces.length} completed</span>
+          </div>
+          <div class="zone-body">
+            <table class="piece-table">
+              <thead><tr><th></th><th>#</th><th>Piece</th><th>Reward</th><th>Coordinates (X, Z)</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </div>
+        </div>`;
     }).join("");
 
-    return `
-      <div class="panel zone-panel ${isOpen ? "open" : ""}" data-zone="${zi}">
-        <div class="zone-header" data-zone-toggle="${zi}">
-          <span class="zone-chevron">▶</span>
-          <span class="zone-title">${layer.zoneLabel(zone.theme)}</span>
-          <span class="zone-meta">${zone.pieces.length} pieces</span>
-          <div class="zone-progress-track"><div class="zone-progress-fill" style="width:${zonePct}%"></div></div>
-          <span class="zone-progress-text">${zoneCompletedCount}/${zone.pieces.length} completed</span>
-        </div>
-        <div class="zone-body">
-          <table class="piece-table">
-            <thead><tr><th></th><th>#</th><th>Piece</th><th>Reward</th><th>Coordinates (X, Z)</th></tr></thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </div>
-      </div>`;
+    const groupLabel = layers.length > 1
+      ? `<div class="layer-group-label">${ly === "trace" ? "🧩 Tachyon Traces" : "⚔️ Tachyon Legacy"}</div>`
+      : "";
+    return groupLabel + zonesHtml;
   }).join("");
 
   document.getElementById("emptyState").style.display = anyVisible ? "none" : "block";
 
   container.querySelectorAll("[data-zone-toggle]").forEach(el => {
     el.addEventListener("click", () => {
+      const ly = el.dataset.layer;
       const zi = Number(el.dataset.zoneToggle);
-      if (openZones[currentLayer].has(zi)) openZones[currentLayer].delete(zi);
-      else openZones[currentLayer].add(zi);
+      if (openZones[ly].has(zi)) openZones[ly].delete(zi);
+      else openZones[ly].add(zi);
       renderZones();
     });
   });
   container.querySelectorAll(".piece-check").forEach(cb => {
     cb.addEventListener("click", e => e.stopPropagation());
     cb.addEventListener("change", () => {
+      const ly = cb.dataset.layer;
       const num = Number(cb.dataset.num);
-      setPieceState(currentLayer, num, cb.checked ? 2 : 0);
+      setPieceState(ly, num, cb.checked ? 2 : 0);
       renderStats();
       renderZones();
       renderMapDots();
@@ -831,11 +865,11 @@ document.getElementById("pieceSearch").addEventListener("input", renderZones);
 document.getElementById("hideFound").addEventListener("change", () => { renderZones(); renderMapDots(); });
 
 document.getElementById("expandAllBtn").addEventListener("click", () => {
-  openZones[currentLayer] = new Set(LAYERS[currentLayer].data.map((_, i) => i));
+  activeLayers().forEach(ly => { openZones[ly] = new Set(LAYERS[ly].data.map((_, i) => i)); });
   renderZones();
 });
 document.getElementById("collapseAllBtn").addEventListener("click", () => {
-  openZones[currentLayer] = new Set();
+  activeLayers().forEach(ly => { openZones[ly] = new Set(); });
   renderZones();
 });
 
@@ -846,11 +880,11 @@ document.getElementById("resetBtn").addEventListener("click", function(){
     setTimeout(() => { this.dataset.confirming = ""; this.textContent = "Reset Progress"; }, 3000);
     return;
   }
-  saveStateMap(currentLayer, {});
+  activeLayers().forEach(ly => saveStateMap(ly, {}));
   this.dataset.confirming = "";
   this.textContent = "Reset Progress";
   renderAll();
-  showToast(`${currentLayer === "trace" ? "Traces" : "Legacy"} progress reset`);
+  showToast(currentLayer === "all" ? "All progress reset" : `${currentLayer === "trace" ? "Traces" : "Legacy"} progress reset`);
 });
 
 initMapInteraction();
