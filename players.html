@@ -134,8 +134,13 @@
   }
 
   .player-card{
-    background:linear-gradient(165deg, #131315 0%, #131315 60%, #1E1E21 140%);
+    background:
+      linear-gradient(165deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 45%, rgba(255,255,255,0.06) 100%),
+      rgba(58,58,66,0.5);
+    backdrop-filter:blur(20px) saturate(150%);
+    -webkit-backdrop-filter:blur(20px) saturate(150%);
     border:1px solid rgba(196,154,48,0.4);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.09), 0 8px 28px rgba(0,0,0,0.3);
     overflow:hidden;
     cursor:pointer;
     text-decoration:none;
@@ -149,12 +154,21 @@
     background:var(--gold-bright);
     transform:scaleX(0); transform-origin:left;
     transition:transform 0.24s ease;
+    z-index:1;
+  }
+  .player-card::after{
+    content:"";
+    position:absolute; inset:0; pointer-events:none;
+    background:linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.07) 45%, rgba(255,255,255,0.09) 50%, transparent 65%);
+    mix-blend-mode:screen;
   }
   .player-card:hover{
     transform:translateY(-4px);
     border-color:rgba(232,188,85,0.45);
-    box-shadow:0 16px 36px rgba(0,0,0,0.38), 0 0 0 1px rgba(232,188,85,0.28), 0 0 26px rgba(232,188,85,0.16);
-    background:linear-gradient(165deg, #1E1E21 0%, #1E1E21 60%, #26262A 140%);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,0.12), 0 16px 36px rgba(0,0,0,0.38), 0 0 0 1px rgba(232,188,85,0.28), 0 0 26px rgba(232,188,85,0.16);
+    background:
+      linear-gradient(165deg, rgba(255,255,255,0.11) 0%, rgba(255,255,255,0.03) 45%, rgba(255,255,255,0.08) 100%),
+      rgba(70,70,79,0.55);
   }
   .player-card:hover::before{ transform:scaleX(1); }
 
@@ -170,7 +184,7 @@
 
   .card-avatar-ring{
     flex:none; width:64px; height:64px; border-radius:50%; padding:2px;
-    background:#2A2A2E;
+    background:rgba(255,255,255,0.14);
     transition:box-shadow 0.2s ease;
   }
   .card-avatar-ring.flag-onfire, .card-avatar-ring.flag-mvp{ background:var(--gold-bright); box-shadow:0 0 14px rgba(240,195,107,0.4); }
@@ -178,7 +192,7 @@
   .card-avatar-ring.flag-none{ background:var(--green-bright); box-shadow:0 0 14px rgba(91,201,118,0.3); }
   .card-avatar-thumb{
     width:100%; height:100%; border-radius:50%; overflow:hidden;
-    background:#1E1E21;
+    background:rgba(255,255,255,0.08);
     display:flex; align-items:center; justify-content:center;
   }
   .card-avatar-thumb img{ width:100%; height:100%; object-fit:cover; }
@@ -434,6 +448,33 @@
     text-align:center; padding:36px 24px 56px;
     font-size:12px; color:var(--text-faint); font-family:var(--font-mono);
   }
+
+  /* ---- Sidebar: black/grey/gold on this page only (app.css keeps the
+     navy/cyan version everywhere else). "body " prefixes are a specificity
+     bump, not a typo — app.css loads AFTER this inline <style>, so an
+     equal-specificity rule there would win on source order alone. ---- */
+  body .app-sidebar{
+    background:linear-gradient(180deg, #0D0D0F 0%, #08080A 100%);
+    border-right-color:rgba(255,255,255,0.08);
+  }
+  body .app-brand{ border-bottom-color:rgba(255,255,255,0.06); }
+  body .app-brand-logo{
+    background:linear-gradient(150deg, var(--gold) 0%, var(--gold-bright) 100%);
+    box-shadow:0 0 0 1px rgba(232,188,85,0.5), inset 0 0 0 1px rgba(255,255,255,0.12);
+  }
+  body .side-nav-divider{ background:rgba(255,255,255,0.07); }
+  body .side-nav-group-head:hover .chev{ color:var(--gold-bright); }
+  body .side-nav a:hover{ color:var(--text); }
+  body .side-nav a.current{
+    background:rgba(196,154,48,0.16);
+    color:var(--gold-bright);
+    border-color:rgba(232,188,85,0.3);
+    border-left-color:var(--gold-bright);
+  }
+  body .side-nav a.current .ico{ color:var(--gold-bright); }
+  body .app-sidebar-foot{ border-top-color:rgba(255,255,255,0.06); }
+  .app-sidebar .auth-widget button{ border-color:rgba(196,154,48,0.4); color:var(--gold-bright); }
+  .app-sidebar .auth-widget button:hover{ border-color:var(--gold); }
 </style>
 <link rel="stylesheet" href="app.css">
 </head>
