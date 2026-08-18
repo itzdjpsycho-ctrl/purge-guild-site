@@ -28,8 +28,8 @@
     content:"";
     position:fixed; inset:0; pointer-events:none; z-index:0;
     background:
-      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(44,147,176,0.16), transparent 65%),
-      radial-gradient(ellipse 35% 45% at 100% 100%, rgba(124,111,224,0.07), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(196,154,48,0.08), transparent 65%),
+      radial-gradient(ellipse 35% 45% at 100% 100%, rgba(0,0,0,0.3), transparent 60%),
       repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
   }
   main, header, footer, nav{ position:relative; z-index:1; }
@@ -80,33 +80,43 @@
   /* Rounded pill buttons on this page only (scoped via this page's own
      <style>, not app.css) — the shared .btn component keeps its notch
      elsewhere on the site. */
-  .app-content .btn{ border-radius:999px; clip-path:none; }
+  .app-content .btn{
+    border-radius:999px; clip-path:none;
+    background:#1A1A1D; border-color:rgba(255,255,255,0.14);
+  }
+  .app-content .btn.gold{ background:rgba(196,154,48,0.12); }
+  .app-content .btn.purple{ background:rgba(196,154,48,0.1); color:var(--gold-bright); border-color:var(--gold); }
+  .app-content .btn.purple:hover:not(:disabled){ background:rgba(196,154,48,0.2); box-shadow:0 0 10px rgba(232,188,85,0.35), inset 0 0 0 1px rgba(232,188,85,0.4); }
 
   /* Officers panel (admin-only) */
   .officers-panel{
     max-width:980px; margin:0 auto 20px; padding:14px 24px;
   }
   .officers-panel-inner{
-    background:var(--panel); border:1px solid var(--hairline);
+    background:#1A1A1D; border:1px solid rgba(196,154,48,0.3);
     border-radius:18px;
     padding:16px 18px;
   }
   .officers-head{
     font-family:var(--font-mono); font-size:10px; letter-spacing:0.14em; text-transform:uppercase;
-    color:var(--crimson-bright); margin-bottom:10px;
+    color:var(--gold-bright); margin-bottom:10px;
   }
   .officers-head .officers-sub{ text-transform:none; letter-spacing:0; color:var(--text-faint); font-size:10.5px; }
   .officers-list{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
-  /* .officer-chip is now defined once in app.css */
+  /* .officer-chip is shared (app.css), cyan by default — gold-tinted on this
+     page only to match the roster's black/grey/gold treatment. */
+  .officers-list .officer-chip{
+    color:var(--gold-bright); background:rgba(196,154,48,0.14); border-color:var(--gold);
+  }
   .officers-add{ display:flex; gap:8px; }
   .officers-add input{
-    background:var(--panel-raised); border:1px solid var(--hairline);
+    background:#1E1E21; border:1px solid rgba(255,255,255,0.14);
     color:var(--text); font-family:var(--font-ui); font-size:13px;
     padding:8px 12px; border-radius:11px; outline:none; flex:1; max-width:260px;
   }
-  .officers-add input:focus{ border-color:var(--crimson); }
+  .officers-add input:focus{ border-color:var(--gold); }
   .officers-add select{
-    background:var(--panel-raised); border:1px solid var(--hairline);
+    background:#1E1E21; border:1px solid rgba(255,255,255,0.14);
     color:var(--text); font-family:var(--font-ui); font-size:13px;
     padding:8px 12px; border-radius:11px; outline:none;
   }
@@ -160,7 +170,7 @@
 
   .card-avatar-ring{
     flex:none; width:64px; height:64px; border-radius:50%; padding:2px;
-    background:var(--hairline-soft);
+    background:#2A2A2E;
     transition:box-shadow 0.2s ease;
   }
   .card-avatar-ring.flag-onfire, .card-avatar-ring.flag-mvp{ background:var(--gold-bright); box-shadow:0 0 14px rgba(240,195,107,0.4); }
@@ -168,7 +178,7 @@
   .card-avatar-ring.flag-none{ background:var(--green-bright); box-shadow:0 0 14px rgba(91,201,118,0.3); }
   .card-avatar-thumb{
     width:100%; height:100%; border-radius:50%; overflow:hidden;
-    background:var(--panel-raised);
+    background:#1E1E21;
     display:flex; align-items:center; justify-content:center;
   }
   .card-avatar-thumb img{ width:100%; height:100%; object-fit:cover; }
@@ -203,7 +213,7 @@
     padding:3px 9px; border-radius:999px; white-space:nowrap;
   }
   .pill-kd{ background:rgba(217,164,65,0.18); color:var(--gold-bright); }
-  .pill-class{ background:rgba(255,255,255,0.05); color:var(--text-muted); border:1px solid var(--hairline); }
+  .pill-class{ background:rgba(255,255,255,0.06); color:var(--text-muted); border:1px solid rgba(255,255,255,0.12); }
   .class-icon{ margin-right:5px; opacity:0.92; vertical-align:-2px; }
   .pill-role{ background:rgba(0,0,0,0.3); border:1px solid transparent; }
   .pill-role.role-shotcaller{ color:var(--orange); border-color:rgba(224,121,60,0.4); }
@@ -230,7 +240,7 @@
   .card-stats-list{ margin-bottom:12px; }
   .card-stat-row{
     display:flex; align-items:center; justify-content:space-between;
-    padding:7px 0; border-bottom:1px solid var(--hairline-soft);
+    padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.07);
     font-family:var(--font-mono);
   }
   .card-stat-row:last-child{ border-bottom:none; }
@@ -242,7 +252,7 @@
 
   .card-footer{
     display:flex; align-items:center; justify-content:space-between;
-    padding-top:12px; margin-bottom:12px; border-top:1px solid var(--hairline-soft);
+    padding-top:12px; margin-bottom:12px; border-top:1px solid rgba(255,255,255,0.07);
     font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint);
   }
   .card-footer .val{ color:var(--text-muted); }
@@ -257,15 +267,15 @@
   }
   .switch input{ opacity:0; width:0; height:0; }
   .switch .track{
-    position:absolute; inset:0; background:var(--hairline); border-radius:999px;
+    position:absolute; inset:0; background:#2A2A2E; border-radius:999px;
     cursor:pointer; transition:background 0.16s ease;
   }
   .switch .track::before{
     content:""; position:absolute; width:14px; height:14px; left:2.5px; top:2.5px;
     background:var(--text-faint); border-radius:50%; transition:transform 0.16s ease, background 0.16s ease;
   }
-  .switch input:checked + .track{ background:rgba(44,147,176,0.35); }
-  .switch input:checked + .track::before{ background:var(--crimson-glow); transform:translateX(15px); }
+  .switch input:checked + .track{ background:rgba(196,154,48,0.35); }
+  .switch input:checked + .track::before{ background:var(--gold-bright); transform:translateX(15px); }
   .switch input:disabled + .track{ cursor:not-allowed; opacity:0.5; }
 
   .card-role-row{
@@ -274,7 +284,7 @@
   }
   .card-role-select{
     width:100%;
-    background:var(--panel-raised); border:1px solid var(--hairline);
+    background:#1E1E21; border:1px solid rgba(255,255,255,0.14);
     color:var(--text-muted); font-family:var(--font-mono); font-size:11px;
     letter-spacing:0.04em; padding:7px 12px; border-radius:11px;
     cursor:pointer; appearance:none; -webkit-appearance:none; outline:none;
@@ -289,12 +299,12 @@
   .card-mystats-row{ margin-top:10px; }
   .card-mystats-btn{
     width:100%;
-    background:var(--panel-raised); border:1px solid var(--hairline);
+    background:#1E1E21; border:1px solid rgba(255,255,255,0.14);
     color:var(--text-muted); font-family:var(--font-mono); font-size:11px;
     letter-spacing:0.04em; padding:8px 12px; border-radius:11px;
     cursor:pointer; transition:all 0.14s ease;
   }
-  .card-mystats-btn:hover{ border-color:var(--crimson); color:var(--crimson-glow); }
+  .card-mystats-btn:hover{ border-color:var(--gold); color:var(--gold-bright); }
 
   .empty-state{
     text-align:center; padding:80px 20px;
@@ -306,7 +316,7 @@
   /* Toast */
   .toast{
     position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(20px);
-    background:var(--panel-raised); border:1px solid var(--hairline);
+    background:#1E1E21; border:1px solid rgba(255,255,255,0.14);
     border-radius:10px; padding:11px 20px;
     font-family:var(--font-mono); font-size:12px; color:var(--text-muted);
     box-shadow:0 8px 24px rgba(0,0,0,0.4);
@@ -327,23 +337,23 @@
     position:absolute; bottom:10px; right:10px; z-index:2;
     width:22px; height:22px; border-radius:50%;
     align-items:center; justify-content:center;
-    background:rgba(0,0,0,0.6); border:1px solid var(--hairline);
+    background:rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.14);
     font-family:var(--font-mono); font-size:12px; color:var(--text-faint);
     transition:all 0.15s ease;
   }
   body.compare-mode .card-compare-badge{ display:flex; }
   .player-card.selected{
-    box-shadow:0 0 0 1px var(--crimson-bright), 0 12px 32px rgba(44,147,176,0.35);
+    box-shadow:0 0 0 1px var(--gold-bright), 0 12px 32px rgba(196,154,48,0.35);
   }
   .player-card.selected .card-compare-badge{
-    background:var(--crimson-bright); color:#071018; border-color:var(--crimson-bright);
+    background:var(--gold-bright); color:#131315; border-color:var(--gold-bright);
   }
   body.compare-mode .player-card.dimmed{ opacity:0.4; }
 
   .compare-bar{
     position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(140%);
     display:flex; align-items:center; gap:12px;
-    background:var(--panel-raised); border:1px solid var(--hairline);
+    background:#1E1E21; border:1px solid rgba(255,255,255,0.14);
     border-radius:14px; padding:12px 16px;
     box-shadow:0 16px 40px rgba(0,0,0,0.5);
     z-index:150; transition:transform 0.24s ease;
@@ -352,19 +362,19 @@
   .compare-bar-chips{ display:flex; gap:8px; flex-wrap:wrap; max-width:420px; }
   .compare-bar-chip{
     font-family:var(--font-mono); font-size:11.5px; padding:6px 12px;
-    border-radius:999px; background:rgba(95,220,245,0.12); color:var(--crimson-glow);
-    border:1px solid rgba(95,220,245,0.3); white-space:nowrap;
+    border-radius:999px; background:rgba(196,154,48,0.14); color:var(--gold-bright);
+    border:1px solid rgba(196,154,48,0.35); white-space:nowrap;
   }
 
   .compare-modal{
     position:fixed; inset:0; z-index:300; display:none;
     align-items:flex-start; justify-content:center;
-    background:rgba(4,2,8,0.72); backdrop-filter:blur(6px);
+    background:rgba(0,0,0,0.72); backdrop-filter:blur(6px);
     padding:60px 24px; overflow-y:auto;
   }
   .compare-modal.show{ display:flex; }
   .compare-panel{
-    background:var(--panel); border:1px solid var(--hairline);
+    background:#151517; border:1px solid rgba(196,154,48,0.3);
     border-radius:24px;
     max-width:980px; width:100%; padding:30px 32px 36px; position:relative;
   }
@@ -382,14 +392,14 @@
   }
   .merge-hint{ text-transform:none; letter-spacing:0; color:var(--text-faint); font-size:10px; }
   .merge-field input{
-    width:100%; background:var(--panel-raised); border:1px solid var(--hairline);
+    width:100%; background:#1E1E21; border:1px solid rgba(255,255,255,0.14);
     color:var(--text); font-family:var(--font-mono); font-size:13px;
     padding:9px 13px; border-radius:11px; outline:none; transition:border-color 0.16s ease;
   }
-  .merge-field input:focus{ border-color:var(--crimson); }
+  .merge-field input:focus{ border-color:var(--gold); }
   .merge-preview{
     margin:16px 0; padding:12px 14px; border-radius:12px;
-    background:var(--panel-raised); border:1px solid var(--hairline-soft);
+    background:#1E1E21; border:1px solid rgba(255,255,255,0.1);
     font-family:var(--font-mono); font-size:11.5px; color:var(--text-muted);
     line-height:1.7; min-height:20px;
   }
@@ -405,13 +415,13 @@
   }
   .compare-grid{
     display:grid; gap:0;
-    border:1px solid var(--hairline-soft); border-radius:12px; overflow:hidden;
+    border:1px solid rgba(255,255,255,0.1); border-radius:12px; overflow:hidden;
   }
   .compare-row{ display:grid; }
-  .compare-row:nth-child(odd){ background:rgba(255,255,255,0.015); }
+  .compare-row:nth-child(odd){ background:rgba(255,255,255,0.02); }
   .compare-cell{
     padding:14px 16px; font-family:var(--font-mono); font-size:13px; color:var(--text-muted);
-    border-bottom:1px solid var(--hairline-soft); display:flex; align-items:center; justify-content:center;
+    border-bottom:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center;
   }
   .compare-row:last-child .compare-cell{ border-bottom:none; }
   .compare-cell.label{
@@ -428,11 +438,6 @@
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
-
-<video class="bg-video" autoplay muted loop playsinline aria-hidden="true">
-  <source src="nanotech_background_3840.webm" type="video/webm">
-</video>
-<div class="bg-video-scrim"></div>
 
 <div class="app-shell">
 <aside class="app-sidebar">
