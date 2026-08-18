@@ -243,12 +243,19 @@
 /* Angular cut-corner HUD card — top-level panels only (not chips/tabs/board
    columns; those stay flat, see the --panel-clip token comment above). */
 .app-content .panel,
-.app-content .player-card,
 .app-content .col{
   border:1px solid var(--hairline, #2A1F3A);
   border-radius:0;
   clip-path:var(--panel-clip);
   box-shadow:none;
+}
+/* Roster cards use the rounded-corner language (see the 2026-08 sidebar +
+   home page redesign) instead of the notch — clip-path:none overrides the
+   .panel rule above by selector specificity, not by source order. */
+.app-content .player-card{
+  border:1px solid var(--hairline, #2A1F3A);
+  border-radius:20px;
+  clip-path:none;
 }
 .app-content .section{ margin-bottom:42px; }
 .app-content .section-label,
