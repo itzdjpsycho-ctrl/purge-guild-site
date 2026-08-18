@@ -35,7 +35,7 @@
 
   const STYLE = `
     .auth-widget{ display:flex; align-items:center; gap:8px; font-family:var(--font-mono,monospace);
-      font-size:11px; color:var(--text-muted,#9a93a8); padding:10px 18px; }
+      font-size:11px; color:var(--text-muted,#9a93a8); padding:10px 18px; margin-top:auto; }
     .auth-widget img{ width:20px; height:20px; border-radius:50%; flex:none; }
     .auth-widget span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     .auth-widget button{ font:inherit; letter-spacing:0.04em; padding:6px 12px; border-radius:999px;
