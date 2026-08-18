@@ -136,14 +136,14 @@
   .player-card::before{
     content:"";
     position:absolute; top:0; left:0; right:0; height:2px;
-    background:var(--crimson-bright);
+    background:var(--gold-bright);
     transform:scaleX(0); transform-origin:left;
     transition:transform 0.24s ease;
   }
   .player-card:hover{
     transform:translateY(-4px);
-    border-color:rgba(95,220,245,0.4);
-    box-shadow:0 16px 36px rgba(0,0,0,0.38), 0 0 0 1px rgba(95,220,245,0.18), 0 0 26px rgba(95,220,245,0.14);
+    border-color:rgba(232,188,85,0.45);
+    box-shadow:0 16px 36px rgba(0,0,0,0.38), 0 0 0 1px rgba(232,188,85,0.28), 0 0 26px rgba(232,188,85,0.16);
     background:linear-gradient(165deg, var(--panel-raised) 0%, var(--panel-raised) 60%, var(--panel) 140%);
   }
   .player-card:hover::before{ transform:scaleX(1); }
@@ -151,7 +151,7 @@
   .card-status-dot{
     position:absolute; top:16px; right:16px; z-index:1;
     width:10px; height:10px; border-radius:50%;
-    background:var(--crimson-bright); box-shadow:0 0 10px rgba(95,220,245,0.6);
+    background:var(--gold-bright); box-shadow:0 0 10px rgba(232,188,85,0.55);
   }
 
   .card-body{ padding:22px 22px 20px; }
@@ -203,7 +203,7 @@
     padding:3px 9px; border-radius:999px; white-space:nowrap;
   }
   .pill-kd{ background:rgba(217,164,65,0.18); color:var(--gold-bright); }
-  .pill-class{ background:rgba(44,147,176,0.16); color:var(--crimson-glow); border:1px solid rgba(95,220,245,0.3); }
+  .pill-class{ background:rgba(255,255,255,0.05); color:var(--text-muted); border:1px solid var(--hairline); }
   .class-icon{ margin-right:5px; opacity:0.92; vertical-align:-2px; }
   .pill-role{ background:rgba(0,0,0,0.3); border:1px solid transparent; }
   .pill-role.role-shotcaller{ color:var(--orange); border-color:rgba(224,121,60,0.4); }
@@ -238,7 +238,7 @@
   .card-stat-row .val{ font-size:15px; font-weight:700; color:var(--text); }
   .card-stat-row .val.kills{ color:var(--green-bright); }
   .card-stat-row .val.deaths{ color:var(--red-bright); }
-  .card-stat-row .val.wars{ color:#7DB8FF; }
+  .card-stat-row .val.wars{ color:var(--gold-bright); }
 
   .card-footer{
     display:flex; align-items:center; justify-content:space-between;
