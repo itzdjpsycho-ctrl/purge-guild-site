@@ -163,18 +163,52 @@
       <span class="app-brand-sub">Node War</span>
     </span>
   </a>
-  <div class="side-nav-label">Menu</div>
-  <nav class="side-nav">
-    <a href="index.html"><span class="ico">🏠</span> Home</a>
-    <a href="war-scores.html"><span class="ico">⚔️</span> War Scores</a>
-    <a href="players.html"><span class="ico">👥</span> Roster</a>
-    <a href="my-stats.html"><span class="ico">🪪</span> My Stats</a>
-    <a href="dashboard.html"><span class="ico">📊</span> Dashboard</a>
-    <a href="signups.html"><span class="ico">📝</span> Sign Ups</a>
-    <a href="combat-log.html"><span class="ico">📜</span> Combat Log</a>
-    <a href="vod-review.html"><span class="ico">🎬</span> VOD Review</a>
-    <a href="clips.html" class="current"><span class="ico">🎞️</span> Clips</a>
-    <a href="tachyon-tracker.html"><span class="ico">🧩</span> Tachyon Tracker</a>
+  <nav class="side-nav" id="sideNav">
+    <div class="side-nav-group" data-cat="overview">
+      <button type="button" class="side-nav-group-head">
+        <span>Overview</span>
+        <span class="chev"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+      <div class="side-nav-group-items">
+      <a href="index.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8L8 2.5L14 8"></path><path d="M3.5 6.5V13H12.5V6.5"></path></svg></span> Home</a>
+      <a href="dashboard.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 13.5V2.5"></path><path d="M2.5 13.5H13.5"></path><rect x="4.5" y="9" width="2" height="4.5"></rect><rect x="8" y="6" width="2" height="7.5"></rect><rect x="11.5" y="4" width="2" height="9.5"></rect></svg></span> Dashboard</a>
+      <a href="my-stats.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 L13.5 4.2 V8.3 C13.5 11.3 11.1 13.4 8 14.3 C4.9 13.4 2.5 11.3 2.5 8.3 V4.2 Z"></path><path d="M5.7 8L7.3 9.6L10.5 6.3"></path></svg></span> My Stats</a>
+      </div>
+    </div>
+    <div class="side-nav-divider"></div>
+    <div class="side-nav-group" data-cat="warfare">
+      <button type="button" class="side-nav-group-head">
+        <span>Warfare</span>
+        <span class="chev"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+      <div class="side-nav-group-items">
+      <a href="war-scores.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13L9 7"></path><path d="M7.3 2.6L13.4 8.7L11.3 10.8L5.2 4.7Z"></path><path d="M2.3 13.7L4 12"></path></svg></span> War Scores</a>
+      <a href="combat-log.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2.5H10.5L13 5V13.5H4Z"></path><path d="M10.5 2.5V5H13"></path><path d="M6 8H11"></path><path d="M6 10.5H11"></path></svg></span> Combat Log</a>
+      <a href="signups.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 2.5H10.5V4.2H5.5Z"></path><path d="M4 4.2H12V13.5H4Z"></path><path d="M6.2 7.5H9.8"></path><path d="M6.2 10H9.8"></path></svg></span> Sign Ups</a>
+      </div>
+    </div>
+    <div class="side-nav-divider"></div>
+    <div class="side-nav-group" data-cat="media">
+      <button type="button" class="side-nav-group-head">
+        <span>Media</span>
+        <span class="chev"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+      <div class="side-nav-group-items">
+      <a href="vod-review.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="11" height="9" rx="0.5"></rect><path d="M6.5 6L10 8L6.5 10Z"></path></svg></span> VOD Review</a>
+      <a href="clips.html" class="current"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="11" height="8" rx="0.5"></rect><path d="M2.5 6.5H13.5"></path><path d="M5 4V6.5"></path><path d="M10.5 4V6.5"></path></svg></span> Clips</a>
+      </div>
+    </div>
+    <div class="side-nav-divider"></div>
+    <div class="side-nav-group" data-cat="tools">
+      <button type="button" class="side-nav-group-head">
+        <span>Tools</span>
+        <span class="chev"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+      <div class="side-nav-group-items">
+      <a href="players.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.7" cy="6" r="2"></circle><circle cx="11" cy="6.8" r="1.6"></circle><path d="M2.2 13C2.2 10.6 3.7 9 5.7 9C7.7 9 9.2 10.6 9.2 13"></path><path d="M9.4 9.5C10.9 9.6 12.2 10.9 12.2 13"></path></svg></span> Roster</a>
+      <a href="tachyon-tracker.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.2 4.2C6.2 3.3 6.9 2.6 8 2.6C9.1 2.6 9.8 3.3 9.8 4.2C9.8 5.1 9 5.1 9 6.2V6.5"></path><path d="M6.2 11.8C6.2 12.7 6.9 13.4 8 13.4C9.1 13.4 9.8 12.7 9.8 11.8C9.8 10.9 9 10.9 9 9.8V9.5"></path><path d="M4.2 6.2C3.3 6.2 2.6 6.9 2.6 8C2.6 9.1 3.3 9.8 4.2 9.8C5.1 9.8 5.1 9 6.2 9H6.5"></path><path d="M11.8 6.2C12.7 6.2 13.4 6.9 13.4 8C13.4 9.1 12.7 9.8 11.8 9.8C10.9 9.8 10.9 9 9.8 9H9.5"></path></svg></span> Tachyon Tracker</a>
+      </div>
+    </div>
   </nav>
   <div id="authWidget" class="auth-widget"></div>
   <div class="app-sidebar-foot">
@@ -250,9 +284,8 @@
 </div>
 
 <script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
-<script src="assets/nav-order.js"></script>
-<script>window.purgeAuthReady = PurgeAuth.init();
-purgeAuthReady.then(function(state){ PurgeNavOrder.enableIfGuildMaster(state); });</script>
+<script src="assets/sidebar-nav.js"></script>
+<script>window.purgeAuthReady = PurgeAuth.init();</script>
 <script src="class-icons.js"></script>
 <script>
 /* ================================================================

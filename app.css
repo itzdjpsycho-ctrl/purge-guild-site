@@ -114,7 +114,7 @@
 .app-brand-logo{
   width:36px; height:36px; flex:none;
   display:flex; align-items:center; justify-content:center;
-  clip-path:polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+  border-radius:12px;
   font-size:17px;
   background:linear-gradient(150deg, var(--crimson) 0%, var(--crimson-bright) 100%);
   box-shadow:0 0 0 1px rgba(95,220,245,0.5), inset 0 0 0 1px rgba(255,255,255,0.12);
@@ -131,41 +131,60 @@
   color:var(--text-faint, #4E454A); margin-top:5px;
 }
 
-/* Nav links */
-.side-nav{ display:flex; flex-direction:column; gap:3px; padding:14px 12px 0; }
+/* Nav — grouped into fixed categories (Overview / Warfare / Media / Tools).
+   assets/sidebar-nav.js wires each category's collapse/expand chevron and
+   persists collapsed state per visitor (localStorage) — same pattern as
+   Squad Roles / the Tachyon Tracker's found-state, not shared guild data. */
+.side-nav{ display:flex; flex-direction:column; padding:10px 10px 0; }
+
+.side-nav-group{ margin-top:4px; }
+.side-nav-group-head{
+  display:flex; align-items:center; justify-content:space-between;
+  width:100%; padding:10px 10px 6px; margin:0; border:0; border-radius:8px;
+  background:none; cursor:pointer; user-select:none;
+  font-family:var(--font-mono, monospace); font-size:9.5px; letter-spacing:0.18em;
+  text-transform:uppercase; color:var(--text-faint, #4E454A);
+  transition:color 0.15s ease;
+}
+.side-nav-group-head:hover{ color:var(--text-muted, #8A8088); }
+.side-nav-group-head .chev{
+  display:flex; color:var(--text-faint, #4E454A);
+  transition:transform 0.18s ease, color 0.15s ease;
+}
+.side-nav-group-head:hover .chev{ color:var(--crimson-mid, #3FBBDA); }
+.side-nav-group.collapsed .chev{ transform:rotate(-90deg); }
+.side-nav-group.collapsed .side-nav-group-items{ display:none; }
+
+.side-nav-group-items{ display:flex; flex-direction:column; gap:2px; }
+
+.side-nav-divider{ height:1px; background:var(--hairline-soft, #1A1426); margin:10px 10px 0; }
+
 .side-nav a{
   display:flex; align-items:center; gap:12px;
-  padding:10px 14px; border-radius:9px;
+  padding:9px 12px 9px 14px; margin-left:2px; border-radius:14px;
   font-family:var(--font-mono, monospace); font-size:12.5px; letter-spacing:0.03em;
   color:var(--text-muted, #8A8088); text-decoration:none;
-  border:1px solid transparent;
+  border:1px solid transparent; border-left:2px solid transparent;
   transition:background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 .side-nav a .ico{
-  width:18px; text-align:center; font-size:14px; flex:none; opacity:0.85;
+  width:16px; height:16px; flex:none;
+  display:flex; align-items:center; justify-content:center;
+  opacity:0.75; transition:opacity 0.15s ease;
 }
+.side-nav a .ico svg{ width:15px; height:15px; stroke:currentColor; fill:none; }
 .side-nav a:hover{
   background:rgba(255,255,255,0.04);
   color:var(--text, #EDE8E0);
 }
+.side-nav a:hover .ico{ opacity:1; }
 .side-nav a.current{
   background:rgba(44,147,176,0.16);
   color:var(--crimson-glow, #F2C067);
-  border-color:rgba(95,220,245,0.30);
-  box-shadow:inset 2px 0 0 var(--crimson-bright, #E0982E), inset 0 0 0 1px rgba(95,220,245,0.12);
+  border-color:rgba(95,220,245,0.28);
+  border-left-color:var(--crimson-bright, #E0982E);
 }
-.side-nav a.current .ico{ opacity:1; }
-
-/* Guild-Master-only drag-to-reorder (assets/nav-order.js) */
-.side-nav-editable a{ cursor:grab; }
-.side-nav-editable a:active{ cursor:grabbing; }
-.side-nav-editable a.dragging{ opacity:0.35; border-color:var(--crimson-bright, #E0982E); }
-
-.side-nav-label{
-  font-family:var(--font-mono, monospace); font-size:9px; letter-spacing:0.18em;
-  text-transform:uppercase; color:var(--text-faint, #4E454A);
-  padding:18px 18px 6px;
-}
+.side-nav a.current .ico{ opacity:1; color:var(--crimson-bright, #E0982E); }
 
 /* Sidebar footer */
 .app-sidebar-foot{
