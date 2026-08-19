@@ -35,8 +35,8 @@
     content:"";
     position:fixed; inset:0; pointer-events:none; z-index:0;
     background:
-      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(44,147,176,0.16), transparent 65%),
-      radial-gradient(ellipse 35% 45% at 100% 100%, rgba(124,111,224,0.07), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(196,154,48,0.08), transparent 65%),
+      radial-gradient(ellipse 35% 45% at 100% 100%, rgba(0,0,0,0.3), transparent 60%),
       repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
   }
 
@@ -78,7 +78,7 @@
     outline-offset:2px;
   }
 
-    .site-nav a.current{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(44,147,176,0.15); }
+    .site-nav a.current{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(196,154,48,0.15); }
 
   /* ============================================================
      PLAYER INSPECT DRAWER
@@ -325,12 +325,12 @@
     color:var(--gold-bright);
     text-decoration:none;
     padding:7px 14px;
-    border:1px solid rgba(44,147,176,0.35);
+    border:1px solid rgba(196,154,48,0.35);
     border-radius:999px;
-    background:rgba(44,147,176,0.1);
+    background:rgba(196,154,48,0.1);
     transition:background 0.14s ease, border-color 0.14s ease;
   }
-  .drawer-profile-link a:hover{ background:rgba(44,147,176,0.2); border-color:var(--crimson); }
+  .drawer-profile-link a:hover{ background:rgba(196,154,48,0.2); border-color:var(--crimson); }
 
   .drawer-class-badge{
     font-family:var(--font-mono);
@@ -347,7 +347,7 @@
     font-size:12px;
     letter-spacing:0.04em;
     color:var(--crimson-bright);
-    background:rgba(44,147,176,0.12);
+    background:rgba(196,154,48,0.12);
     border:1px solid var(--crimson);
     clip-path:polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
     padding:7px 16px;
@@ -355,7 +355,7 @@
     transition:background 0.16s ease, box-shadow 0.16s ease;
     white-space:nowrap;
   }
-  .add-war-btn:hover{ background:rgba(44,147,176,0.22); box-shadow:0 0 10px rgba(95,220,245,0.4), inset 0 0 0 1px rgba(95,220,245,0.5); }
+  .add-war-btn:hover{ background:rgba(196,154,48,0.22); box-shadow:0 0 10px rgba(232,188,85,0.4), inset 0 0 0 1px rgba(232,188,85,0.5); }
 
   .clear-wars-btn{
     font-family:var(--font-mono); font-size:12px; letter-spacing:0.04em;
@@ -387,7 +387,7 @@
     clip-path:polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 0 100%);
     width:100%;
     max-width:560px;
-    box-shadow:0 0 0 1px rgba(95,220,245,0.25), 0 40px 90px rgba(0,0,0,0.6);
+    box-shadow:0 0 0 1px rgba(232,188,85,0.25), 0 40px 90px rgba(0,0,0,0.6);
     overflow:hidden;
   }
   .modal-header{
@@ -430,7 +430,7 @@
   }
   .upload-zone:hover, .upload-zone.drag-over{
     border-color:var(--crimson);
-    background:rgba(44,147,176,0.05);
+    background:rgba(196,154,48,0.05);
   }
   .upload-zone input[type=file]{
     position:absolute;
@@ -483,11 +483,11 @@
   }
   .modal-btn:hover{ color:var(--text); border-color:rgba(255,255,255,0.18); }
   .modal-btn.primary{
-    background:rgba(44,147,176,0.14);
+    background:rgba(196,154,48,0.14);
     color:var(--crimson-bright);
     border-color:var(--crimson);
   }
-  .modal-btn.primary:hover{ background:rgba(44,147,176,0.26); }
+  .modal-btn.primary:hover{ background:rgba(196,154,48,0.26); }
   .modal-btn:disabled{ opacity:0.4; pointer-events:none; }
 
   .modal-status{
@@ -514,7 +514,7 @@
     transition:color 0.14s, background 0.14s, border-color 0.14s;
   }
   .modal-mode-tab:hover{ color:var(--text-muted); }
-  .modal-mode-tab.active{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(44,147,176,0.12); }
+  .modal-mode-tab.active{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(196,154,48,0.12); }
 
   .json-input-area{ display:none; }
   .json-input-area.visible{ display:block; }
@@ -575,7 +575,7 @@
   .roles-edit-btn.active{
     color:var(--crimson-bright);
     border-color:var(--crimson);
-    background:rgba(44,147,176,0.12);
+    background:rgba(196,154,48,0.12);
   }
 
   .roles-panel{
@@ -694,7 +694,7 @@
     min-height:140px;
   }
   .roles-dnd-zone.drag-over{
-    background:rgba(44,147,176,0.08);
+    background:rgba(196,154,48,0.08);
     box-shadow:inset 0 0 0 2px var(--crimson);
   }
   .roles-dnd-placeholder{
@@ -746,7 +746,7 @@
     margin:0 auto 24px;
     padding:22px 20px 18px;
     text-align:center;
-    border:1px solid rgba(44,147,176,0.2);
+    border:1px solid rgba(196,154,48,0.2);
     border-radius:36px;
     background:rgba(8,6,8,0.85);
     backdrop-filter:blur(16px);
@@ -877,7 +877,7 @@
 
   select#weekSelect:focus{
     border-color:var(--crimson);
-    box-shadow:0 0 0 3px rgba(44,147,176,0.15);
+    box-shadow:0 0 0 3px rgba(196,154,48,0.15);
   }
 
   .week-select-arrow{
@@ -1383,7 +1383,7 @@
   }
   .panel-search:focus{
     border-color:var(--crimson);
-    box-shadow:0 0 0 3px rgba(44,147,176,0.12);
+    box-shadow:0 0 0 3px rgba(196,154,48,0.12);
     width:220px;
   }
   .panel-search::placeholder{ color:var(--text-faint); }
@@ -1480,10 +1480,6 @@
 </head>
 <body>
 
-<video class="bg-video" autoplay muted loop playsinline aria-hidden="true">
-  <source src="nanotech_background_3840.webm" type="video/webm">
-</video>
-<div class="bg-video-scrim"></div>
 
 <div class="app-shell">
 <aside class="app-sidebar">

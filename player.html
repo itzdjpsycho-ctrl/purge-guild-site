@@ -25,8 +25,8 @@
     content:"";
     position:fixed; inset:0; pointer-events:none; z-index:0;
     background:
-      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(44,147,176,0.16), transparent 65%),
-      radial-gradient(ellipse 35% 45% at 100% 100%, rgba(124,111,224,0.07), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(196,154,48,0.08), transparent 65%),
+      radial-gradient(ellipse 35% 45% at 100% 100%, rgba(0,0,0,0.3), transparent 60%),
       repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
   }
   main, header, footer, nav, .profile-hero{ position:relative; z-index:1; }
@@ -43,7 +43,7 @@
     transition:background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
   }
   .site-nav a:hover{ color:var(--text); border-color:rgba(255,255,255,0.18); transform:translateY(-1px); }
-    .site-nav a.current{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(44,147,176,0.15); }
+    .site-nav a.current{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(196,154,48,0.15); }
 
   /* ---- Profile Hero ---- */
   .profile-hero{
@@ -125,7 +125,7 @@
   .gear-score-val{
     font-family:var(--font-mono); font-size:26px; font-weight:700;
     color:var(--crimson-bright); line-height:1;
-    text-shadow:0 0 18px rgba(95,220,245,0.35);
+    text-shadow:0 0 18px rgba(232,188,85,0.35);
   }
   .gear-inputs{
     display:grid; grid-template-columns:repeat(3,1fr); gap:8px;
@@ -145,17 +145,17 @@
   }
   .gear-field input::-webkit-outer-spin-button,
   .gear-field input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
-  .gear-field input:focus{ border-color:var(--crimson); box-shadow:0 0 0 2px rgba(44,147,176,0.2); }
+  .gear-field input:focus{ border-color:var(--crimson); box-shadow:0 0 0 2px rgba(196,154,48,0.2); }
 
   .gear-read-btn{
     width:100%; margin-top:10px; cursor:pointer;
     font-family:var(--font-mono); font-size:11px; letter-spacing:0.04em;
     padding:8px 10px; border-radius:7px;
-    color:var(--crimson-glow); background:rgba(44,147,176,0.12);
-    border:1px solid rgba(95,220,245,0.3);
+    color:var(--crimson-glow); background:rgba(196,154,48,0.12);
+    border:1px solid rgba(232,188,85,0.3);
     transition:background 0.15s ease, border-color 0.15s ease;
   }
-  .gear-read-btn:hover{ background:rgba(44,147,176,0.22); border-color:rgba(95,220,245,0.5); }
+  .gear-read-btn:hover{ background:rgba(196,154,48,0.22); border-color:rgba(232,188,85,0.5); }
   .gear-read-btn:disabled{ opacity:0.55; cursor:default; }
   .gear-read-status{
     font-family:var(--font-mono); font-size:10px; line-height:1.5;
@@ -380,7 +380,7 @@
     font-size:13px; white-space:nowrap;
   }
   .war-modal-table-wrap tbody tr:last-child td{ border-bottom:none; }
-  .war-modal-table-wrap tbody tr.is-you{ background:rgba(95,220,245,0.07); }
+  .war-modal-table-wrap tbody tr.is-you{ background:rgba(232,188,85,0.07); }
   .war-modal-table-wrap tbody tr.is-you td:first-child{ box-shadow:inset 3px 0 0 var(--crimson); }
   .war-modal-table-wrap .td-class{ display:flex; align-items:center; gap:6px; }
   .war-row{ cursor:pointer; }
@@ -412,10 +412,6 @@
 </head>
 <body>
 
-<video class="bg-video" autoplay muted loop playsinline aria-hidden="true">
-  <source src="nanotech_background_3840.webm" type="video/webm">
-</video>
-<div class="bg-video-scrim"></div>
 
 <div class="app-shell">
 <aside class="app-sidebar">

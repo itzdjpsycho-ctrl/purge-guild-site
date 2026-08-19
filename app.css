@@ -6,39 +6,43 @@
      • the left sidebar nav rail (.app-shell / .app-sidebar)
      • the content column (.app-content) + page headers (.page-head)
      • unified scrollbar, panel, section spacing scoped under .app-content
-   Keeps the existing navy + electric-cyan theme (CSS vars defined per
-   page; fallbacks below mirror them so this file also works standalone).
+   Keeps the black/grey/gold theme (CSS vars defined per page; fallbacks
+   below mirror them so this file also works standalone).
    Desktop-only by design — no mobile breakpoints.
    ========================================================================== */
 
 :root{
   --sidebar-w: 226px;
 
-  /* ---- Canonical design tokens ("Nanotech HUD" — navy + electric cyan) ----
+  /* ---- Canonical design tokens ("Black/Grey/Gold" — matches the Roster page
+     redesign, 2026-08) ----
      This is the single source of truth. Every page used to redefine an identical
      :root block inline; app.css loads AFTER each page's inline <style>, so these
      values win the cascade and the inline copies can be deleted outright rather
-     than kept in sync. Variable NAMES are unchanged from the old purple/gold-
-     themed site (see CLAUDE.md) — only values change, chosen to match the
-     nanotech_background video. crimson-prefixed vars are now the electric-cyan
-     UI accent (nav, buttons, links, glow); cyan-prefixed vars are now a
-     secondary violet accent; gold, red, green, bronze and orange keep their
-     prior semantic meaning (K/D and victories, deaths, kills, rank-3,
-     shotcaller role) — those warm tones are left untouched so they read as
-     complementary "pop" colors against the cool navy/cyan base. */
-  --bg:            #0A1A28;
-  --bg2:           #0E2233;
-  --panel:         #11293D;
-  --panel-raised:  #163349;
-  --hairline:      #234258;
-  --hairline-soft: #17303F;
+     than kept in sync. Variable NAMES are unchanged from two themes ago (see
+     CLAUDE.md) — only values change. Rolled out site-wide from what was
+     originally a Roster-only page-scoped restyle (players.html, commits
+     337fe5f/1c8a816/da82588): crimson-prefixed vars are now near-black/charcoal
+     surfaces + gold UI accent (nav, buttons, links, glow) instead of the prior
+     navy + electric-cyan "Nanotech HUD" look; hairline borders shifted from a
+     navy tint to neutral white-alpha so they read correctly against the new
+     near-black surfaces. cyan-prefixed vars (a secondary violet accent) are
+     deliberately left as-is — Roster's redesign never had a secondary-accent
+     element to establish what those should become, so violet stays as a
+     distinct "not the primary accent" tier, same as red/green/bronze/orange. */
+  --bg:            #0B0B0C;
+  --bg2:           #131315;
+  --panel:         #151517;
+  --panel-raised:  #1E1E21;
+  --hairline:      rgba(255,255,255,0.14);
+  --hairline-soft: rgba(255,255,255,0.08);
   --text:          #E9F3F7;
   --text-muted:    #8FA9BC;
   --text-faint:    #4C6478;
-  --crimson:       #2C93B0;
-  --crimson-mid:   #3FBBDA;
-  --crimson-bright:#5FDCF5;
-  --crimson-glow:  #A6F3FF;
+  --crimson:       #C49A30;
+  --crimson-mid:   #D9AE45;
+  --crimson-bright:#E8BC55;
+  --crimson-glow:  #F2D896;
   --cyan:          #7C6FE0;
   --cyan-bright:   #9B90F2;
   --gold:          #C49A30;
@@ -60,24 +64,11 @@
   --panel-clip: polygon(0 0, calc(100% - var(--notch)) 0, 100% var(--notch), 100% 100%, 0 100%);
 }
 
-/* ---- Nanotech video background ------------------------------------------
-   Full-viewport looping video sits behind everything; a dark scrim on top
-   keeps panel text/contrast readable regardless of what's playing beneath.
-   Both layers are position:fixed so they ignore page scroll and DOM order. */
-.bg-video{
-  position:fixed; inset:0; z-index:-2;
-  width:100%; height:100%;
-  object-fit:cover;
-  opacity:0.85;
-  pointer-events:none;
-}
-.bg-video-scrim{
-  position:fixed; inset:0; z-index:-1;
-  pointer-events:none;
-  /* rgba stops (not an opaque fill) so the video's pulse animation still
-     reads through; only the edges/corners sink into near-black. */
-  background:radial-gradient(ellipse 90% 70% at 50% 8%, rgba(18,18,18,0), rgba(18,18,18,0.25) 70%, rgba(18,18,18,0.5) 100%);
-}
+/* .bg-video / .bg-video-scrim (full-viewport looping background video) were
+   removed site-wide in the 2026-08 black/grey/gold rollout — Roster's own
+   restyle found the video's 85% opacity drowned out any background color
+   change underneath it. No page references these classes anymore; left out
+   entirely rather than kept as dead CSS. */
 
 /* ---- App shell ---------------------------------------------------------- */
 .app-shell{
@@ -89,7 +80,7 @@
   z-index:1;
   /* Dark, close-in vignette — edges sink into near-black instead of the
      atmosphere reading flat all the way to the corners. */
-  box-shadow:inset 0 0 190px rgba(4,10,18,0.55);
+  box-shadow:inset 0 0 190px rgba(0,0,0,0.55);
 }
 
 .app-sidebar{
@@ -97,8 +88,8 @@
   width:var(--sidebar-w);
   height:100vh;
   display:flex; flex-direction:column;
-  background:linear-gradient(180deg, #071018 0%, #04090E 100%);
-  border-right:1px solid var(--hairline, #2A1F3A);
+  background:linear-gradient(180deg, #0D0D0F 0%, #08080A 100%);
+  border-right:1px solid var(--hairline, rgba(255,255,255,0.14));
   padding:22px 0 18px;
   overflow-y:auto;
 }
@@ -108,7 +99,7 @@
   display:flex; align-items:center; gap:11px;
   padding:2px 20px 22px;
   margin-bottom:8px;
-  border-bottom:1px solid var(--hairline-soft, #1A1426);
+  border-bottom:1px solid var(--hairline-soft, rgba(255,255,255,0.08));
   text-decoration:none;
 }
 .app-brand-logo{
@@ -117,7 +108,7 @@
   border-radius:12px;
   font-size:17px;
   background:linear-gradient(150deg, var(--crimson) 0%, var(--crimson-bright) 100%);
-  box-shadow:0 0 0 1px rgba(95,220,245,0.5), inset 0 0 0 1px rgba(255,255,255,0.12);
+  box-shadow:0 0 0 1px rgba(232,188,85,0.5), inset 0 0 0 1px rgba(255,255,255,0.12);
 }
 .app-brand-text{ display:flex; flex-direction:column; line-height:1; }
 .app-brand-name{
@@ -151,13 +142,13 @@
   display:flex; color:var(--text-faint, #4E454A);
   transition:transform 0.18s ease, color 0.15s ease;
 }
-.side-nav-group-head:hover .chev{ color:var(--crimson-mid, #3FBBDA); }
+.side-nav-group-head:hover .chev{ color:var(--crimson-mid, #D9AE45); }
 .side-nav-group.collapsed .chev{ transform:rotate(-90deg); }
 .side-nav-group.collapsed .side-nav-group-items{ display:none; }
 
 .side-nav-group-items{ display:flex; flex-direction:column; gap:2px; }
 
-.side-nav-divider{ height:1px; background:var(--hairline-soft, #1A1426); margin:10px 10px 0; }
+.side-nav-divider{ height:1px; background:var(--hairline-soft, rgba(255,255,255,0.08)); margin:10px 10px 0; }
 
 .side-nav a{
   display:flex; align-items:center; gap:12px;
@@ -179,18 +170,18 @@
 }
 .side-nav a:hover .ico{ opacity:1; }
 .side-nav a.current{
-  background:rgba(44,147,176,0.16);
-  color:var(--crimson-glow, #F2C067);
-  border-color:rgba(95,220,245,0.28);
-  border-left-color:var(--crimson-bright, #E0982E);
+  background:rgba(196,154,48,0.16);
+  color:var(--crimson-glow, #F2D896);
+  border-color:rgba(232,188,85,0.28);
+  border-left-color:var(--crimson-bright, #E8BC55);
 }
-.side-nav a.current .ico{ opacity:1; color:var(--crimson-bright, #E0982E); }
+.side-nav a.current .ico{ opacity:1; color:var(--crimson-bright, #E8BC55); }
 
 /* Sidebar footer */
 .app-sidebar-foot{
   margin-top:auto;
   padding:16px 22px 4px;
-  border-top:1px solid var(--hairline-soft, #1A1426);
+  border-top:1px solid var(--hairline-soft, rgba(255,255,255,0.08));
   font-family:var(--font-mono, monospace); font-size:10px; letter-spacing:0.04em;
   color:var(--text-faint, #4E454A); line-height:1.7;
 }
@@ -216,19 +207,19 @@
   color:var(--text-muted, #8A8088); text-decoration:none;
   margin-bottom:18px; transition:color 0.15s ease, gap 0.15s ease;
 }
-.back-link:hover{ color:var(--crimson-glow, #F2C067); gap:9px; }
+.back-link:hover{ color:var(--crimson-glow, #F2D896); gap:9px; }
 
 /* Page header (replaces the old centered rounded header card) */
 .page-head{
   position:relative;
   display:flex; flex-direction:column; gap:6px;
   padding-bottom:22px; margin-bottom:32px;
-  border-bottom:1px solid var(--hairline-soft, #1A1426);
+  border-bottom:1px solid var(--hairline-soft, rgba(255,255,255,0.08));
 }
 .page-eyebrow{
   font-family:var(--font-mono, monospace); font-size:10px; letter-spacing:0.22em;
-  text-transform:uppercase; color:var(--crimson-bright, #E0982E);
-  padding-left:10px; border-left:2px solid var(--crimson-bright, #E0982E);
+  text-transform:uppercase; color:var(--crimson-bright, #E8BC55);
+  padding-left:10px; border-left:2px solid var(--crimson-bright, #E8BC55);
 }
 .page-head h1{
   font-family:var(--font-display, 'Rajdhani', sans-serif);
@@ -244,7 +235,7 @@
    columns; those stay flat, see the --panel-clip token comment above). */
 .app-content .panel,
 .app-content .col{
-  border:1px solid var(--hairline, #2A1F3A);
+  border:1px solid var(--hairline, rgba(255,255,255,0.14));
   border-radius:0;
   clip-path:var(--panel-clip);
   box-shadow:none;
@@ -253,7 +244,7 @@
    home page redesign) instead of the notch — clip-path:none overrides the
    .panel rule above by selector specificity, not by source order. */
 .app-content .player-card{
-  border:1px solid var(--hairline, #2A1F3A);
+  border:1px solid var(--hairline, rgba(255,255,255,0.14));
   border-radius:20px;
   clip-path:none;
 }
@@ -277,13 +268,13 @@
 .btn:disabled{ opacity:0.4; cursor:not-allowed; }
 .btn.gold{ color:var(--gold-bright); border-color:var(--gold); background:rgba(217,164,65,0.1); }
 .btn.gold:hover{ background:rgba(217,164,65,0.18); box-shadow:0 0 10px rgba(232,188,85,0.35), inset 0 0 0 1px rgba(232,188,85,0.4); }
-.btn.purple{ color:var(--crimson-glow); border-color:var(--crimson); background:rgba(44,147,176,0.16); }
-.btn.purple:hover:not(:disabled){ background:rgba(44,147,176,0.28); box-shadow:0 0 10px rgba(95,220,245,0.4), inset 0 0 0 1px rgba(95,220,245,0.5); }
+.btn.purple{ color:var(--crimson-glow); border-color:var(--crimson); background:rgba(196,154,48,0.16); }
+.btn.purple:hover:not(:disabled){ background:rgba(196,154,48,0.28); box-shadow:0 0 10px rgba(232,188,85,0.4), inset 0 0 0 1px rgba(232,188,85,0.5); }
 
 .officer-chip{
   display:flex; align-items:center; gap:6px;
   font-family:var(--font-mono); font-size:11.5px; color:var(--crimson-glow);
-  background:rgba(44,147,176,0.16); border:1px solid var(--crimson); border-radius:999px;
+  background:rgba(196,154,48,0.16); border:1px solid var(--crimson); border-radius:999px;
   padding:5px 6px 5px 12px;
 }
 .officer-chip button{

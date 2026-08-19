@@ -30,8 +30,8 @@
     content:"";
     position:fixed; inset:0; z-index:0; pointer-events:none;
     background:
-      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(44,147,176,0.16), transparent 65%),
-      radial-gradient(ellipse 35% 45% at 100% 100%, rgba(124,111,224,0.07), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(196,154,48,0.08), transparent 65%),
+      radial-gradient(ellipse 35% 45% at 100% 100%, rgba(0,0,0,0.3), transparent 60%),
       repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
   }
 
@@ -104,7 +104,7 @@
   .vod-card-thumb{ width:100%; aspect-ratio:16/9; object-fit:cover; background:#000; display:block; }
   .vod-class-badge{
     display:inline-flex; align-items:center; gap:5px;
-    background:rgba(10,26,40,0.85); border:1px solid var(--hairline);
+    background:rgba(11,11,12,0.85); border:1px solid var(--hairline);
     color:var(--crimson-glow); font-family:var(--font-mono); font-size:10px;
     padding:3px 9px; border-radius:999px;
   }
@@ -225,10 +225,6 @@
 </head>
 <body>
 
-<video class="bg-video" autoplay muted loop playsinline aria-hidden="true">
-  <source src="nanotech_background_3840.webm" type="video/webm">
-</video>
-<div class="bg-video-scrim"></div>
 
 <div class="app-shell">
 <aside class="app-sidebar">

@@ -25,8 +25,8 @@
     content:"";
     position:fixed; inset:0; pointer-events:none; z-index:0;
     background:
-      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(44,147,176,0.16), transparent 65%),
-      radial-gradient(ellipse 35% 45% at 100% 100%, rgba(124,111,224,0.07), transparent 60%),
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(196,154,48,0.08), transparent 65%),
+      radial-gradient(ellipse 35% 45% at 100% 100%, rgba(0,0,0,0.3), transparent 60%),
       repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
   }
   nav,header,main,footer{ position:relative; z-index:1; }
@@ -44,7 +44,7 @@
     transition:background 0.16s,border-color 0.16s,color 0.16s,transform 0.16s;
   }
   .site-nav a:hover{ color:var(--text); border-color:rgba(255,255,255,0.18); transform:translateY(-1px); }
-    .site-nav a.current{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(44,147,176,0.15); }
+    .site-nav a.current{ color:var(--crimson-bright); border-color:var(--crimson); background:rgba(196,154,48,0.15); }
 
   /* HEADER */
   header{
@@ -349,10 +349,6 @@
 </head>
 <body>
 
-<video class="bg-video" autoplay muted loop playsinline aria-hidden="true">
-  <source src="nanotech_background_3840.webm" type="video/webm">
-</video>
-<div class="bg-video-scrim"></div>
 
 <div class="app-shell">
 <aside class="app-sidebar">

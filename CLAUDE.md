@@ -41,21 +41,23 @@ Dark-themed static HTML guild management site for a Black Desert Online (BDO) No
 
 ---
 
-## Theme — Purge Neon Purple Dark (all pages)
+## Theme — Purge Black/Grey/Gold (all pages, 2026-08)
 
 ```
-Background:    #08060C with neon-purple radial glow atmosphere
-Panels:        #110D18 / #181222
-Hairlines:     #2A1F3A / #1A1426
-UI accent:     neon purple #6E1FB8 / #8B2FD9 / #AB4DFF (glow #C77DFF)
+Background:    #0B0B0C (near-black) with a subtle gold-top-glow + black-vignette atmosphere
+Panels:        #151517 / #1E1E21 (charcoal grey)
+Hairlines:     rgba(255,255,255,0.14) / rgba(255,255,255,0.08) (neutral, not tinted)
+UI accent:     gold #C49A30 / #D9AE45 / #E8BC55 (glow #F2D896) — nav-active, buttons, links, focus rings
+Secondary:     violet #7C6FE0 / #9B90F2 — used sparingly as a "not the primary accent" tier, unchanged
+               by this rollout (nothing on the reference page, Roster, established what it should become)
 Data colours:  gold #C49A30 / #E8BC55 (K/D, victories)
                green #5BC976 (kills)
                red #D65A45 (deaths/defeats)
-Fonts:         Fraunces (display), IBM Plex Mono (mono), Inter (UI)
-Nav active:    neon purple (not gold)
+Fonts:         Rajdhani (display), IBM Plex Mono (mono), Inter (UI)
+Nav active:    gold
 ```
 
-*(CSS vars are still named `--crimson*` for historical reasons — they now hold purple values.)*
+*(CSS vars are still named `--crimson*` for historical reasons — two themes ago they held purple, then navy/electric-cyan ("Nanotech HUD"), now gold. Rolled out site-wide from what started as a Roster-only page-scoped restyle (`players.html`, Aug 2026) — see `app.css`'s `:root` block for the single source of truth and its own history comment. That restyle also dropped the full-viewport `nanotech_background_3840.webm` looping video every page used to render behind the app-shell — its 85% opacity was drowning out any background color change underneath it, so `.bg-video`/`.bg-video-scrim` were removed from `app.css` and every page's `<body>`.)*
 
 ---
 
