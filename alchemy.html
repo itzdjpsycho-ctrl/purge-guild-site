@@ -146,6 +146,63 @@
   .alc-item.expanded > .alc-item-children{ display:block; }
   .alc-item-hidden{ display:none !important; }
 
+  /* ---- Calculator ---- */
+  .alc-calc-input{
+    width:64px; flex-shrink:0;
+    background:var(--panel-raised); border:1px solid var(--hairline); border-radius:5px;
+    color:var(--text); font-family:var(--font-mono); font-size:12px; padding:4px 8px; outline:none;
+    text-align:right;
+  }
+  .alc-calc-input:focus{ border-color:var(--crimson); }
+  .alc-calc-input::placeholder{ color:var(--text-faint); }
+  .alc-calc-clear{
+    flex-shrink:0; width:20px; height:20px; border-radius:5px; border:1px solid var(--hairline);
+    background:none; color:var(--text-faint); cursor:pointer; font-size:11px; line-height:1;
+    display:none; align-items:center; justify-content:center;
+  }
+  .alc-item.calc-active > .alc-item-row .alc-calc-clear{ display:flex; }
+  .alc-calc-clear:hover{ color:var(--red-bright,#ff6b5a); border-color:var(--red-bright,#ff6b5a); }
+  .alc-item.calc-active > .alc-item-row{ background:rgba(196,154,48,0.06); }
+  .alc-item.calc-active > .alc-item-row .alc-item-qty{
+    color:var(--gold-bright,#e8bc55); background:rgba(196,154,48,0.14); font-weight:600;
+  }
+  .alc-craft-note{
+    font-family:var(--font-mono); font-size:10px; color:var(--text-faint); flex-shrink:0;
+  }
+
+  #calcResults:empty{ display:none; }
+  .calc-card{
+    background:var(--panel); border:1px solid var(--hairline); clip-path:var(--panel-clip, none);
+    padding:16px 20px; margin-bottom:16px;
+  }
+  .calc-card-head{
+    display:flex; align-items:baseline; gap:10px; margin-bottom:12px; flex-wrap:wrap;
+  }
+  .calc-card-title{ font-family:var(--font-ui); font-size:15px; font-weight:600; color:var(--text); }
+  .calc-card-sub{ font-family:var(--font-mono); font-size:11.5px; color:var(--text-faint); }
+  .calc-card-close{
+    margin-left:auto; background:none; border:1px solid var(--hairline); border-radius:6px;
+    color:var(--text-faint); cursor:pointer; font-size:12px; padding:4px 10px;
+  }
+  .calc-card-close:hover{ color:var(--red-bright,#ff6b5a); border-color:var(--red-bright,#ff6b5a); }
+  .calc-subhead{
+    font-family:var(--font-mono); font-size:9.5px; letter-spacing:0.12em; text-transform:uppercase;
+    color:var(--text-faint); margin:14px 0 8px;
+  }
+  .calc-grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(210px,1fr)); gap:6px 14px;
+  }
+  .calc-row{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    font-family:var(--font-mono); font-size:12px; padding:3px 0;
+    border-bottom:1px dotted rgba(255,255,255,0.06);
+  }
+  .calc-row-name{ color:var(--text-muted); }
+  .calc-row-qty{ color:var(--text); font-weight:600; flex-shrink:0; }
+  .calc-npc-note{
+    font-family:var(--font-ui); font-size:12px; color:var(--text-faint); margin-top:10px;
+  }
+
   .empty-state{
     padding:30px; text-align:center;
     font-family:var(--font-mono); font-size:12px; color:var(--text-faint);
@@ -262,6 +319,8 @@
     <button class="btn" id="collapseAllBtn" type="button">Collapse All</button>
   </div>
 
+  <div id="calcResults"></div>
+
   <div id="alcContainer"></div>
   <div class="empty-state" id="alcEmptyState" style="display:none;">No matches.</div>
 </div>
@@ -275,6 +334,11 @@
     elixir instead of 30× the base one) — the recipe shown here is the all-base-grade version. The 4 regional Harmony Draughts (<b style="color:var(--text);">Human / Demihuman / Kamasylvia / Edania</b>)
     are separate items from the plain Harmony Draught and are <b style="color:var(--text);">[Party]</b> recipes — they need multiple players' Alchemy tools contributing at once, not a solo craft.
     <b style="color:var(--text);">Spellbound Catalyst</b> is bought from the Old Moon Manager NPC vendor, not crafted. Click the <b style="color:var(--text);">🔗</b> on any row to open that item on bdocodex.com.
+    <br><br>
+    <b style="color:var(--text);">Calculator:</b> every item in the <b style="color:var(--text);">Harmony Draughts</b>, <b style="color:var(--text);">Draughts</b>, and <b style="color:var(--text);">Base Elixirs</b> lists has a <b style="color:var(--text);">qty</b> box —
+    type how many you want (e.g. <b style="color:var(--text);">100</b>) and press Enter. It cascades the full amount down through every tier automatically: each Draught and the plain Harmony Draught craft in
+    batches of <b style="color:var(--text);">10</b> per synthesis (everything else is 1-for-1), so the numbers are rounded up to whole crafts the same way the game does, and a results card above the list totals
+    every intermediate craft count and every raw reagent needed end to end. Click <b style="color:var(--text);">✕</b> on the box or the card to clear a calculation.
   </div>
 </div>
 
@@ -440,12 +504,12 @@ const RECIPES = {
   782: { kind:"elixir", mats:[{id:5020,qty:6},{id:5007,qty:3},{id:6353,qty:2},{id:4802,qty:2},{id:6656,qty:3}] },
   1180: { kind:"elixir", mats:[{id:6602,qty:1},{id:5960,qty:3},{id:5301,qty:5},{id:4802,qty:5},{id:5024,qty:7}] },
   1409: { kind:"elixir", mats:[{id:6354,qty:2},{id:5960,qty:4},{id:5008,qty:5},{id:5301,qty:5},{id:5025,qty:6}] },
-  1389: { kind:"draught", mats:[{id:672,qty:30},{id:700,qty:30},{id:704,qty:30},{id:1180,qty:30},{id:820936,qty:10}] },
-  1391: { kind:"draught", mats:[{id:708,qty:30},{id:716,qty:30},{id:722,qty:30},{id:782,qty:30},{id:820936,qty:10}] },
-  1393: { kind:"draught", mats:[{id:688,qty:30},{id:690,qty:30},{id:692,qty:30},{id:762,qty:30},{id:820936,qty:10}] },
-  1395: { kind:"draught", mats:[{id:676,qty:30},{id:680,qty:30},{id:686,qty:30},{id:712,qty:30},{id:820936,qty:10}] },
-  1397: { kind:"draught", mats:[{id:696,qty:30},{id:698,qty:30},{id:718,qty:30},{id:720,qty:30},{id:820936,qty:10}] },
-  1399: { kind:"harmony", mats:[{id:1389,qty:10},{id:1391,qty:10},{id:1393,qty:10},{id:1395,qty:10},{id:1397,qty:10}] },
+  1389: { kind:"draught", out:10, mats:[{id:672,qty:30},{id:700,qty:30},{id:704,qty:30},{id:1180,qty:30},{id:820936,qty:10}] },
+  1391: { kind:"draught", out:10, mats:[{id:708,qty:30},{id:716,qty:30},{id:722,qty:30},{id:782,qty:30},{id:820936,qty:10}] },
+  1393: { kind:"draught", out:10, mats:[{id:688,qty:30},{id:690,qty:30},{id:692,qty:30},{id:762,qty:30},{id:820936,qty:10}] },
+  1395: { kind:"draught", out:10, mats:[{id:676,qty:30},{id:680,qty:30},{id:686,qty:30},{id:712,qty:30},{id:820936,qty:10}] },
+  1397: { kind:"draught", out:10, mats:[{id:696,qty:30},{id:698,qty:30},{id:718,qty:30},{id:720,qty:30},{id:820936,qty:10}] },
+  1399: { kind:"harmony", out:10, mats:[{id:1389,qty:10},{id:1391,qty:10},{id:1393,qty:10},{id:1395,qty:10},{id:1397,qty:10}] },
   1401: { kind:"harmony-regional", party:true, mats:[{id:1399,qty:1},{id:670,qty:3},{id:702,qty:3},{id:820936,qty:1}] },
   1403: { kind:"harmony-regional", party:true, mats:[{id:1399,qty:1},{id:678,qty:3},{id:702,qty:3},{id:820936,qty:1}] },
   1405: { kind:"harmony-regional", party:true, mats:[{id:1399,qty:1},{id:740,qty:3},{id:702,qty:3},{id:820936,qty:1}] },
@@ -467,12 +531,60 @@ function escapeHtml(s){
 
 function itemUrl(id){ return `https://bdocodex.com/us/item/${id}/`; }
 
+function isLeafItem(id){
+  const r = RECIPES[id];
+  return !r || (r.mats.length === 0 && r.kind !== "npc") || r.kind === "npc";
+}
+
+// ---- Calculator engine ----
+// desiredQty of `id` -> how many crafts that takes (batch-output aware,
+// rounded up to whole crafts) and the resulting total demand cascaded onto
+// every ingredient, recursively. Leaves/NPC-bought items just carry the
+// raw desired amount (nothing to craft).
+function computeCalc(id, desiredQty){
+  if (isLeafItem(id)) {
+    return { id, desiredQty, executions: null, actualOutput: desiredQty, isLeaf: true, children: [] };
+  }
+  const recipe = RECIPES[id];
+  const outQty = recipe.out || 1;
+  const executions = Math.ceil(desiredQty / outQty);
+  const actualOutput = executions * outQty;
+  const children = recipe.mats.map(m => computeCalc(m.id, executions * m.qty));
+  return { id, desiredQty, executions, actualOutput, isLeaf: false, children };
+}
+
+function collectLeaves(node, map){
+  if (node.isLeaf) { map.set(node.id, (map.get(node.id) || 0) + node.desiredQty); }
+  else { node.children.forEach(c => collectLeaves(c, map)); }
+}
+function collectCrafts(node, map){
+  if (!node.isLeaf) {
+    map.set(node.id, (map.get(node.id) || 0) + node.executions);
+    node.children.forEach(c => collectCrafts(c, map));
+  }
+}
+
+const calcState = new Map(); // root path -> { qty }
+
+function rootMeta(path){
+  const m = path.match(/^g(\d+)-(\d+)$/);
+  if (!m) return null;
+  const gi = +m[1], ri = +m[2];
+  return { id: ROOT_GROUPS[gi].ids[ri] };
+}
+
 // path = unique DOM-key for this occurrence of an item (an id can appear
 // nested under multiple different parents — each occurrence expands independently)
-function renderItem(id, qty, path){
+// opts.isRoot: true for the top-level rows in each group (these get a calculator input)
+// opts.calcNode: the computeCalc() result for this occurrence, when it's part of an active calculation
+function renderItem(id, staticQty, path, opts){
+  opts = opts || {};
+  const isRoot = !!opts.isRoot;
+  const calcNode = opts.calcNode || null;
+
   const name = ITEM_NAMES[id] || `Item ${id}`;
   const recipe = RECIPES[id];
-  const isLeaf = !recipe || (recipe.mats.length === 0 && recipe.kind !== "npc") || recipe.kind === "npc";
+  const isLeaf = isLeafItem(id);
   const kind = recipe ? recipe.kind : null;
   const searchBlob = escapeHtml(name.toLowerCase());
 
@@ -480,24 +592,44 @@ function renderItem(id, qty, path){
   if (kind) badges += `<span class="alc-item-badge kind-${kind}">${KIND_LABEL[kind]}</span>`;
   if (recipe && recipe.party) badges += `<span class="alc-item-badge kind-party">Party</span>`;
 
-  const qtyHtml = qty != null ? `<span class="alc-item-qty">×${qty}</span>` : "";
+  const displayQty = calcNode ? calcNode.desiredQty : staticQty;
+  const qtyHtml = (displayQty != null && !isRoot) ? `<span class="alc-item-qty">×${displayQty.toLocaleString()}</span>` : "";
+
   const chev = isLeaf ? `<span class="alc-chev"></span>` : `<span class="alc-chev">▸</span>`;
+
+  let calcControlsHtml = "";
+  if (isRoot) {
+    const inputVal = calcNode ? calcNode.desiredQty : "";
+    calcControlsHtml = `
+      <input type="number" min="1" step="1" inputmode="numeric" class="alc-calc-input" placeholder="qty" value="${inputVal}" data-calc-input="${path}">
+      <button type="button" class="alc-calc-clear" data-calc-clear="${path}" title="Clear calculation">✕</button>`;
+  }
+
+  let craftNote = "";
+  if (calcNode && !isLeaf && calcNode.executions != null) {
+    const extra = calcNode.actualOutput !== calcNode.desiredQty ? ` → ${calcNode.actualOutput.toLocaleString()} made` : "";
+    craftNote = `<span class="alc-craft-note">${calcNode.executions.toLocaleString()} craft${calcNode.executions === 1 ? "" : "s"}${extra}</span>`;
+  }
 
   let childrenHtml = "";
   if (!isLeaf) {
     childrenHtml = `<div class="alc-item-children">` +
-      recipe.mats.map((m, i) => renderItem(m.id, m.qty, `${path}-${i}`)).join("") +
+      recipe.mats.map((m, i) => renderItem(m.id, m.qty, `${path}-${i}`, calcNode ? { calcNode: calcNode.children[i] } : undefined)).join("") +
       `</div>`;
   }
 
+  const itemClasses = "alc-item" + (calcNode ? " expanded calc-active" : "");
+
   return `
-    <div class="alc-item" data-path="${path}" data-search="${searchBlob}">
+    <div class="${itemClasses}" data-path="${path}" data-search="${searchBlob}">
       <div class="alc-item-row ${isLeaf ? "is-leaf" : ""}" ${isLeaf ? "" : `data-toggle="${path}"`}>
         ${chev}
         <span class="alc-item-name">${escapeHtml(name)}</span>
+        ${calcControlsHtml}
         ${qtyHtml}
+        ${craftNote}
         ${badges}
-        <a class="alc-item-link" href="${itemUrl(id)}" target="_blank" rel="noopener" title="Open on bdocodex.com" onclick="event.stopPropagation()">🔗</a>
+        <a class="alc-item-link" href="${itemUrl(id)}" target="_blank" rel="noopener" title="Open on bdocodex.com">🔗</a>
       </div>
       ${childrenHtml}
     </div>`;
@@ -506,19 +638,90 @@ function renderItem(id, qty, path){
 function renderAll(){
   const container = document.getElementById("alcContainer");
   container.innerHTML = ROOT_GROUPS.map((group, gi) => {
-    const rows = group.ids.map((id, i) => renderItem(id, null, `g${gi}-${i}`)).join("");
+    const rows = group.ids.map((id, i) => renderItem(id, null, `g${gi}-${i}`, { isRoot: true })).join("");
     return `
       <div class="alc-group">
         <div class="alc-group-title"><span>${escapeHtml(group.title)}</span><span class="count">${group.ids.length}</span></div>
         <div class="alc-list">${rows}</div>
       </div>`;
   }).join("");
+}
 
-  container.querySelectorAll("[data-toggle]").forEach(row => {
-    row.addEventListener("click", () => {
-      row.closest(".alc-item").classList.toggle("expanded");
-    });
-  });
+// One root's subtree is re-rendered in place whenever its calculation changes
+// (set, updated, or cleared) — everything else in the tree is untouched.
+function rerenderRoot(path){
+  const meta = rootMeta(path);
+  if (!meta) return;
+  const entry = calcState.get(path);
+  const calcNode = entry ? computeCalc(meta.id, entry.qty) : null;
+  const html = renderItem(meta.id, null, path, { isRoot: true, calcNode });
+  const oldEl = document.querySelector(`.alc-item[data-path="${path}"]`);
+  if (!oldEl) return;
+  const wrapper = document.createElement("div");
+  wrapper.innerHTML = html.trim();
+  oldEl.replaceWith(wrapper.firstElementChild);
+}
+
+function clearCalc(path){
+  calcState.delete(path);
+  const card = document.querySelector(`.calc-card[data-calc-path="${path}"]`);
+  if (card) card.remove();
+  rerenderRoot(path);
+}
+
+function activateCalc(inputEl){
+  const path = inputEl.dataset.calcInput;
+  const raw = inputEl.value.trim();
+  const qty = parseInt(raw, 10);
+  if (!raw || !Number.isFinite(qty) || qty <= 0) { clearCalc(path); return; }
+  calcState.set(path, { qty });
+  rerenderRoot(path);
+  updateCalcCard(path);
+}
+
+function updateCalcCard(path){
+  const meta = rootMeta(path);
+  const entry = calcState.get(path);
+  if (!meta || !entry) return;
+  const calcNode = computeCalc(meta.id, entry.qty);
+  const name = ITEM_NAMES[meta.id] || `Item ${meta.id}`;
+
+  const leafMap = new Map(); collectLeaves(calcNode, leafMap);
+  const craftMap = new Map(); collectCrafts(calcNode, craftMap);
+
+  const leafRows = [...leafMap.entries()].sort((a, b) => b[1] - a[1])
+    .map(([id, qty]) => `<div class="calc-row"><span class="calc-row-name">${escapeHtml(ITEM_NAMES[id] || `Item ${id}`)}</span><span class="calc-row-qty">${qty.toLocaleString()}</span></div>`)
+    .join("");
+  const craftRows = [...craftMap.entries()].sort((a, b) => b[1] - a[1])
+    .map(([id, n]) => `<div class="calc-row"><span class="calc-row-name">${escapeHtml(ITEM_NAMES[id] || `Item ${id}`)}</span><span class="calc-row-qty">${n.toLocaleString()}×</span></div>`)
+    .join("");
+
+  const npcTotal = leafMap.get(820936) || 0;
+  const npcNote = npcTotal > 0
+    ? `<div class="calc-npc-note">🛒 Includes ${npcTotal.toLocaleString()}× Spellbound Catalyst — bought from the Old Moon Manager NPC (1,000,000 silver each ≈ ${(npcTotal * 1000000).toLocaleString()} silver total), not gathered or crafted.</div>`
+    : "";
+
+  const headSub = calcNode.executions != null
+    ? `${calcNode.executions.toLocaleString()} craft${calcNode.executions === 1 ? "" : "s"} → ${calcNode.actualOutput.toLocaleString()} made`
+    : "";
+
+  let card = document.querySelector(`.calc-card[data-calc-path="${path}"]`);
+  if (!card) {
+    card = document.createElement("div");
+    card.className = "calc-card";
+    card.dataset.calcPath = path;
+    document.getElementById("calcResults").appendChild(card);
+  }
+  card.innerHTML = `
+    <div class="calc-card-head">
+      <span class="calc-card-title">${entry.qty.toLocaleString()}× ${escapeHtml(name)}</span>
+      <span class="calc-card-sub">${headSub}</span>
+      <button type="button" class="calc-card-close" data-calc-clear="${path}">✕ Clear</button>
+    </div>
+    ${craftRows ? `<div class="calc-subhead">Intermediate Crafts Needed</div><div class="calc-grid">${craftRows}</div>` : ""}
+    <div class="calc-subhead">Total Raw Materials</div>
+    <div class="calc-grid">${leafRows}</div>
+    ${npcNote}`;
 }
 
 function applySearch(){
@@ -564,6 +767,33 @@ document.getElementById("expandAllBtn").addEventListener("click", () => {
 });
 document.getElementById("collapseAllBtn").addEventListener("click", () => {
   document.querySelectorAll(".alc-item").forEach(el => el.classList.remove("expanded"));
+});
+
+// Event delegation on the tree container — DOM subtrees get replaced whenever
+// a calculation is set/updated/cleared, so listeners are bound once here
+// instead of being re-attached after every render.
+const alcContainer = document.getElementById("alcContainer");
+alcContainer.addEventListener("click", (e) => {
+  const clearBtn = e.target.closest("[data-calc-clear]");
+  if (clearBtn) { clearCalc(clearBtn.dataset.calcClear); return; }
+  if (e.target.closest(".alc-item-link, input")) return;
+  const toggle = e.target.closest("[data-toggle]");
+  if (toggle) toggle.closest(".alc-item").classList.toggle("expanded");
+});
+alcContainer.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.matches("[data-calc-input]")) {
+    e.preventDefault();
+    activateCalc(e.target);
+  }
+});
+alcContainer.addEventListener("change", (e) => {
+  if (e.target.matches("[data-calc-input]")) activateCalc(e.target);
+});
+
+// The "✕ Clear" button on a calculation results card lives outside the tree container.
+document.getElementById("calcResults").addEventListener("click", (e) => {
+  const clearBtn = e.target.closest("[data-calc-clear]");
+  if (clearBtn) clearCalc(clearBtn.dataset.calcClear);
 });
 </script>
 </body>
