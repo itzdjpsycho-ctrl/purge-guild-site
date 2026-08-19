@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alchemy — Purge</title>
+<link rel="icon" href="assets/branding/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/branding/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/branding/favicon-16.png">
+<link rel="apple-touch-icon" href="assets/branding/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Design tokens live in app.css now (single canonical :root, loaded after
+     this inline block so it wins the cascade) — not redefined per-page. */
+
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  html{ scroll-behavior:smooth; }
+
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-ui);
+    min-height:100vh;
+    overflow-x:hidden;
+  }
+
+  body::before{
+    content:"";
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(44,147,176,0.16), transparent 65%),
+      radial-gradient(ellipse 35% 45% at 100% 100%, rgba(124,111,224,0.07), transparent 60%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.008) 0px, rgba(255,255,255,0.008) 1px, transparent 1px, transparent 4px);
+  }
+
+  nav, header, main, footer{ position:relative; z-index:1; }
+
+  .panel{ background:var(--panel); border:1px solid var(--hairline); }
+  .section{ margin-bottom:30px; }
+  .section-label{
+    font-family:var(--font-mono); font-size:10px; letter-spacing:0.18em;
+    text-transform:uppercase; color:var(--text-faint); margin-bottom:14px;
+  }
+
+  /* ---- Source note ---- */
+  .source-note{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:12px 18px; margin-bottom:26px;
+    background:var(--panel); border:1px solid var(--hairline);
+    clip-path:var(--panel-clip, none);
+    font-family:var(--font-mono); font-size:11.5px; color:var(--text-muted);
+  }
+  .source-note a{ color:var(--crimson-glow); text-decoration:none; }
+  .source-note a:hover{ text-decoration:underline; }
+  .source-note b{ color:var(--text); }
+
+  /* ---- Legend ---- */
+  .alc-legend{
+    display:flex; flex-wrap:wrap; gap:10px 24px;
+    padding:14px 18px; margin-bottom:22px;
+    background:var(--panel); border:1px solid var(--hairline);
+    clip-path:var(--panel-clip, none);
+  }
+  .alc-legend-item{
+    display:flex; align-items:center; gap:8px;
+    font-family:var(--font-mono); font-size:11px; color:var(--text-muted);
+  }
+  .alc-swatch{
+    width:12px; height:12px; border-radius:3px; flex-shrink:0;
+    border:1px solid rgba(255,255,255,0.18);
+  }
+
+  /* ---- Control bar ---- */
+  .control-bar{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    margin-bottom:18px;
+  }
+  .control-bar input[type="text"]{
+    background:var(--panel-raised); border:1px solid var(--hairline); border-radius:6px;
+    color:var(--text); font-family:var(--font-ui); font-size:13px; padding:9px 12px; outline:none;
+    min-width:260px;
+  }
+  .control-bar input[type="text"]:focus{ border-color:var(--crimson); }
+  .control-spacer{ flex:1; }
+
+  /* ---- Draught blocks ---- */
+  .alc-block{ margin-bottom:16px; }
+  .alc-block-head{
+    width:100%; display:flex; align-items:center; gap:12px;
+    padding:14px 18px; cursor:pointer; user-select:none;
+    background:var(--panel); border:1px solid var(--hairline);
+    clip-path:var(--panel-clip, none);
+    font-family:var(--font-display, var(--font-ui)); font-size:16px; font-weight:600; color:var(--text);
+  }
+  .alc-block-head:hover{ border-color:rgba(255,255,255,0.18); }
+  .alc-block-head .chev{
+    margin-left:auto; color:var(--text-faint); transition:transform 0.16s ease;
+    display:flex; align-items:center;
+  }
+  .alc-block.collapsed .alc-block-head .chev{ transform:rotate(-90deg); }
+  .alc-block-count{
+    font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint);
+    background:rgba(255,255,255,0.05); padding:2px 9px; border-radius:999px;
+  }
+  .alc-block-dots{ display:flex; gap:6px; margin-left:4px; }
+  .alc-block-dot{ width:9px; height:9px; border-radius:50%; }
+  .alc-block-body{
+    background:var(--panel-raised, var(--panel)); border:1px solid var(--hairline); border-top:none;
+  }
+  .alc-block.collapsed .alc-block-body{ display:none; }
+
+  .alc-row{
+    display:flex; align-items:center; gap:12px;
+    padding:9px 18px; border-bottom:1px solid var(--hairline);
+  }
+  .alc-row:last-child{ border-bottom:none; }
+  .alc-row.alc-row-hidden{ display:none; }
+  .alc-row-num{
+    font-family:var(--font-mono); font-size:10px; color:var(--text-faint);
+    width:24px; flex-shrink:0; text-align:right;
+  }
+  .alc-row-chips{ display:flex; flex-wrap:wrap; gap:7px 8px; flex:1; }
+
+  .alc-chip{
+    display:inline-flex; align-items:center; gap:4px;
+    font-family:var(--font-mono); font-size:11.5px; line-height:1.4;
+    padding:4px 10px; border-radius:6px;
+    background:rgba(255,255,255,0.04); border:1px solid var(--hairline);
+    color:var(--text-muted); white-space:nowrap;
+  }
+  .alc-chip a{ color:inherit; text-decoration:none; }
+  .alc-chip a:hover{ text-decoration:underline; }
+  .alc-chip.kind-output{
+    background:rgba(91,201,118,0.12); border-color:rgba(91,201,118,0.5); color:var(--green-bright, #7fe39a);
+  }
+  .alc-chip.kind-section{
+    background:transparent; border-style:dashed; border-color:rgba(255,255,255,0.16);
+    color:var(--text-faint); text-transform:uppercase; letter-spacing:0.08em; font-size:9.5px;
+  }
+  .alc-chip.kind-blue{ background:rgba(60,120,216,0.14); border-color:rgba(60,120,216,0.5); color:#8fb8ff; }
+  .alc-chip.kind-green{ background:rgba(106,168,79,0.14); border-color:rgba(106,168,79,0.5); color:#9fd88a; }
+  .alc-chip.kind-red{ background:rgba(214,90,69,0.14); border-color:rgba(214,90,69,0.5); color:#ff9c8a; }
+  .alc-chip.kind-region-human{ background:rgba(152,0,0,0.2); border-color:#d65a45; color:#ff9c8a; }
+  .alc-chip.kind-region-demihuman{ background:rgba(230,145,56,0.18); border-color:#e8bc55; color:#e8bc55; }
+  .alc-chip.kind-region-kamasylvia{ background:rgba(0,255,255,0.1); border-color:#5fdcf5; color:#5fdcf5; }
+  .alc-chip.kind-region-edania{ background:rgba(255,0,255,0.12); border-color:#d9a4ff; color:#e6b8ff; }
+
+  .empty-state{
+    padding:30px; text-align:center;
+    font-family:var(--font-mono); font-size:12px; color:var(--text-faint);
+  }
+</style>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<video class="bg-video" autoplay muted loop playsinline aria-hidden="true">
+  <source src="nanotech_background_3840.webm" type="video/webm">
+</video>
+<div class="bg-video-scrim"></div>
+
+<div class="app-shell">
+<aside class="app-sidebar">
+  <a class="app-brand" href="index.html">
+    <span class="app-brand-logo">⚔</span>
+    <span class="app-brand-text">
+      <span class="app-brand-name">Purge</span>
+      <span class="app-brand-sub">Node War</span>
+    </span>
+  </a>
+  <nav class="side-nav" id="sideNav">
+    <div class="side-nav-group" data-cat="overview">
+      <button type="button" class="side-nav-group-head">
+        <span>Overview</span>
+        <span class="chev"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+      <div class="side-nav-group-items">
+      <a href="index.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8L8 2.5L14 8"></path><path d="M3.5 6.5V13H12.5V6.5"></path></svg></span> Home</a>
+      </div>
+    </div>
+    <div class="side-nav-divider"></div>
+    <div class="side-nav-group" data-cat="warfare">
+      <button type="button" class="side-nav-group-head">
+        <span>Warfare</span>
+        <span class="chev"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+      <div class="side-nav-group-items">
+      <a href="war-scores.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13L9 7"></path><path d="M7.3 2.6L13.4 8.7L11.3 10.8L5.2 4.7Z"></path><path d="M2.3 13.7L4 12"></path></svg></span> War Scores</a>
+      <a href="combat-log.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2.5H10.5L13 5V13.5H4Z"></path><path d="M10.5 2.5V5H13"></path><path d="M6 8H11"></path><path d="M6 10.5H11"></path></svg></span> Combat Log</a>
+      <a href="players.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.7" cy="6" r="2"></circle><circle cx="11" cy="6.8" r="1.6"></circle><path d="M2.2 13C2.2 10.6 3.7 9 5.7 9C7.7 9 9.2 10.6 9.2 13"></path><path d="M9.4 9.5C10.9 9.6 12.2 10.9 12.2 13"></path></svg></span> Roster</a>
+      <a href="my-stats.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2 L13.5 4.2 V8.3 C13.5 11.3 11.1 13.4 8 14.3 C4.9 13.4 2.5 11.3 2.5 8.3 V4.2 Z"></path><path d="M5.7 8L7.3 9.6L10.5 6.3"></path></svg></span> My Stats</a>
+      </div>
+    </div>
+    <div class="side-nav-divider"></div>
+    <div class="side-nav-group" data-cat="media">
+      <button type="button" class="side-nav-group-head">
+        <span>Media</span>
+        <span class="chev"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+      <div class="side-nav-group-items">
+      <a href="vod-review.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="11" height="9" rx="0.5"></rect><path d="M6.5 6L10 8L6.5 10Z"></path></svg></span> VOD Review</a>
+      <a href="clips.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="11" height="8" rx="0.5"></rect><path d="M2.5 6.5H13.5"></path><path d="M5 4V6.5"></path><path d="M10.5 4V6.5"></path></svg></span> Clips</a>
+      </div>
+    </div>
+    <div class="side-nav-divider"></div>
+    <div class="side-nav-group" data-cat="tools">
+      <button type="button" class="side-nav-group-head">
+        <span>Tools</span>
+        <span class="chev"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+      <div class="side-nav-group-items">
+      <a href="tachyon-tracker.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.2 4.2C6.2 3.3 6.9 2.6 8 2.6C9.1 2.6 9.8 3.3 9.8 4.2C9.8 5.1 9 5.1 9 6.2V6.5"></path><path d="M6.2 11.8C6.2 12.7 6.9 13.4 8 13.4C9.1 13.4 9.8 12.7 9.8 11.8C9.8 10.9 9 10.9 9 9.8V9.5"></path><path d="M4.2 6.2C3.3 6.2 2.6 6.9 2.6 8C2.6 9.1 3.3 9.8 4.2 9.8C5.1 9.8 5.1 9 6.2 9H6.5"></path><path d="M11.8 6.2C12.7 6.2 13.4 6.9 13.4 8C13.4 9.1 12.7 9.8 11.8 9.8C10.9 9.8 10.9 9 9.8 9H9.5"></path></svg></span> Tachyon Tracker</a>
+      <a href="alchemy.html" class="current"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 2.5H9.5"></path><path d="M7 2.5V6.3L3.8 12.3C3.4 13.1 4 14 4.9 14H11.1C12 14 12.6 13.1 12.2 12.3L9 6.3V2.5"></path><path d="M5.3 10.2H10.7"></path></svg></span> Alchemy</a>
+      </div>
+    </div>
+    <div class="side-nav-divider"></div>
+    <div class="side-nav-group" data-cat="administration">
+      <button type="button" class="side-nav-group-head">
+        <span>Administration</span>
+        <span class="chev"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>
+      <div class="side-nav-group-items">
+      <a href="signups.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.5 2.5H10.5V4.2H5.5Z"></path><path d="M4 4.2H12V13.5H4Z"></path><path d="M6.2 7.5H9.8"></path><path d="M6.2 10H9.8"></path></svg></span> Sign Ups</a>
+      <a href="dashboard.html"><span class="ico"><svg viewBox="0 0 16 16" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 13.5V2.5"></path><path d="M2.5 13.5H13.5"></path><rect x="4.5" y="9" width="2" height="4.5"></rect><rect x="8" y="6" width="2" height="7.5"></rect><rect x="11.5" y="4" width="2" height="9.5"></rect></svg></span> Dashboard</a>
+      </div>
+    </div>
+  </nav>
+  <div id="authWidget" class="auth-widget"></div>
+  <div class="app-sidebar-foot">
+    <b>Purge</b> · BDO Guild<br>
+    Node War Log
+  </div>
+</aside>
+
+<main class="app-content">
+
+<div class="page-head">
+  <div class="page-eyebrow">Reference</div>
+  <h1>Alchemy</h1>
+  <div class="page-sub">Harmony Draught crafting chains — elixirs, reagents, and where to gather them. Not guild data, no Worker/D1 involvement.</div>
+</div>
+
+<div class="source-note">
+  🧪 Digitized from a guild-maintained reference spreadsheet (<b>Harmonies/</b> in the repo) — same layout, links, and color-coding as the original sheet, just re-skinned for the site. <b>More sheets will be added here over time.</b>
+</div>
+
+<div class="section">
+  <div class="alc-legend">
+    <span class="alc-legend-item"><span class="alc-swatch" style="background:rgba(91,201,118,0.35); border-color:rgba(91,201,118,0.6);"></span> Harmony Draught output</span>
+    <span class="alc-legend-item"><span class="alc-swatch" style="background:rgba(152,0,0,0.5); border-color:#d65a45;"></span> Harmony Draught — Human</span>
+    <span class="alc-legend-item"><span class="alc-swatch" style="background:rgba(230,145,56,0.5); border-color:#e8bc55;"></span> Harmony Draught — Demihuman</span>
+    <span class="alc-legend-item"><span class="alc-swatch" style="background:rgba(0,255,255,0.35); border-color:#5fdcf5;"></span> Harmony Draught — Kamasylvia</span>
+    <span class="alc-legend-item"><span class="alc-swatch" style="background:rgba(255,0,255,0.35); border-color:#d9a4ff;"></span> Harmony Draught — Edania</span>
+    <span class="alc-legend-item"><span class="alc-swatch" style="background:rgba(60,120,216,0.4); border-color:#3c78d8;"></span> Fruit of Nature</span>
+    <span class="alc-legend-item"><span class="alc-swatch" style="background:rgba(106,168,79,0.4); border-color:#6aa84f;"></span> Farmable (Weeds/Wild Grass)</span>
+    <span class="alc-legend-item"><span class="alc-swatch" style="background:rgba(214,90,69,0.4); border-color:#d65a45;"></span> Rare Blood reagent</span>
+    <span class="alc-legend-item"><span class="alc-swatch" style="background:transparent; border-style:dashed;"></span> Category label</span>
+  </div>
+
+  <div class="control-bar">
+    <input type="text" id="alcSearch" placeholder="Search item, ingredient, or node…" autocomplete="off">
+    <div class="control-spacer"></div>
+    <button class="btn" id="expandAllBtn" type="button">Expand All</button>
+    <button class="btn" id="collapseAllBtn" type="button">Collapse All</button>
+  </div>
+
+  <div id="alcContainer"></div>
+  <div class="empty-state" id="alcEmptyState" style="display:none;">No matches.</div>
+</div>
+
+<div class="section">
+  <div class="section-label">How To Read This</div>
+  <div class="panel" style="padding:18px 22px; font-family:var(--font-ui); font-size:13px; line-height:1.7; color:var(--text-muted);">
+    Each <b style="color:var(--text);">Draught</b> block is one crafting family (Fury / Adaptation / Potential / Corruption / Berserk). Rows are shown
+    exactly as laid out in the source spreadsheet — items and their quantities grouped together, left to right, with the row number from that sheet
+    kept on the left for cross-reference. Colored chips carry the same meaning the original color-coding did (see the legend above) — green marks a
+    <b style="color:var(--text);">Harmony Draught</b> output, the four bright region badges mark which regional Harmony Draught a line feeds, and the
+    dashed chips are section labels (Mushrooms, Misc Node, etc.) rather than items. Links go to bdolytics/bdocodex for the linked item.
+  </div>
+</div>
+
+</main>
+</div><!-- /app-shell -->
+
+<script>document.write('<scr'+'ipt src="assets/auth.js?v='+Date.now()+'"></scr'+'ipt>')</script>
+<script src="assets/sidebar-nav.js"></script>
+<script>PurgeAuth.init();</script>
+<script>
+/* ================================================================
+   ALCHEMY REFERENCE — digitized from Harmonies/Sheet1.html, a
+   guild-maintained Google Sheets export tracking the Harmony
+   Draught crafting line (Fury / Adaptation / Potential / Corruption
+   / Berserk). Row layout, links, and cell color-coding are preserved
+   from the source sheet; only fully-empty trailing columns (O–Z,
+   which never carry content in this sheet) were dropped. Each row's
+   `n` is that row's number in the original spreadsheet, kept for
+   cross-reference. Not guild data — no Worker/D1 involvement.
+   More reference sheets from Harmonies/ will be added here over time.
+================================================================ */
+const HARMONY_DATA = [
+  { name: "Fury Draught", rows: [
+    { n:1, c:[{t:"Elixir of Fury",h:"https://bdolytics.com/en/NA/db/item/704",k:"plain"},{t:"Ash Sap x1",h:"https://bdolytics.com/en/NA/db/item/5001",k:"plain"},{t:"Harmony Draught",h:"https://bdocodex.com/us/item/1399/",k:"output"},{t:"Fury Draught x10",h:null,k:"plain"},{t:"Oil of Regeneration",h:"https://bdolytics.com/en/NA/db/item/6601",k:"plain"},{t:"Legendary Beast's Blood x1",h:"https://bdolytics.com/en/NA/db/item/6351",k:"plain"},{t:"Mushrooms",h:null,k:"section"}] },
+    { n:2, c:[{t:"Elixir of Fury x30",h:"https://bdolytics.com/en/NA/db/item/704",k:"plain"},{t:"Dwarf Mushroom x4",h:"https://bdolytics.com/en/NA/db/item/5409",k:"plain"},{t:"Adaptation Draught x10",h:null,k:"plain"},{t:"Fruit of Nature x1",h:"https://bdolytics.com/en/NA/db/item/5205",k:"blue"},{t:"Amanita Mushroom",h:"https://bdolytics.com/en/NA/db/item/5419",k:"plain"}] },
+    { n:3, c:[{t:"Elixir of Frenzy x30",h:"https://bdolytics.com/en/NA/db/item/672",k:"plain"},{t:"Bear Blood x4",h:"https://bdolytics.com/en/NA/db/item/6213",k:"plain"},{t:"Potential Draught x10",h:null,k:"plain"},{t:"Powder of Rifts x1",h:"https://bdolytics.com/en/NA/db/item/4803",k:"plain"},{t:"Ancient Mushroom",h:"https://bdolytics.com/en/NA/db/item/5418",k:"plain"}] },
+    { n:4, c:[{t:"Elixir of Concentration x30",h:"https://bdolytics.com/en/NA/db/item/700",k:"plain"},{t:"Purified Water x3",h:"https://bdolytics.com/en/NA/db/item/6656",k:"plain"},{t:"Corruption Draught x10",h:null,k:"plain"},{t:"Red Tree Lump x1",h:"https://bdolytics.com/en/NA/db/item/5011",k:"plain"},{t:"Arrow Mushroom",h:"https://bdolytics.com/en/NA/db/item/5408",k:"plain"},{t:"Forest Of Plunder",h:null,k:"plain"},{t:"Ivero Cliff",h:null,k:"plain"}] },
+    { n:5, c:[{t:"Elixir of Destruction x30",h:"https://bdolytics.com/en/NA/db/item/1180",k:"plain"},{t:"Elixir of Frenzy",h:"https://bdolytics.com/en/NA/db/item/672",k:"plain"},{t:"Oil of Regeneration x1",h:"https://bdolytics.com/en/NA/db/item/6601",k:"plain"},{t:"Berserk Draught x10",h:null,k:"plain"},{t:"Bluffer Mushroom",h:"https://bdolytics.com/en/NA/db/item/5417",k:"plain"}] },
+    { n:6, c:[{t:"Spellbound Catalyst x10",h:null,k:"plain"},{t:"Clear Liquid Reagent x5",h:"https://bdolytics.com/en/NA/db/item/5301",k:"plain"},{t:"Harmony Draught - Human",h:null,k:"region-human"},{t:"Harmony Draught x1",h:"https://bdocodex.com/us/item/1399/",k:"plain"},{t:"Oil of Storms",h:"https://bdolytics.com/en/NA/db/item/6602",k:"plain"},{t:"Tyrant's Blood x1",h:"https://bdolytics.com/en/NA/db/item/6352",k:"plain"},{t:"Cloud Mushroom",h:"https://bdolytics.com/en/NA/db/item/5410",k:"plain"},{t:"Glish Swamp",h:null,k:"plain"},{t:"Southern Swamp",h:null,k:"plain"}] },
+    { n:7, c:[{t:"Ghost Mushroom x2",h:"https://bdolytics.com/en/NA/db/item/5414",k:"plain"},{t:"Elixir of Human Hunt x3",h:"https://bdocodex.com/us/item/670/",k:"plain"},{t:"Fruit of Nature x1",h:"https://bdolytics.com/en/NA/db/item/5205",k:"blue"},{t:"Dwarf Mushroom",h:"https://bdolytics.com/en/NA/db/item/5409",k:"plain"},{t:"Northern Swamp",h:null,k:"plain"}] },
+    { n:8, c:[{t:"Trace of Nature x3",h:"https://bdolytics.com/en/NA/db/item/5960",k:"plain"},{t:"Elixir of Will x3",h:"https://bdolytics.com/en/NA/db/item/702",k:"plain"},{t:"Powder of Time x1",h:"https://bdolytics.com/en/NA/db/item/4805",k:"plain"},{t:"Emperor Mushroom",h:"https://bdolytics.com/en/NA/db/item/5413",k:"plain"},{t:"Glutoni Cave",h:null,k:"plain"},{t:"Rhua Tree Stub",h:null,k:"plain"}] },
+    { n:9, c:[{t:"Cedar Sap x5",h:"https://bdolytics.com/en/NA/db/item/5010",k:"plain"},{t:"Spellbound Catalyst x1",h:null,k:"plain"},{t:"Old Tree Bark x1",h:"https://bdolytics.com/en/NA/db/item/5008",k:"plain"},{t:"Fortune Teller Mushroom",h:"https://bdolytics.com/en/NA/db/item/5407",k:"plain"},{t:"Ehwaz Hill",h:null,k:"plain"},{t:"Coastal Cliff",h:null,k:"plain"}] },
+    { n:10, c:[{t:"Elixir of Concentration",h:"https://bdolytics.com/en/NA/db/item/700",k:"plain"},{t:"Clear Liquid Reagent x1",h:"https://bdolytics.com/en/NA/db/item/5301",k:"plain"},{t:"Elixir of Human Hunt",h:"https://bdocodex.com/us/item/670/",k:"plain"},{t:"Clown's Blood x1",h:null,k:"plain"},{t:"Oil of Corruption",h:"https://bdolytics.com/en/NA/db/item/6604",k:"plain"},{t:"Sinner's Blood x1",h:"https://bdolytics.com/en/NA/db/item/6354",k:"plain"},{t:"Ghost Mushroom",h:"https://bdolytics.com/en/NA/db/item/5414",k:"plain"},{t:"Marie Cave",h:null,k:"plain"}] },
+    { n:11, c:[{t:"Cloud Mushroom x3",h:"https://bdolytics.com/en/NA/db/item/5410",k:"plain"},{t:"Fortune Teller Mushroom x4",h:null,k:"plain"},{t:"Fruit of Nature x1",h:"https://bdolytics.com/en/NA/db/item/5205",k:"blue"},{t:"Hump Mushroom",h:"https://bdolytics.com/en/NA/db/item/5416",k:"plain"}] },
+    { n:12, c:[{t:"Bear Blood x3",h:"https://bdolytics.com/en/NA/db/item/6213",k:"plain"},{t:"Black Stone Powder x3",h:null,k:"plain"},{t:"Powder of Darkness x1",h:"https://bdolytics.com/en/NA/db/item/4801",k:"plain"},{t:"Sky Mushroom",h:"https://bdolytics.com/en/NA/db/item/5411",k:"plain"},{t:"Epheria Valley",h:null,k:"plain"},{t:"Elric Shrine",h:null,k:"plain"}] },
+    { n:13, c:[{t:"Weeds x8",h:"https://bdolytics.com/en/NA/db/item/5600",k:"green"},{t:"Wild Grass x2",h:"https://bdolytics.com/en/NA/db/item/5439",k:"green"},{t:"Maple Sap x4",h:null,k:"plain"},{t:"Spirit's Leaf x1",h:"https://bdolytics.com/en/NA/db/item/5006",k:"plain"},{t:"Tiger Mushroom",h:"https://bdolytics.com/en/NA/db/item/5412",k:"plain"},{t:"Bree Tree Ruins",h:null,k:"plain"},{t:"Kamasylve Temple",h:null,k:"plain"}] },
+    { n:14, c:[{t:"Elixir of Destruction",h:"https://bdolytics.com/en/NA/db/item/1180",k:"plain"},{t:"Oil of Storms x1",h:"https://bdolytics.com/en/NA/db/item/6602",k:"plain"},{t:"Elixir of Will",h:"https://bdolytics.com/en/NA/db/item/702",k:"plain"},{t:"Pure Powder Reagent x1",h:"https://bdolytics.com/en/NA/db/item/5302",k:"plain"},{t:"Oil of Tranquility",h:"https://bdolytics.com/en/NA/db/item/6605",k:"plain"},{t:"Wise Man's Blood x1",h:"https://bdolytics.com/en/NA/db/item/6355",k:"plain"},{t:"Truffle Mushroom",h:"https://bdolytics.com/en/NA/db/item/5420",k:"plain"}] },
+    { n:15, c:[{t:"Trace of Nature x3",h:"https://bdolytics.com/en/NA/db/item/5960",k:"plain"},{t:"Wolf Blood x6",h:"https://bdolytics.com/en/NA/db/item/6214",k:"plain"},{t:"Fruit of Nature x1",h:"https://bdolytics.com/en/NA/db/item/5205",k:"blue"},{t:"Sap",h:null,k:"section"}] },
+    { n:16, c:[{t:"Clear Liquid Reagent x5",h:"https://bdolytics.com/en/NA/db/item/5301",k:"plain"},{t:"Sunrise Herb x4",h:"https://bdolytics.com/en/NA/db/item/5401",k:"plain"},{t:"Powder of Earth x1",h:"https://bdolytics.com/en/NA/db/item/4804",k:"plain"},{t:"Ash Sap",h:"https://bdolytics.com/en/NA/db/item/5001",k:"plain"},{t:"Ehwaz Hill",h:null,k:"plain"}] },
+    { n:17, c:[{t:"Powder of Flame x5",h:"https://bdolytics.com/en/NA/db/item/4802",k:"plain"},{t:"Purified Water x3",h:"https://bdolytics.com/en/NA/db/item/6656",k:"plain"},{t:"Bloody Tree Knot x1",h:"https://bdolytics.com/en/NA/db/item/5005",k:"plain"},{t:"Birch Sap",h:"https://bdolytics.com/en/NA/db/item/5004",k:"plain"},{t:"Bree Tree Ruins",h:null,k:"plain"},{t:"Khimut Lumber Camp",h:null,k:"plain"}] },
+    { n:18, c:[{t:"Snowfield Cedar Sap x7",h:"https://bdolytics.com/en/NA/db/item/5024",k:"plain"},{t:"Harmony Draught - Demihuman",h:null,k:"region-demihuman"},{t:"Harmony Draught x1",h:"https://bdocodex.com/us/item/1399/",k:"plain"},{t:"Oil of Fortitude",h:"https://bdolytics.com/en/NA/db/item/6603",k:"plain"},{t:"Clown's Blood x1",h:"https://bdolytics.com/en/NA/db/item/6353",k:"plain"},{t:"Cedar Sap",h:"https://bdolytics.com/en/NA/db/item/5010",k:"plain"},{t:"Longleaf Tree Forest",h:null,k:"plain"},{t:"Gianin Farm",h:null,k:"plain"}] },
+  ]},
+  { name: "Adaptation Draught", rows: [
+    { n:19, c:[{t:"Defense Elixir",h:"https://bdolytics.com/en/NA/db/item/716",k:"plain"},{t:"Clear Liquid Reagent x1",h:"https://bdolytics.com/en/NA/db/item/5301",k:"plain"},{t:"Elixir of Demihuman Hunt x3",h:"https://bdolytics.com/en/NA/db/recipe/396",k:"plain"},{t:"Fruit of Nature x1",h:"https://bdolytics.com/en/NA/db/item/5205",k:"blue"},{t:"Maple Sap",h:"https://bdolytics.com/en/NA/db/item/5002",k:"plain"},{t:"Beombawi Valley",h:null,k:"plain"},{t:"Mediah Northern Highlands",h:null,k:"plain"},{t:"Castle Ruins",h:null,k:"plain"}] },
+    { n:20, c:[{t:"Defense Elixir x30",h:"https://bdolytics.com/en/NA/db/item/716",k:"plain"},{t:"Ash Sap x6",h:"https://bdolytics.com/en/NA/db/item/5001",k:"plain"},{t:"Elixir of Will x3",h:"https://bdolytics.com/en/NA/db/item/702",k:"plain"},{t:"Powder of Flame x1",h:"https://bdolytics.com/en/NA/db/item/4802",k:"plain"},{t:"Pine Sap",h:"https://bdolytics.com/en/NA/db/item/5003",k:"plain"},{t:"Marie Cave",h:null,k:"plain"},{t:"Bomnae County",h:null,k:"plain"},{t:"Honglim Base",h:null,k:"plain"},{t:"Khimut Lumber Camp",h:null,k:"plain"}] },
+    { n:21, c:[{t:"Helix Elixir x30",h:"https://bdolytics.com/en/NA/db/item/782",k:"plain"},{t:"Pig Blood x5",h:"https://bdolytics.com/en/NA/db/item/6205",k:"plain"},{t:"Spellbound Catalyst x1",h:null,k:"plain"},{t:"Monk's Branch x1",h:"https://bdolytics.com/en/NA/db/item/5007",k:"plain"},{t:"Snowfield Cedar Sap",h:"https://bdolytics.com/en/NA/db/item/5024",k:"plain"},{t:"Jade Starlight Forest",h:null,k:"plain"},{t:"Mountain Top Guard Post",h:null,k:"plain"},{t:"Wind Nol's Perch",h:null,k:"plain"}] },
+    { n:22, c:[{t:"Elixir of Life x30",h:"https://bdolytics.com/en/NA/db/item/708",k:"plain"},{t:"Purified Water x3",h:"https://bdolytics.com/en/NA/db/item/6656",k:"plain"},{t:"Elixir of Demihuman Hunt",h:"https://bdolytics.com/en/NA/db/recipe/396",k:"plain"},{t:"Sinner's Blood x1",h:"https://bdolytics.com/en/NA/db/item/6354",k:"plain"},{t:"Clear Liquid Reagent",h:"https://bdolytics.com/en/NA/db/item/5301",k:"plain"},{t:"Salt x1",h:"https://bdolytics.com/en/NA/db/item/9001",k:"plain"},{t:"Thuja Sap",h:"https://bdolytics.com/en/NA/db/item/5020",k:"plain"},{t:"Dormann Lumber Camp",h:null,k:"plain"}] },
+    { n:23, c:[{t:"Elixir of Endurance x30",h:"https://bdolytics.com/en/NA/db/item/722",k:"plain"},{t:"Helix Elixir",h:"https://bdolytics.com/en/NA/db/item/782",k:"plain"},{t:"Thuja Sap x6",h:"https://bdolytics.com/en/NA/db/item/5020",k:"plain"},{t:"Arrow Mushroom x4",h:"https://bdolytics.com/en/NA/db/item/5408",k:"plain"},{t:"Sunrise Herb x1",h:"https://bdolytics.com/en/NA/db/item/5401",k:"plain"},{t:"Powder",h:null,k:"section"}] },
+    { n:24, c:[{t:"Spellbound Catalyst x10",h:null,k:"plain"},{t:"Monk's Branch x3",h:"https://bdolytics.com/en/NA/db/item/5007",k:"plain"},{t:"Black Stone Powder x3",h:"https://bdolytics.com/en/NA/db/item/4901",k:"plain"},{t:"Purified Water x1",h:"https://bdolytics.com/en/NA/db/item/6656",k:"plain"},{t:"Powder of Darkness",h:"https://bdolytics.com/en/NA/db/item/4801",k:"plain"},{t:"Coastal Cliff",h:null,k:"plain"},{t:"Gavinya Coastal Cliff",h:null,k:"plain"},{t:"Coastal Cave",h:null,k:"plain"},{t:"Northern Heidel Quarry",h:null,k:"plain"}] },
+    { n:25, c:[{t:"Clown's Blood x2",h:"https://bdolytics.com/en/NA/db/item/6353",k:"plain"},{t:"Fir Sap x4",h:"https://bdolytics.com/en/NA/db/item/5009",k:"plain"},{t:"Weeds x1",h:"https://bdolytics.com/en/NA/db/item/5600",k:"green"},{t:"Abandoned Iron Mine",h:null,k:"plain"},{t:"Hexe Stone Wall",h:null,k:"plain"},{t:"Olun's Valley",h:null,k:"plain"},{t:"Bashim Base",h:null,k:"plain"}] },
+    { n:26, c:[{t:"Powder of Flame x2",h:"https://bdolytics.com/en/NA/db/item/4802",k:"plain"},{t:"Elixir of Will",h:"https://bdolytics.com/en/NA/db/item/702",k:"plain"},{t:"Pure Powder Reagent x1",h:"https://bdolytics.com/en/NA/db/item/5302",k:"plain"},{t:"Crescent Mountains",h:null,k:"plain"},{t:"Pilgrim's Haven",h:null,k:"plain"}] },
+    { n:27, c:[{t:"Purified Water x3",h:"https://bdolytics.com/en/NA/db/item/6656",k:"plain"},{t:"Wolf Blood x6",h:"https://bdolytics.com/en/NA/db/item/6214",k:"plain"},{t:"Pure Powder Reagent",h:"https://bdolytics.com/en/NA/db/item/5302",k:"plain"},{t:"Sugar x1",h:"https://bdolytics.com/en/NA/db/item/9002",k:"plain"},{t:"Powder of Earth",h:"https://bdolytics.com/en/NA/db/item/4804",k:"plain"},{t:"Behr Riverhead",h:null,k:"plain"},{t:"Lake Flondor",h:null,k:"plain"}] },
+    { n:28, c:[{t:"Elixir of Life",h:"https://bdolytics.com/en/NA/db/item/708",k:"plain"},{t:"Pure Powder Reagent x1",h:"https://bdolytics.com/en/NA/db/item/5302",k:"plain"},{t:"Sunrise Herb x4",h:"https://bdolytics.com/en/NA/db/item/5401",k:"plain"},{t:"Silver Azalea x1",h:"https://bdolytics.com/en/NA/db/item/5402",k:"plain"},{t:"Powder of Flame",h:"https://bdolytics.com/en/NA/db/item/4802",k:"plain"},{t:"Capotia",h:null,k:"plain"},{t:"Cresent Shrine",h:null,k:"plain"},{t:"Imp Cave",h:null,k:"plain"},{t:"Northern Heidel Quarry",h:null,k:"plain"}] },
+    { n:29, c:[{t:"HP Potion (Small) x3",h:"https://bdolytics.com/en/NA/db/item/517",k:"plain"},{t:"Purified Water x3",h:"https://bdolytics.com/en/NA/db/item/6656",k:"plain"},{t:"Purified Water x1",h:"https://bdolytics.com/en/NA/db/item/6656",k:"plain"},{t:"Forest of Seclusion",h:null,k:"plain"},{t:"Mediah Shore",h:null,k:"plain"},{t:"Pujiya Canyon",h:null,k:"plain"},{t:"Gavinya Great Crater",h:null,k:"plain"}] },
+    { n:30, c:[{t:"Silver Azalea x3",h:"https://bdolytics.com/en/NA/db/item/5402",k:"plain"},{t:"Harmony Draught - Kamasylvia",h:null,k:"region-kamasylvia"},{t:"Harmony Draught x1",h:"https://bdocodex.com/us/item/1399/",k:"plain"},{t:"Weeds x1",h:"https://bdolytics.com/en/NA/db/item/5600",k:"green"},{t:"Gavinya Volcano Zone",h:null,k:"plain"}] },
+    { n:31, c:[{t:"Fox Blood x5",h:"https://bdolytics.com/en/NA/db/item/6203",k:"red"},{t:"Griffon's Elixir x3",h:"https://bdolytics.com/en/NA/db/recipe/431",k:"plain"},{t:"Clown's Blood",h:"https://bdolytics.com/en/NA/db/item/6353",k:"plain"},{t:"Clear Liquid Reagent x1",h:"https://bdolytics.com/en/NA/db/item/5301",k:"plain"},{t:"Powder of Rifts",h:"https://bdolytics.com/en/NA/db/item/4803",k:"plain"},{t:"Glutoni Cave",h:null,k:"plain"},{t:"Kmach Canyon",h:null,k:"plain"},{t:"Coastal Cave",h:null,k:"plain"},{t:"Omar Lava Cave",h:null,k:"plain"}] },
+    { n:32, c:[{t:"Elixir of Endurance",h:"https://bdolytics.com/en/NA/db/item/722",k:"plain"},{t:"Pure Powder Reagent x1",h:"https://bdolytics.com/en/NA/db/item/5302",k:"plain"},{t:"Elixir of Will x3",h:"https://bdolytics.com/en/NA/db/item/702",k:"plain"},{t:"Wolf Blood x2",h:"https://bdolytics.com/en/NA/db/item/6214",k:"plain"},{t:"Keplan Quarry",h:null,k:"plain"},{t:"Primal Giant Post",h:null,k:"plain"},{t:"Southern Kamasylvia",h:null,k:"plain"},{t:"Gavinya Volcano Zone",h:null,k:"plain"}] },
+    { n:33, c:[{t:"Birch Sap x5",h:"https://bdolytics.com/en/NA/db/item/5004",k:"plain"},{t:"Spellbound Catalyst x1",h:null,k:"plain"},{t:"Powder of Darkness x1",h:"https://bdolytics.com/en/NA/db/item/4801",k:"plain"},{t:"Roud Sulfur Works",h:null,k:"plain"}] },
+    { n:34, c:[{t:"Bear Blood x4",h:"https://bdolytics.com/en/NA/db/item/6213",k:"plain"},{t:"Griffon's Elixir",h:"https://bdolytics.com/en/NA/db/recipe/431",k:"plain"},{t:"Griffon Claw x1",h:"https://bdolytics.com/en/NA/db/item/9741",k:"plain"},{t:"Spirit's Leaf x1",h:"https://bdolytics.com/en/NA/db/item/5006",k:"plain"},{t:"Powder of Time",h:"https://bdolytics.com/en/NA/db/item/4805",k:"plain"},{t:"Glish Swamp",h:null,k:"plain"},{t:"Ancient Fissure",h:null,k:"plain"},{t:"Omar Lava Cave",h:null,k:"plain"},{t:"Abandoned Iron Mine",h:null,k:"plain"}] },
+    { n:35, c:[{t:"Dwarf Mushroom x2",h:"https://bdolytics.com/en/NA/db/item/5409",k:"plain"},{t:"Cedar Sap x6",h:"https://bdolytics.com/en/NA/db/item/5010",k:"plain"},{t:"Quint Hill",h:null,k:"plain"},{t:"Holo Forest",h:null,k:"plain"}] },
+  ]},
+  { name: "Potential Draught", rows: [
+    { n:36, c:[{t:"Elixir of Wind",h:"https://bdolytics.com/en/NA/db/recipe/401",k:"plain"},{t:"Wise Man's Blood x1",h:"https://bdolytics.com/en/NA/db/item/6355",k:"plain"},{t:"Trace of Nature x3",h:"https://bdolytics.com/en/NA/db/item/5960",k:"plain"},{t:"Wise Man's Blood",h:"https://bdolytics.com/en/NA/db/item/6355",k:"plain"},{t:"Clear Liquid Reagent x1",h:"https://bdolytics.com/en/NA/db/item/5301",k:"plain"},{t:"Misc Node",h:null,k:"section"}] },
+    { n:37, c:[{t:"Elixir of Wind x30",h:"https://bdolytics.com/en/NA/db/recipe/401",k:"plain"},{t:"Fortune Teller Mushroom x5",h:"https://bdolytics.com/en/NA/db/item/5407",k:"plain"},{t:"Purified Water x3",h:"https://bdolytics.com/en/NA/db/item/6656",k:"plain"},{t:"Fox Blood x2",h:"https://bdolytics.com/en/NA/db/item/6203",k:"red"},{t:"Bloody Tree Knot",h:"https://bdolytics.com/en/NA/db/item/5005",k:"plain"},{t:"Elric Shrine",h:null,k:"plain"},{t:"Stonetail Wasteland",h:null,k:"plain"},{t:"Treant Forest",h:null,k:"plain"}] },
+    { n:38, c:[{t:"Elixir of Spells x30",h:"https://bdolytics.com/en/NA/db/item/692",k:"plain"},{t:"Powder of Darkness x2",h:"https://bdolytics.com/en/NA/db/item/4801",k:"plain"},{t:"Sinner's Blood x2",h:"https://bdolytics.com/en/NA/db/item/6354",k:"plain"},{t:"Trace of Nature x1",h:"https://bdolytics.com/en/NA/db/item/5960",k:"plain"},{t:"Monk's Branch",h:"https://bdolytics.com/en/NA/db/item/5007",k:"plain"},{t:"Forest of Seclusion",h:null,k:"plain"},{t:"Serendia Shrine",h:null,k:"plain"},{t:"Oze Pass",h:null,k:"plain"}] },
+    { n:39, c:[{t:"Elixir of Shock x30",h:"https://bdolytics.com/en/NA/db/recipe/441",k:"plain"},{t:"Pine Sap x5",h:"https://bdolytics.com/en/NA/db/item/5003",k:"plain"},{t:"Elixir of Will",h:"https://bdolytics.com/en/NA/db/item/702",k:"plain"},{t:"Pure Powder Reagent x1",h:"https://bdolytics.com/en/NA/db/item/5302",k:"plain"},{t:"Monk's Branch x1",h:"https://bdolytics.com/en/NA/db/item/5007",k:"plain"},{t:"Old Tree Bark",h:"https://bdolytics.com/en/NA/db/item/5008",k:"plain"},{t:"Beombawi Valley",h:null,k:"plain"},{t:"Mediah Northern Highlands",h:null,k:"plain"}] },
+    { n:40, c:[{t:"Elixir of Swiftness x30",h:"https://bdolytics.com/en/NA/db/recipe/402",k:"plain"},{t:"Elixir of Spells",h:"https://bdolytics.com/en/NA/db/item/692",k:"plain"},{t:"Tyrant's Blood x1",h:"https://bdolytics.com/en/NA/db/item/6352",k:"plain"},{t:"Wolf Blood x6",h:"https://bdolytics.com/en/NA/db/item/6214",k:"plain"},{t:"Tyrant's Blood",h:"https://bdolytics.com/en/NA/db/item/6352",k:"plain"},{t:"Pure Powder Reagent x1",h:"https://bdolytics.com/en/NA/db/item/5302",k:"plain"},{t:"Red Tree Lump",h:"https://bdolytics.com/en/NA/db/item/5011",k:"plain"},{t:"Northern Plain of Serendia",h:null,k:"plain"},{t:"Quint Hill",h:null,k:"plain"},{t:"Old Dandelion",h:null,k:"plain"}] },
+    { n:41, c:[{t:"Spellbound Catalyst x10",h:null,k:"plain"},{t:"Fire Flake Flower x5",h:"https://bdolytics.com/en/NA/db/item/5403",k:"plain"},{t:"Sunrise Herb x4",h:"https://bdolytics.com/en/NA/db/item/5401",k:"plain"},{t:"Bear Blood x2",h:"https://bdolytics.com/en/NA/db/item/6213",k:"plain"},{t:"Silver Azalea",h:"https://bdolytics.com/en/NA/db/item/5402",k:"plain"},{t:"Northern Plain of Serendia",h:null,k:"plain"},{t:"Lynch Farm Ruins",h:null,k:"plain"}] },
+    { n:42, c:[{t:"Powder of Darkness x2",h:"https://bdolytics.com/en/NA/db/item/4801",k:"plain"},{t:"Purified Water x3",h:"https://bdolytics.com/en/NA/db/item/6656",k:"plain"},{t:"Trace of Nature x1",h:"https://bdolytics.com/en/NA/db/item/5960",k:"plain"},{t:"Spirit's Leaf",h:"https://bdolytics.com/en/NA/db/item/5006",k:"plain"},{t:"Balenos Forest",h:null,k:"plain"},{t:"Bari Forest",h:null,k:"plain"},{t:"Goblin Cave",h:null,k:"plain"},{t:"Lumberjack's Rest Area",h:null,k:"plain"}] },
+    { n:43, c:[{t:"Maple Sap x3",h:"https://bdolytics.com/en/NA/db/item/5002",k:"plain"},{t:"Harmony Draught - Edania",h:null,k:"region-edania"},{t:"Harmony Draught x1",h:"https://bdocodex.com/us/item/1399/",k:"plain"},{t:"Monk's Branch x1",h:"https://bdolytics.com/en/NA/db/item/5007",k:"plain"},{t:"Sunrise Herb",h:"https://bdolytics.com/en/NA/db/item/5401",k:"plain"},{t:"Grevish Mountains",h:null,k:"plain"},{t:"Balenos Forest",h:null,k:"plain"},{t:"Cron Castle Site",h:null,k:"plain"},{t:"Gavinya Coastal Cliff",h:null,k:"plain"}] },
+    { n:44, c:[{t:"Elixir of Shock",h:"https://bdolytics.com/en/NA/db/recipe/441",k:"plain"},{t:"Clown's Blood x1",h:"https://bdolytics.com/en/NA/db/item/6353",k:"plain"},{t:"Elixir of Edania x3",h:"https://bdocodex.com/us/item/1409/",k:"plain"},{t:"Legendary Beast's Blood",h:"https://bdolytics.com/en/NA/db/item/6351",k:"plain"},{t:"Pure Powder Reagent x1",h:"https://bdolytics.com/en/NA/db/item/5302",k:"plain"},{t:"Trace of Nature",h:"https://bdolytics.com/en/NA/db/item/5960",k:"plain"},{t:"Lynch Farm Ruins",h:null,k:"plain"},{t:"Beombawi Valley",h:null,k:"plain"},{t:"Star's End",h:null,k:"plain"},{t:"Sherekhan Iron Mine",h:null,k:"plain"}] },
+    { n:45, c:[{t:"Tiger Mushroom x5",h:"https://bdolytics.com/en/NA/db/item/5412",k:"plain"},{t:"Elixir of Will x3",h:"https://bdolytics.com/en/NA/db/item/702",k:"plain"},{t:"Lizard Blood x2",h:"https://bdolytics.com/en/NA/db/item/6208",k:"red"},{t:"Pilgrim's Sanctum: Humility",h:null,k:"plain"},{t:"Golden Pig Cave",h:null,k:"plain"},{t:"Dokkebi Forest",h:null,k:"plain"},{t:"Ancient Stone Chamber",h:null,k:"plain"}] },
+    { n:46, c:[{t:"Powder of Time x3",h:"https://bdolytics.com/en/NA/db/item/4805",k:"plain"},{t:"Spellbound Catalyst x1",h:null,k:"plain"},{t:"Trace of Nature x1",h:"https://bdolytics.com/en/NA/db/item/5960",k:"plain"},{t:"Tooth Fairy Forest",h:null,k:"plain"},{t:"Sherekhan Necropolis",h:null,k:"plain"},{t:"Glish Ruins",h:null,k:"plain"},{t:"Fountain of Origin",h:null,k:"plain"}] },
+    { n:47, c:[{t:"Cedar Sap x7",h:"https://bdolytics.com/en/NA/db/item/5010",k:"plain"},{t:"Elixir of Edania",h:"https://bdocodex.com/us/item/1409/",k:"plain"},{t:"Sinner's Blood x2",h:"https://bdolytics.com/en/NA/db/item/6354",k:"plain"},{t:"Spirit's Leaf x1",h:"https://bdolytics.com/en/NA/db/item/5006",k:"plain"},{t:"Zvier Highlands",h:null,k:"plain"},{t:"Crypt of Resting Throughts",h:null,k:"plain"},{t:"Mountain Of Division",h:null,k:"plain"},{t:"Bernianto Farm",h:null,k:"plain"}] },
+    { n:48, c:[{t:"Elixir of Swiftness",h:"https://bdolytics.com/en/NA/db/recipe/402",k:"plain"},{t:"Legendary Beast's Blood x1",h:"https://bdolytics.com/en/NA/db/item/6351",k:"plain"},{t:"Trace of Nature x4",h:"https://bdolytics.com/en/NA/db/item/5960",k:"plain"},{t:"Sinner's Blood",h:"https://bdolytics.com/en/NA/db/item/6354",k:"plain"},{t:"Clear Liquid Reagent x1",h:"https://bdolytics.com/en/NA/db/item/5301",k:"plain"},{t:"Ancient Ruins Excavation Site",h:null,k:"plain"},{t:"Mansha Forest",h:null,k:"plain"}] },
+    { n:49, c:[{t:"Arrow Mushroom x5",h:"https://bdolytics.com/en/NA/db/item/5408",k:"plain"},{t:"Old Tree Bark x5",h:"https://bdolytics.com/en/NA/db/item/5008",k:"plain"},{t:"Pig Blood x2",h:"https://bdolytics.com/en/NA/db/item/6205",k:"plain"},{t:"Misc Gather",h:null,k:"section"},{t:"Mis Buy",h:null,k:"section"}] },
+    { n:50, c:[{t:"Powder of Darkness x2",h:"https://bdolytics.com/en/NA/db/item/4801",k:"plain"},{t:"Clear Liquid Reagent x5",h:"https://bdolytics.com/en/NA/db/item/5301",k:"plain"},{t:"Powder of Flame x1",h:"https://bdolytics.com/en/NA/db/item/4802",k:"plain"},{t:"Fruit of Nature",h:"https://bdolytics.com/en/NA/db/item/5205",k:"blue"},{t:"Farming And Gathering",h:null,k:"plain"},{t:"HP Potion (Small)",h:"https://bdolytics.com/en/NA/db/item/517",k:"plain"}] },
+    { n:51, c:[{t:"Birch Sap x5",h:"https://bdolytics.com/en/NA/db/item/5004",k:"plain"},{t:"Caphras Tree Sap x6",h:"https://bdocodex.com/us/item/5025/",k:"plain"},{t:"Bloody Tree Knot x1",h:"https://bdolytics.com/en/NA/db/item/5005",k:"plain"},{t:"Wild Grass",h:"https://bdolytics.com/en/NA/db/item/5439",k:"green"},{t:"Baleno's Mountains",h:null,k:"plain"},{t:"Sugar",h:"https://bdolytics.com/en/NA/db/item/9002",k:"plain"}] },
+  ]},
+  { name: "Corruption Draught", rows: [
+    { n:52, c:[{t:"Elixir of Perforation",h:"https://bdolytics.com/en/NA/db/item/680",k:"plain"},{t:"Oil of Corruption x1",h:"https://bdolytics.com/en/NA/db/item/6604",k:"plain"},{t:"Elixir of Will",h:"https://bdolytics.com/en/NA/db/item/702",k:"plain"},{t:"Pure Powder Reagent x1",h:"https://bdolytics.com/en/NA/db/item/5302",k:"plain"},{t:"Weeds",h:"https://bdolytics.com/en/NA/db/item/5600",k:"green"},{t:"Farming And Gathering",h:null,k:"plain"},{t:"Salt",h:"https://bdolytics.com/en/NA/db/item/9001",k:"plain"}] },
+    { n:53, c:[{t:"Elixir of Perforation x30",h:"https://bdolytics.com/en/NA/db/item/680",k:"plain"},{t:"Clear Liquid Reagent x4",h:"https://bdolytics.com/en/NA/db/item/5301",k:"plain"},{t:"Wolf Blood x6",h:"https://bdolytics.com/en/NA/db/item/6214",k:"plain"},{t:"Bear Blood",h:"https://bdolytics.com/en/NA/db/item/6213",k:"plain"},{t:"LOML Hunting",h:null,k:"plain"},{t:"Purified Water",h:"https://bdolytics.com/en/NA/db/item/6656",k:"plain"},{t:"Lecical Falls",h:null,k:"plain"},{t:"Kunid'd Vacation Spot",h:null,k:"plain"}] },
+    { n:54, c:[{t:"Elixir of Death x30",h:"https://bdolytics.com/en/NA/db/recipe/400",k:"plain"},{t:"Bluffer Mushroom x5",h:"https://bdolytics.com/en/NA/db/item/5417",k:"plain"},{t:"Sunrise Herb x4",h:"https://bdolytics.com/en/NA/db/item/5401",k:"plain"},{t:"Fox Blood",h:"https://bdolytics.com/en/NA/db/item/6203",k:"red"},{t:"Forest of Seclusion",h:null,k:"plain"},{t:"Fire Flake Flower",h:"https://bdolytics.com/en/NA/db/item/5403",k:"plain"}] },
+    { n:55, c:[{t:"Elixir of Draining x30",h:"https://bdolytics.com/en/NA/db/recipe/395",k:"plain"},{t:"Trace of Nature x2",h:"https://bdolytics.com/en/NA/db/item/5960",k:"plain"},{t:"Purified Water x3",h:"https://bdolytics.com/en/NA/db/item/6656",k:"plain"},{t:"Lizard Blood",h:"https://bdolytics.com/en/NA/db/item/6208",k:"red"},{t:"Northwestern Gateway",h:null,k:"plain"},{t:"Griffon Claw",h:"https://bdolytics.com/en/NA/db/item/9741",k:"plain"}] },
+    { n:56, c:[{t:"Grim Reaper's Elixir x30",h:"https://bdolytics.com/en/NA/db/recipe/415",k:"plain"},{t:"Pine Sap x5",h:"https://bdolytics.com/en/NA/db/item/5003",k:"plain"},{t:"Wolf Blood",h:"https://bdolytics.com/en/NA/db/item/6214",k:"plain"},{t:"Rawr-Rawr Hunting",h:null,k:"plain"},{t:"Spellbound Catalyst",h:null,k:"plain"}] },
+    { n:57, c:[{t:"Spellbound Catalyst x10",h:null,k:"plain"},{t:"Elixir of Death",h:"https://bdolytics.com/en/NA/db/recipe/400",k:"plain"},{t:"Oil of Tranquility x1",h:"https://bdolytics.com/en/NA/db/item/6605",k:"plain"}] },
+    { n:58, c:[{t:"Clear Liquid Reagent x6",h:"https://bdolytics.com/en/NA/db/item/5301",k:"plain"}] },
+    { n:59, c:[{t:"Ancient Mushroom x2",h:"https://bdolytics.com/en/NA/db/item/5418",k:"plain"}] },
+    { n:60, c:[{t:"Trace of Nature x2",h:"https://bdolytics.com/en/NA/db/item/5960",k:"plain"}] },
+    { n:61, c:[{t:"Ash Sap x7",h:"https://bdolytics.com/en/NA/db/item/5001",k:"plain"}] },
+    { n:62, c:[{t:"Elixir of Draining",h:"https://bdolytics.com/en/NA/db/recipe/395",k:"plain"},{t:"Oil of Fortitude x1",h:"https://bdolytics.com/en/NA/db/item/6603",k:"plain"}] },
+    { n:63, c:[{t:"Clear Liquid Reagent x4",h:"https://bdolytics.com/en/NA/db/item/5301",k:"plain"}] },
+    { n:64, c:[{t:"Hump Mushroom x3",h:"https://bdolytics.com/en/NA/db/item/5416",k:"plain"}] },
+    { n:65, c:[{t:"Trace of Nature x2",h:"https://bdolytics.com/en/NA/db/item/5960",k:"plain"}] },
+    { n:66, c:[{t:"Birch Sap x4",h:"https://bdolytics.com/en/NA/db/item/5004",k:"plain"}] },
+    { n:67, c:[{t:"Grim Reaper's Elixir",h:"https://bdolytics.com/en/NA/db/recipe/415",k:"plain"},{t:"Oil of Fortitude x1",h:"https://bdolytics.com/en/NA/db/item/6603",k:"plain"}] },
+    { n:68, c:[{t:"Pure Powder Reagent x4",h:"https://bdolytics.com/en/NA/db/item/5302",k:"plain"}] },
+    { n:69, c:[{t:"Sky Mushroom x2",h:"https://bdolytics.com/en/NA/db/item/5411",k:"plain"}] },
+    { n:70, c:[{t:"Trace of Nature x4",h:"https://bdolytics.com/en/NA/db/item/5960",k:"plain"}] },
+    { n:71, c:[{t:"Monk's Branch x2",h:"https://bdolytics.com/en/NA/db/item/5007",k:"plain"}] },
+  ]},
+  { name: "Berserk Draught", rows: [
+    { n:72, c:[{t:"Elixir of Assassination",h:"https://bdolytics.com/en/NA/db/recipe/406",k:"plain"},{t:"Oil of Regeneration x1",h:"https://bdolytics.com/en/NA/db/item/6601",k:"plain"}] },
+    { n:73, c:[{t:"Elixir of Assassination x30",h:"https://bdolytics.com/en/NA/db/recipe/406",k:"plain"},{t:"Pure Powder Reagent x5",h:"https://bdolytics.com/en/NA/db/item/5302",k:"plain"}] },
+    { n:74, c:[{t:"Elixir of Detection x30",h:"https://bdolytics.com/en/NA/db/recipe/407",k:"plain"},{t:"Amanita Mushroom x4",h:"https://bdolytics.com/en/NA/db/item/5419",k:"plain"}] },
+    { n:75, c:[{t:"Elixir of Carnage x30",h:"https://bdolytics.com/en/NA/db/recipe/418",k:"plain"},{t:"Trace of Nature x2",h:"https://bdolytics.com/en/NA/db/item/5960",k:"plain"}] },
+    { n:76, c:[{t:"Elixir of Sky x30",h:"https://bdolytics.com/en/NA/db/item/720",k:"plain"},{t:"Red Tree Lump x2",h:"https://bdolytics.com/en/NA/db/item/5011",k:"plain"}] },
+    { n:77, c:[{t:"Spellbound Catalyst x10",h:null,k:"plain"},{t:"Elixir of Detection",h:"https://bdolytics.com/en/NA/db/recipe/407",k:"plain"},{t:"Oil of Storms x1",h:"https://bdolytics.com/en/NA/db/item/6602",k:"plain"}] },
+    { n:78, c:[{t:"Pure Powder Reagent x6",h:"https://bdolytics.com/en/NA/db/item/5302",k:"plain"}] },
+    { n:79, c:[{t:"Truffle Mushroom x3",h:"https://bdolytics.com/en/NA/db/item/5420",k:"plain"}] },
+    { n:80, c:[{t:"Trace of Nature x3",h:"https://bdolytics.com/en/NA/db/item/5960",k:"plain"}] },
+    { n:81, c:[{t:"Old Tree Bark x2",h:"https://bdolytics.com/en/NA/db/item/5008",k:"plain"}] },
+    { n:82, c:[{t:"Elixir of Carnage",h:"https://bdolytics.com/en/NA/db/recipe/418",k:"plain"},{t:"Oil of Corruption x1",h:"https://bdolytics.com/en/NA/db/item/6604",k:"plain"}] },
+    { n:83, c:[{t:"Pure Powder Reagent x7",h:"https://bdolytics.com/en/NA/db/item/5302",k:"plain"}] },
+    { n:84, c:[{t:"Tiger Mushroom x2",h:"https://bdolytics.com/en/NA/db/item/5412",k:"plain"}] },
+    { n:85, c:[{t:"Trace of Nature x3",h:"https://bdolytics.com/en/NA/db/item/5960",k:"plain"}] },
+    { n:86, c:[{t:"Spirit's Leaf x2",h:"https://bdolytics.com/en/NA/db/item/5006",k:"plain"}] },
+    { n:87, c:[{t:"Elixir of Sky",h:"https://bdolytics.com/en/NA/db/item/720",k:"plain"},{t:"Oil of Tranquility x1",h:"https://bdolytics.com/en/NA/db/item/6605",k:"plain"}] },
+    { n:88, c:[{t:"Pure Powder Reagent x6",h:"https://bdolytics.com/en/NA/db/item/5302",k:"plain"}] },
+    { n:89, c:[{t:"Emperor Mushroom x1",h:"https://bdolytics.com/en/NA/db/item/5413",k:"plain"}] },
+    { n:90, c:[{t:"Trace of Nature x4",h:"https://bdolytics.com/en/NA/db/item/5960",k:"plain"}] },
+    { n:91, c:[{t:"Bloody Tree Knot x2",h:"https://bdolytics.com/en/NA/db/item/5005",k:"plain"}] },
+  ]},
+];
+
+const REGION_DOT = {
+  "region-human": "#d65a45",
+  "region-demihuman": "#e8bc55",
+  "region-kamasylvia": "#5fdcf5",
+  "region-edania": "#e6b8ff",
+};
+
+function escapeHtml(s){
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function chipHtml(chip){
+  const inner = chip.h
+    ? `<a href="${escapeHtml(chip.h)}" target="_blank" rel="noopener">${escapeHtml(chip.t)}</a>`
+    : escapeHtml(chip.t);
+  return `<span class="alc-chip kind-${chip.k}">${inner}</span>`;
+}
+
+function renderBlocks(){
+  const container = document.getElementById("alcContainer");
+  container.innerHTML = HARMONY_DATA.map((block, bi) => {
+    const dots = [...new Set(block.rows.flatMap(r => r.c.filter(c => REGION_DOT[c.k]).map(c => c.k)))]
+      .map(k => `<span class="alc-block-dot" style="background:${REGION_DOT[k]}" title="${escapeHtml(k.replace('region-','Harmony Draught - '))}"></span>`)
+      .join("");
+    const rows = block.rows.map(r => `
+      <div class="alc-row" data-search="${escapeHtml(r.c.map(c => c.t).join(' ').toLowerCase())}">
+        <span class="alc-row-num">#${r.n}</span>
+        <div class="alc-row-chips">${r.c.map(chipHtml).join("")}</div>
+      </div>`).join("");
+    return `
+      <div class="alc-block" data-block="${bi}">
+        <button type="button" class="alc-block-head">
+          <span>${escapeHtml(block.name)}</span>
+          <span class="alc-block-count">${block.rows.length} rows</span>
+          <span class="alc-block-dots">${dots}</span>
+          <span class="chev"><svg width="12" height="12" viewBox="0 0 10 10" fill="none"><path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
+        <div class="alc-block-body">${rows}</div>
+      </div>`;
+  }).join("");
+
+  container.querySelectorAll(".alc-block-head").forEach(head => {
+    head.addEventListener("click", () => {
+      head.closest(".alc-block").classList.toggle("collapsed");
+    });
+  });
+}
+
+function applySearch(){
+  const q = document.getElementById("alcSearch").value.trim().toLowerCase();
+  let anyVisible = false;
+  document.querySelectorAll(".alc-block").forEach(block => {
+    let blockHasMatch = false;
+    block.querySelectorAll(".alc-row").forEach(row => {
+      const match = !q || row.dataset.search.includes(q);
+      row.classList.toggle("alc-row-hidden", !match);
+      if (match) blockHasMatch = true;
+    });
+    block.style.display = blockHasMatch ? "" : "none";
+    if (blockHasMatch) anyVisible = true;
+    if (q && blockHasMatch) block.classList.remove("collapsed");
+  });
+  document.getElementById("alcEmptyState").style.display = anyVisible ? "none" : "block";
+}
+
+renderBlocks();
+document.getElementById("alcSearch").addEventListener("input", applySearch);
+document.getElementById("expandAllBtn").addEventListener("click", () => {
+  document.querySelectorAll(".alc-block").forEach(b => b.classList.remove("collapsed"));
+});
+document.getElementById("collapseAllBtn").addEventListener("click", () => {
+  document.querySelectorAll(".alc-block").forEach(b => b.classList.add("collapsed"));
+});
+</script>
+</body>
+</html>
